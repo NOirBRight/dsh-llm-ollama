@@ -18,8 +18,10 @@ export declare const en: {
     readonly fetchModels: "Fetch available models";
     readonly fetchingModels: "Fetching models…";
     readonly fetchEmpty: "The endpoint returned no models.";
-    readonly discoveredModels: "Available models";
-    readonly addSelected: "Add selected models";
+    readonly pickerTitle: "Choose models to add";
+    readonly pickerDescription: "Select the models to add to this catalog.";
+    readonly addSelected: "Add selected";
+    readonly cancel: "Cancel";
     readonly close: "Close";
     readonly addModel: "Add model manually";
     readonly modelId: "Model ID";
@@ -29,7 +31,6 @@ export declare const en: {
     readonly vision: "Vision";
     readonly thinking: "Reasoning";
     readonly tools: "Tools";
-    readonly reasoningLevels: "Levels: off, low, medium, high, max";
     readonly remove: "Remove";
     readonly inherited: "Using the composed catalog";
     readonly customized: "Custom catalog";

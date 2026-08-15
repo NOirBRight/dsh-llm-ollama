@@ -50,7 +50,9 @@ class FakeSlots extends Service {
     return () => { this.registered.splice(this.registered.indexOf(entry), 1) }
   }
 
-  entries(_name: string): readonly SlotEntry[] { return this.registered }
+  entries(name: string): readonly SlotEntry[] {
+    return this.registered.filter(entry => entry.options['name'] === name)
+  }
 }
 
 async function bench() {
@@ -85,7 +87,7 @@ describe('Ollama client plugin registration', () => {
     expect(inject).toEqual(['slots', 'locale', 'connection', 'remote', 'settingsScope'])
   })
 
-  it('registers one card and removes it with the plugin fiber', async () => {
+  it('registers the card and frame picker, then removes both with the plugin fiber', async () => {
     const { ctx, slots } = await bench()
     const fiber = ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
@@ -95,9 +97,13 @@ describe('Ollama client plugin registration', () => {
     expect(entries[0]?.options).toMatchObject({ id: 'ollama-cloud', order: 40 })
     const face = (entries[0] as { inject?: () => unknown }).inject?.() as { hooks: Record<string, unknown> }
     expect(Object.keys(face.hooks)).toEqual(['ollamaSettings'])
+    const overlays = slots.entries('shell.overlay')
+    expect(overlays).toHaveLength(1)
+    expect(overlays[0]?.options).toMatchObject({ id: 'ollama-cloud-model-picker', order: 100 })
 
     await fiber.dispose()
 
     expect(slots.entries('settings.plugin.item')).toHaveLength(0)
+    expect(slots.entries('shell.overlay')).toHaveLength(0)
   })
 })

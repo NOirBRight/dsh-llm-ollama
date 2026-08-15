@@ -54,6 +54,12 @@ export declare const DEFAULT_STREAM_IDLE_TIMEOUT_MS = 300000;
 /** Default combined request/response context capacity. */
 export declare const DEFAULT_CONTEXT_WINDOW = 4096;
 /**
+ * Test whether Ollama documents the model family as low/medium/high-only.
+ * @param model - Ollama wire model id.
+ * @returns true for GPT-OSS ids, including registry-prefixed ids.
+ */
+export declare function isGptOssModel(model: string): boolean;
+/**
  * Map an HTTP status to a stable LlmError code.
  * @param status - status of a non-2xx provider response.
  * @param error - parsed provider error body, when available.

@@ -21,9 +21,9 @@ The repository tracks release-ready `lib/` artifacts, so GitHub installation nee
 
 ## Web configuration
 
-Open **Settings → Plugins → Plugin configuration → Ollama Cloud**. The card writes the API key through the Harness credentials API under `OLLAMA_API_KEY`; the Host never returns the stored literal in credential or settings responses. It edits the base URL and model catalog through the revision-fenced `llm-ollama` settings section. Deployment-level request defaults remain available in YAML but are intentionally omitted from the plugin card.
+Open **Settings → Plugins → Plugin configuration → Ollama Cloud**. The card writes the API key through the Harness credentials API under `OLLAMA_API_KEY`; the Host never returns the stored literal in credential or settings responses. It saves the base URL and model catalog together as one revision-fenced `llm-ollama` settings mutation, so reopening cannot observe a partially saved pair. Deployment-level request defaults remain available in YAML but are intentionally omitted from the plugin card.
 
-**Fetch available models** calls the package's loopback-only Connection RPC with the unsaved endpoint and an optional one-shot key. The Host interrogates `/api/tags` and `/api/show`, then returns model ids, context windows, and native vision/thinking/tools flags. The user selects which rows to add before saving. Thinking rows automatically expose `off`, `low`, `medium`, `high`, and `max` through the adapter; output limits remain editable because Ollama does not disclose them.
+**Fetch available models** calls the package's loopback-only Connection RPC with the unsaved endpoint and an optional one-shot key. The Host interrogates `/api/tags` and `/api/show`, then returns model ids, context windows, and native vision/thinking/tools flags. Selection uses the Harness frame-overlay dialog before the chosen rows are added to the draft. `/api/show` reports only whether thinking is supported; it does not report per-model effort levels. The adapter derives effort choices from Ollama's documented native `think` behavior, including GPT-OSS's narrower rule. Output limits remain editable because Ollama does not disclose them.
 
 The Models page still lists saved `ollama-cloud` models and can select them. Current Harness releases do not provide a third-party editor extension inside that page, so this package owns its complete editor under Plugin configuration instead.
 
@@ -35,7 +35,7 @@ This adapter implements only the native `/api/chat` protocol. The [architecture 
 - **OpenAI-compatible** is already covered by `@deepseek-ai/dsh-llm-pi-ai` as a hand-declared route (`api: openai-completions`, `baseURL: https://ollama.com/v1`).
 - **Anthropic-compatible** exists for tools like Claude Code, not for the harness, which has its own provider-neutral message vocabulary.
 
-The native `think` field supports `"max"` (not available in OpenAI `reasoning_effort`), and native `images` accepts base64 arrays directly.
+The native `think` field supports `"max"` for the general thinking-model contract (not available in OpenAI `reasoning_effort`), while GPT-OSS accepts only `"low"`, `"medium"`, and `"high"`. Native `images` accepts base64 arrays directly.
 
 ## Config
 
@@ -73,9 +73,9 @@ The plugin registers the single provider route `ollama-cloud` together with its 
 
 ### Model capabilities
 
-Each catalog entry may declare `vision`, `thinking`, and `tools` flags (from `/api/show` capabilities). A `vision: true` entry declares `inputModalities: ['text', 'image']`; the adapter accepts image blocks through the durable attachment service and rejects images on text-only models with `UNSUPPORTED_CONTENT`. A `thinking: true` entry exposes ordered `off`, `low`, `medium`, `high`, and `max` reasoning efforts under `reasoning`; the default effort is `high`. A non-thinking model omits `reasoning` entirely.
+Each catalog entry may declare `vision`, `thinking`, and `tools` flags from `/api/show` capabilities. A `vision: true` entry declares `inputModalities: ['text', 'image']`; the adapter accepts image blocks through the durable attachment service and rejects images on text-only models with `UNSUPPORTED_CONTENT`. A `thinking: true` entry normally exposes ordered `off`, `low`, `medium`, `high`, and `max` efforts under `reasoning`; GPT-OSS ids expose only `low`, `medium`, and `high`, as required by Ollama's [Thinking documentation](https://docs.ollama.com/capabilities/thinking). The default is `high`. A non-thinking model omits `reasoning` entirely.
 
-The `think` wire field maps: `off` → `think: false`; `low`/`medium`/`high`/`max` → `think: "<level>"`. A request with `GenerateOptions.purpose: 'session-title'` forces `think: false`. For non-thinking models, the `think` field is omitted entirely.
+The `think` wire field maps `off` to `false` and the enabled efforts to their same-name strings. Session-title requests use `think: false` when the model can disable thinking and `think: "low"` for GPT-OSS. A direct `off` request for GPT-OSS fails with `UNSUPPORTED_REASONING_EFFORT`. For non-thinking models, the `think` field is omitted entirely.
 
 ### Model discovery
 
@@ -84,7 +84,7 @@ The plugin registers a model discovery handler for the `llm-ollama` settings nam
 - `contextWindow` from `model_info.*.context_length` or `parameters` `num_ctx` (preferring `parameters`)
 - `capabilities` (vision, thinking, tools) from the `capabilities` array
 
-The idempotent tags request retries one transport-level failure before reporting a credential-safe network detail. The reply is candidate metadata the surface offers for adoption; `settings.yaml` remains the only thing that decides what a route serves.
+The idempotent tags request retries one transport-level failure before reporting a credential-safe network detail. The reply is candidate metadata shown in the frame-overlay picker; only models adopted and saved into the settings section are advertised by the route.
 
 ## Dynamic configuration (settings + credentials)
 
@@ -103,7 +103,7 @@ The plugin also declares its route in the configurable-provider directory (`ctx.
 
 #### What the model sees
 
-The model receives the caller's existing conversation translated to native Ollama roles, content, base64 image arrays, tool declarations, tool calls, and tool results. The adapter adds no system text. `thinking` models also receive the selected native `think` level; session-title requests receive `think: false`.
+The model receives the caller's existing conversation translated to native Ollama roles, content, base64 image arrays, tool declarations, tool calls, and tool results. The adapter adds no system text. Thinking models also receive the selected native `think` level; session-title requests receive `think: false`, or `think: "low"` for GPT-OSS because that family cannot disable thinking.
 
 #### Token effect
 
@@ -116,7 +116,7 @@ An unchanged model and translated message prefix remain prefix-stable. Changes t
 ## Known Limitations and Deferred Work
 
 - **Tool-name correlation**: Ollama correlates tool results by `tool_name` (the function name), not by a call id. If the model calls the same tool twice in one turn, the harness `CallId` distinguishes them, but the wire cannot — the serializer sends both as separate `{role: 'tool', tool_name: X}` messages in order, and the provider matches them positionally. The adapter generates sequential `CallId`s and stores the `callId → toolName` mapping in `finish.replayState` for replay.
-- **GPT-OSS thinking**: GPT-OSS requires `think: "low"|"medium"|"high"` and cannot disable thinking. The adapter exposes `off` for all thinking models; if GPT-OSS rejects `think: false`, the error propagates as `INVALID_REQUEST`. A per-model `noOff` flag is a future enhancement.
+- **Thinking effort metadata**: `/api/show` reports the `thinking` capability but not the efforts accepted by each model. The adapter applies Ollama's documented general `off`/`low`/`medium`/`high`/`max` contract and its explicit GPT-OSS `low`/`medium`/`high` exception; discovery cannot verify a narrower model-specific set.
 - **`maxTokens` not disclosed**: Ollama does not disclose per-model max output through `/api/show`. Discovery sets `maxTokens: undefined`; the adapter's `defaultMaxTokens` is a deployment-configured value.
 - **OpenAI-compatible endpoint**: users who want the OpenAI-compatible `/v1/chat/completions` endpoint can use `@deepseek-ai/dsh-llm-pi-ai` as a hand-declared route with `api: openai-completions` and `baseURL: https://ollama.com/v1`. This adapter does not support that protocol.
 - **Structured outputs**: Ollama Cloud does not support structured outputs (per the docs). The `format` field is not exposed.

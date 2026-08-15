@@ -94,6 +94,20 @@ const ALL_REASONING_EFFORTS = [
   { id: HIGH_EFFORT, name: 'High' },
   { id: MAX_EFFORT, name: 'Max' },
 ] as const
+const GPT_OSS_REASONING_EFFORTS = [
+  { id: LOW_EFFORT, name: 'Low' },
+  { id: MEDIUM_EFFORT, name: 'Medium' },
+  { id: HIGH_EFFORT, name: 'High' },
+] as const
+
+/**
+ * Test whether Ollama documents the model family as low/medium/high-only.
+ * @param model - Ollama wire model id.
+ * @returns true for GPT-OSS ids, including registry-prefixed ids.
+ */
+export function isGptOssModel(model: string): boolean {
+  return /(?:^|\/)gpt-oss(?::|$)/iu.test(model)
+}
 
 function modelInfo(provider: string, model: OllamaCatalogModel): LlmModelInfo {
   const inputModalities = model.vision === true ? ['text', 'image'] as const : ['text'] as const
@@ -166,7 +180,7 @@ export class OllamaAdapter extends LlmAdapter {
       ...configured?.thinking === true
         ? {
           reasoning: {
-            efforts: ALL_REASONING_EFFORTS,
+            efforts: isGptOssModel(configured.id) ? GPT_OSS_REASONING_EFFORTS : ALL_REASONING_EFFORTS,
             defaultEffort: HIGH_EFFORT,
           },
         }
@@ -245,7 +259,10 @@ export class OllamaAdapter extends LlmAdapter {
       throw new LlmError('Ollama image input requires the durable attachment service', 'UNSUPPORTED_CONTENT')
     }
 
-    const defaults: RequestDefaults = { thinking: configured?.thinking }
+    const defaults: RequestDefaults = {
+      thinking: configured?.thinking,
+      thinkingCanDisable: configured?.thinking === true && !isGptOssModel(configured.id),
+    }
     const body = await serializeRequest(options, defaults, attachments)
     const payload = JSON.stringify(body)
     const headers = {

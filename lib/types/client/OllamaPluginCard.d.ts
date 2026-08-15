@@ -2,7 +2,7 @@
 import type { ReactNode } from 'react';
 import type { SettingsScope } from '@deepseek-ai/dsh-client-runtime/client';
 import type { InjectFace, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
-import type { OllamaCatalogModelConfig, OllamaDiscoveryRequest, OllamaSettingsView } from '../client-contract.ts';
+import type { OllamaCatalogModelConfig, OllamaDiscoveryRequest, OllamaSaveResult, OllamaSettingsView } from '../client-contract.ts';
 import type { OllamaSettingsKey } from './locales.ts';
 /** Credential state exposed without returning the credential value. */
 export interface OllamaCredentialState {
@@ -21,10 +21,14 @@ export interface OllamaPluginCardFace {
     };
     /** Read value-free credential status for the section's reference. */
     describeCredential: () => Promise<OllamaCredentialState>;
-    /** Store changed settings and an optional replacement credential. */
-    saveConfiguration: (settings: OllamaSettingsView, apiKey?: string) => Promise<void>;
+    /** Atomically store changed settings and return the accepted Host snapshot. */
+    saveConfiguration: (settings: OllamaSettingsView, apiKey?: string) => Promise<OllamaSaveResult>;
     /** Interrogate the draft endpoint without storing its one-shot key. */
     discoverModels: (request: OllamaDiscoveryRequest) => Promise<readonly OllamaCatalogModelConfig[]>;
+    /** Open the frame-level picker and return selected models for adoption. */
+    openModelPicker: (candidates: readonly OllamaCatalogModelConfig[], onAdopt: (models: readonly OllamaCatalogModelConfig[]) => void) => void;
+    /** Close a picker whose owning settings card unmounts. */
+    closeModelPicker: () => void;
 }
 /** Props delivered by the Plugin configuration item slot. */
 export type OllamaPluginCardProps = PropsRuntime<'settings.plugin.item'> & InjectFace<OllamaPluginCardFace>;

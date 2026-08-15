@@ -113,6 +113,16 @@ describe('OllamaAdapter.resolveModel', () => {
     expect(info.reasoning?.defaultEffort).toBe(ReasoningEffortId('high'))
   })
 
+  it('limits GPT-OSS to the documented low, medium, and high efforts', async () => {
+    const a = adapter({
+      options: () => connection({
+        models: [{ id: 'registry.example/gpt-oss:20b', thinking: true }],
+      }),
+    })
+    const info = await a.resolveModel('ollama-cloud', 'registry.example/gpt-oss:20b')
+    expect(info.reasoning?.efforts.map(e => e.id)).toEqual(['low', 'medium', 'high'])
+  })
+
   it('omits reasoning for non-thinking models', async () => {
     const a = adapter({
       options: () => connection({

@@ -9,10 +9,9 @@
  * one registration-captured fact — the retry policy — re-registers the route
  * in place when it changes.
  *
- * The plugin also registers a model discovery handler that interrogates
- * `/api/tags` + `/api/show` for the configuration surface's "fetch available
- * models" action, returning context windows and capability metadata the
- * OpenAI-compatible `/v1/models` listing does not provide.
+ * The plugin also registers a loopback Connection channel for model discovery
+ * through `/api/tags` + `/api/show` and for atomically saving the card's base
+ * URL and model catalog as one revision-fenced settings mutation.
  * @module dsh-llm-ollama
  */
 import type { Context } from '@deepseek-ai/cordis';
@@ -24,8 +23,8 @@ export type { OllamaAdapterOptions, OllamaCatalogModel, OllamaConnectionOptions 
 export { PUBLIC_BASE_URL, discoverModels } from './discovery.ts';
 export { extractContextWindow, extractCapabilities } from './discovery.ts';
 export type { OllamaDiscoveredModel, OllamaModelCapabilities } from './discovery.ts';
-export { DEFAULT_API_KEY_ENV, OLLAMA_DISCOVER_ENDPOINT, OLLAMA_PROVIDER, OLLAMA_PUBLIC_BASE_URL, OLLAMA_RPC_CHANNEL, OLLAMA_SETTINGS_NAMESPACE, decodeOllamaCatalogModel, decodeOllamaDiscoveryRequest, decodeOllamaDiscoveryResult, decodeOllamaSettings, } from './client-contract.ts';
-export type { OllamaCatalogModelConfig, OllamaDiscoveryRequest, OllamaDiscoveryResult, OllamaSettingsView, } from './client-contract.ts';
+export { DEFAULT_API_KEY_ENV, OLLAMA_DISCOVER_ENDPOINT, OLLAMA_PROVIDER, OLLAMA_PUBLIC_BASE_URL, OLLAMA_RPC_CHANNEL, OLLAMA_SAVE_ENDPOINT, OLLAMA_SETTINGS_NAMESPACE, decodeOllamaCatalogModel, decodeOllamaDiscoveryRequest, decodeOllamaDiscoveryResult, decodeOllamaSaveRequest, decodeOllamaSaveResult, decodeOllamaSettings, } from './client-contract.ts';
+export type { OllamaCatalogModelConfig, OllamaDiscoveryRequest, OllamaDiscoveryResult, OllamaSaveRequest, OllamaSaveResult, OllamaSettingsView, } from './client-contract.ts';
 export type * from './types.ts';
 export declare const name = "llm-ollama";
 export declare const inject: string[];

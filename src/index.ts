@@ -9,10 +9,9 @@
  * one registration-captured fact — the retry policy — re-registers the route
  * in place when it changes.
  *
- * The plugin also registers a model discovery handler that interrogates
- * `/api/tags` + `/api/show` for the configuration surface's "fetch available
- * models" action, returning context windows and capability metadata the
- * OpenAI-compatible `/v1/models` listing does not provide.
+ * The plugin also registers a loopback Connection channel for model discovery
+ * through `/api/tags` + `/api/show` and for atomically saving the card's base
+ * URL and model catalog as one revision-fenced settings mutation.
  * @module dsh-llm-ollama
  */
 
@@ -24,6 +23,7 @@ import type { RetryPolicyConfig } from '@deepseek-ai/dsh-llm'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
 import { deepEqualJson, installSettingsSection, settingsNamespace } from '@deepseek-ai/dsh-settings'
+import type { SettingsPathOp } from '@deepseek-ai/dsh-settings'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import {
   DEFAULT_CONTEXT_WINDOW,
@@ -35,10 +35,13 @@ import { PUBLIC_BASE_URL } from './discovery.ts'
 import { discoverModels } from './discovery.ts'
 import {
   decodeOllamaDiscoveryRequest,
+  decodeOllamaSaveRequest,
+  decodeOllamaSettings,
   DEFAULT_API_KEY_ENV,
   OLLAMA_DISCOVER_ENDPOINT,
   OLLAMA_PROVIDER,
   OLLAMA_RPC_CHANNEL,
+  OLLAMA_SAVE_ENDPOINT,
   OLLAMA_SETTINGS_NAMESPACE,
 } from './client-contract.ts'
 
@@ -57,16 +60,21 @@ export {
   OLLAMA_PROVIDER,
   OLLAMA_PUBLIC_BASE_URL,
   OLLAMA_RPC_CHANNEL,
+  OLLAMA_SAVE_ENDPOINT,
   OLLAMA_SETTINGS_NAMESPACE,
   decodeOllamaCatalogModel,
   decodeOllamaDiscoveryRequest,
   decodeOllamaDiscoveryResult,
+  decodeOllamaSaveRequest,
+  decodeOllamaSaveResult,
   decodeOllamaSettings,
 } from './client-contract.ts'
 export type {
   OllamaCatalogModelConfig,
   OllamaDiscoveryRequest,
   OllamaDiscoveryResult,
+  OllamaSaveRequest,
+  OllamaSaveResult,
   OllamaSettingsView,
 } from './client-contract.ts'
 export type * from './types.ts'
@@ -207,6 +215,17 @@ function discoveryFailure(message: string, baseURL?: string) {
   }
 }
 
+function settingsFailure(message: string) {
+  return {
+    ok: false as const,
+    error: {
+      code: 'internal' as const,
+      message,
+      details: {},
+    },
+  }
+}
+
 export function apply(ctx: Context, config: Config): void {
   let current: () => Config = () => config
   let lastRaw: Config | undefined
@@ -243,7 +262,7 @@ export function apply(ctx: Context, config: Config): void {
     }
     throw new LlmError(
       `llm-ollama: no API key for provider route "${OLLAMA_PROVIDER}"; store ${ref} through the credentials`
-      + ` service (the web Models page writes it), or export ${ref} in the launching environment`,
+      + ` service (Plugin configuration writes it), or export ${ref} in the launching environment`,
       'MISSING_CREDENTIAL',
     )
   }
@@ -278,27 +297,57 @@ export function apply(ctx: Context, config: Config): void {
   }
   ctx.llm.registerModelDiscovery(NS, request => discoverModels(request, storedApiKey))
 
-  // The standard discovery RPC intentionally exposes only portable capacities.
-  // This private channel preserves Ollama's vision/thinking/tools flags for the
-  // package's own card and uses Connection's loopback configuration fence.
+  // The package channel preserves Ollama's provider-specific discovery flags
+  // and keeps multi-field editor saves atomic behind Connection's loopback fence.
   ctx.inject(['connection'], (connectionCtx) => {
     connectionCtx.connection.rpc.handle(
       OLLAMA_RPC_CHANNEL,
       async (endpoint, payload, signal) => {
-        if (endpoint !== OLLAMA_DISCOVER_ENDPOINT) {
-          return discoveryFailure(`unknown Ollama Cloud endpoint: ${endpoint}`)
+        if (endpoint === OLLAMA_DISCOVER_ENDPOINT) {
+          const request = decodeOllamaDiscoveryRequest(payload)
+          if (request === undefined) return discoveryFailure('invalid Ollama Cloud discovery request')
+          try {
+            const models = await discoverModels({ ...request, signal }, storedApiKey)
+            return { ok: true as const, value: { models } }
+          } catch (error: unknown) {
+            const message = error instanceof LlmError
+              ? error.message
+              : 'Ollama Cloud model discovery failed'
+            return discoveryFailure(message, request.baseURL)
+          }
         }
-        const request = decodeOllamaDiscoveryRequest(payload)
-        if (request === undefined) return discoveryFailure('invalid Ollama Cloud discovery request')
-        try {
-          const models = await discoverModels({ ...request, signal }, storedApiKey)
-          return { ok: true as const, value: { models } }
-        } catch (error: unknown) {
-          const message = error instanceof LlmError
-            ? error.message
-            : 'Ollama Cloud model discovery failed'
-          return discoveryFailure(message, request.baseURL)
+        if (endpoint === OLLAMA_SAVE_ENDPOINT) {
+          const request = decodeOllamaSaveRequest(payload)
+          if (request === undefined) return settingsFailure('invalid Ollama Cloud settings request')
+          const settings = ctx.get('settings')
+          if (settings === undefined) return settingsFailure('Ollama Cloud settings are unavailable')
+          try {
+            const before = settings.describe().find(descriptor => descriptor.ns === NS)
+            if (before === undefined) return settingsFailure('Ollama Cloud settings are unavailable')
+            const current = decodeOllamaSettings(before.value)
+            if (current === undefined) return settingsFailure('Ollama Cloud settings are invalid')
+            const ops: SettingsPathOp[] = []
+            if (!deepEqualJson(current.baseURL, request.baseURL)) {
+              ops.push({ op: 'set', path: ['baseURL'], value: request.baseURL })
+            }
+            if (!deepEqualJson(current.models, request.models)) {
+              ops.push({ op: 'set', path: ['models'], value: request.models })
+            }
+            if (ops.length > 0) await settings.mutate(NS, ops, request.expectedRevision)
+            const accepted = settings.describe().find(descriptor => descriptor.ns === NS)
+            const acceptedSettings = decodeOllamaSettings(accepted?.value)
+            if (accepted === undefined || acceptedSettings === undefined) {
+              return settingsFailure('Ollama Cloud settings could not be reloaded')
+            }
+            return { ok: true as const, value: { settings: acceptedSettings, revision: accepted.revision } }
+          } catch (error: unknown) {
+            const message = error instanceof Error && error.message.length > 0
+              ? error.message
+              : 'Ollama Cloud settings save failed'
+            return settingsFailure(message)
+          }
         }
+        return settingsFailure(`unknown Ollama Cloud endpoint: ${endpoint}`)
       },
       { authority: 'loopback' },
     )

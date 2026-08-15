@@ -144,6 +144,21 @@ describe('serializeRequest', () => {
     expect(body.think).toBe(false)
   })
 
+  it('uses low thinking for session titles when the model cannot disable it', async () => {
+    const body = await serializeRequest(
+      request({ purpose: 'session-title', messages: [] }),
+      { thinking: true, thinkingCanDisable: false },
+    )
+    expect(body.think).toBe('low')
+  })
+
+  it('rejects off when the model cannot disable thinking', async () => {
+    await expect(serializeRequest(
+      request({ reasoningEffort: ReasoningEffortId('off'), messages: [] }),
+      { thinking: true, thinkingCanDisable: false },
+    )).rejects.toMatchObject({ code: 'UNSUPPORTED_REASONING_EFFORT' })
+  })
+
   it('omits think for non-thinking models', async () => {
     const body = await serializeRequest(
       request({ reasoningEffort: ReasoningEffortId('high'), messages: [] }),

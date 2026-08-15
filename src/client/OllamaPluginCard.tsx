@@ -8,6 +8,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-settings-plugins/client'
 import type {
   OllamaCatalogModelConfig,
   OllamaDiscoveryRequest,
+  OllamaSaveResult,
   OllamaSettingsView,
 } from '../client-contract.ts'
 import type { OllamaSettingsKey } from './locales.ts'
@@ -30,10 +31,17 @@ export interface OllamaPluginCardFace {
   }
   /** Read value-free credential status for the section's reference. */
   describeCredential: () => Promise<OllamaCredentialState>
-  /** Store changed settings and an optional replacement credential. */
-  saveConfiguration: (settings: OllamaSettingsView, apiKey?: string) => Promise<void>
+  /** Atomically store changed settings and return the accepted Host snapshot. */
+  saveConfiguration: (settings: OllamaSettingsView, apiKey?: string) => Promise<OllamaSaveResult>
   /** Interrogate the draft endpoint without storing its one-shot key. */
   discoverModels: (request: OllamaDiscoveryRequest) => Promise<readonly OllamaCatalogModelConfig[]>
+  /** Open the frame-level picker and return selected models for adoption. */
+  openModelPicker: (
+    candidates: readonly OllamaCatalogModelConfig[],
+    onAdopt: (models: readonly OllamaCatalogModelConfig[]) => void,
+  ) => void
+  /** Close a picker whose owning settings card unmounts. */
+  closeModelPicker: () => void
 }
 
 /** Props delivered by the Plugin configuration item slot. */
@@ -125,9 +133,9 @@ const buttonStyle: CSSProperties = {
 }
 const primaryButtonStyle: CSSProperties = {
   ...buttonStyle,
-  borderColor: 'var(--dsw-alias-brand-primary)',
-  background: 'var(--dsw-alias-brand-primary)',
-  color: 'var(--dsw-alias-label-on-brand)',
+  borderColor: 'var(--dsw-alias-button-primary-fill)',
+  background: 'var(--dsw-alias-button-primary-fill)',
+  color: 'var(--dsw-alias-label-primary-foreground)',
 }
 const modelStyle: CSSProperties = {
   display: 'flex',
@@ -244,8 +252,6 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
   const [fetching, setFetching] = useState(false)
   const [failure, setFailure] = useState<string | undefined>(undefined)
   const [notice, setNotice] = useState<string | undefined>(undefined)
-  const [candidates, setCandidates] = useState<readonly OllamaCatalogModelConfig[] | undefined>(undefined)
-  const [picked, setPicked] = useState<Set<string>>(new Set())
   const dirty = source !== undefined && draft !== undefined && (!sameDraft(source, draft) || apiKey.length > 0)
 
   useEffect(() => {
@@ -269,11 +275,14 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
     if (!open || snapshot.status !== 'ready') return
     void refreshCredential()
   }, [open, snapshot.status, snapshot.value?.apiKeyEnv])
+  useEffect(() => () => { props.closeModelPicker() }, [props.closeModelPicker])
 
   if (snapshot.status === 'unavailable') return null
   const title = t('title')
   const disabled = snapshot.status !== 'ready' || !snapshot.writable || busy
   const keyInvalid = apiKey.length > 0 && apiKey.trim().length === 0
+  const customModels = snapshot.user !== undefined
+    && Object.prototype.hasOwnProperty.call(snapshot.user, 'models')
   const invalid = draft !== undefined && (
     !validURL(draft.baseURL.trim()) || modelFailure(draft.models) || keyInvalid
   )
@@ -335,8 +344,18 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
         setFailure(t('fetchEmpty'))
         return
       }
-      setCandidates(found)
-      setPicked(new Set(found.map(model => model.id)))
+      props.openModelPicker(found, selected => {
+        setDraft(current => {
+          if (current === undefined) return current
+          const merged = new Map(current.models.map(model => [model.id, model]))
+          for (const candidate of selected) {
+            merged.set(candidate.id, { ...merged.get(candidate.id), ...modelDraftOf(candidate) })
+          }
+          return { ...current, models: [...merged.values()] }
+        })
+        setFailure(undefined)
+        setNotice(undefined)
+      })
     } catch (error: unknown) {
       setFailure(messageOf(error, t('requestFailed')))
     } finally {
@@ -344,23 +363,9 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
     }
   }
 
-  const addPicked = (): void => {
-    if (draft === undefined || candidates === undefined) return
-    const merged = new Map(draft.models.map(model => [model.id, model]))
-    for (const candidate of candidates) {
-      if (!picked.has(candidate.id)) continue
-      merged.set(candidate.id, { ...merged.get(candidate.id), ...modelDraftOf(candidate) })
-    }
-    patchDraft({ models: [...merged.values()] })
-    setCandidates(undefined)
-    setPicked(new Set())
-  }
-
   const discard = (): void => {
     if (source !== undefined) setDraft(structuredClone(source))
     setApiKey('')
-    setCandidates(undefined)
-    setPicked(new Set())
     setFailure(undefined)
     setNotice(undefined)
   }
@@ -372,11 +377,11 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
     setNotice(undefined)
     try {
       const settings = settingsOf(draft, snapshot.value)
-      await props.saveConfiguration(settings, apiKey.trim().length === 0 ? undefined : apiKey.trim())
-      const next = draftOf(settings)
+      const accepted = await props.saveConfiguration(settings, apiKey.trim().length === 0 ? undefined : apiKey.trim())
+      const next = draftOf(accepted.settings)
       setSource(next)
       setDraft(next)
-      setSourceRevision(snapshot.revision)
+      setSourceRevision(accepted.revision)
       setApiKey('')
       setNotice(t('saved'))
       await refreshCredential()
@@ -454,7 +459,7 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
                       <div>
                         <h3 style={sectionTitleStyle}>{t('models')}</h3>
-                        <p style={hintStyle}>{snapshot.user !== undefined ? t('customized') : t('inherited')}</p>
+                        <p style={hintStyle}>{customModels ? t('customized') : t('inherited')}</p>
                       </div>
                       <button
                         type="button"
@@ -511,7 +516,6 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
                           <Capability label={t('vision')} checked={model.vision === true} disabled={disabled} onChange={(vision) => { patchModel(index, { vision }) }} />
                           <Capability label={t('thinking')} checked={model.thinking === true} disabled={disabled} onChange={(thinking) => { patchModel(index, { thinking }) }} />
                           <Capability label={t('tools')} checked={model.tools === true} disabled={disabled} onChange={(tools) => { patchModel(index, { tools }) }} />
-                          {model.thinking === true ? <span style={hintStyle}>{t('reasoningLevels')}</span> : null}
                           <button type="button" style={buttonStyle} disabled={disabled} onClick={() => { removeModel(index) }}>
                             {t('remove')}
                           </button>
@@ -530,42 +534,6 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
                     </button>
                   </section>
                 </>
-              )}
-
-            {candidates === undefined
-              ? null
-              : (
-                <section style={modelStyle} aria-label={t('discoveredModels')}>
-                  <h3 style={sectionTitleStyle}>{t('discoveredModels')}</h3>
-                  {candidates.map(model => (
-                    <label key={model.id} style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <input
-                        type="checkbox"
-                        checked={picked.has(model.id)}
-                        onChange={() => {
-                          setPicked((current) => {
-                            const next = new Set(current)
-                            if (!next.delete(model.id)) next.add(model.id)
-                            return next
-                          })
-                        }}
-                      />
-                      <span>{model.name ?? model.id}</span>
-                      {model.contextWindow === undefined ? null : <span style={hintStyle}>{String(model.contextWindow)}</span>}
-                      {model.vision === true ? <span style={hintStyle}>{t('vision')}</span> : null}
-                      {model.thinking === true ? <span style={hintStyle}>{t('thinking')}</span> : null}
-                      {model.tools === true ? <span style={hintStyle}>{t('tools')}</span> : null}
-                    </label>
-                  ))}
-                  <div style={actionsStyle}>
-                    <button type="button" style={buttonStyle} onClick={() => { setCandidates(undefined); setPicked(new Set()) }}>
-                      {t('close')}
-                    </button>
-                    <button type="button" style={primaryButtonStyle} disabled={picked.size === 0} onClick={addPicked}>
-                      {t('addSelected')}
-                    </button>
-                  </div>
-                </section>
               )}
 
             {validation === undefined ? null : <p style={errorStyle}>{validation}</p>}

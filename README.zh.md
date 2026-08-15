@@ -21,9 +21,9 @@ npm 版本发布后，`dsh plugin --profile web add dsh-llm-ollama` 会从 regis
 
 ## Web 配置
 
-打开 **设置 → 插件 → 插件配置 → Ollama Cloud**。卡片通过 Harness 凭据 API 把 API key 写入 `OLLAMA_API_KEY`；Host 不会在凭据或设置响应中返回已保存的明文。卡片通过带 revision 防护的 `llm-ollama` 设置分节编辑 base URL 与模型目录。部署级请求默认值仍可在 YAML 中配置，但插件卡片不会展示这些高级选项。
+打开 **设置 → 插件 → 插件配置 → Ollama Cloud**。卡片通过 Harness 凭据 API 把 API key 写入 `OLLAMA_API_KEY`；Host 不会在凭据或设置响应中返回已保存的明文。base URL 与模型目录会通过一次带 revision 防护的 `llm-ollama` 设置 mutation 共同保存，因此再次打开时不会看到只保存其中一项的状态。部署级请求默认值仍可在 YAML 中配置，但插件卡片不会展示这些高级选项。
 
-**获取可用模型** 会把尚未保存的端点和可选的一次性 key 发送到包内仅限 loopback 的 Connection RPC。Host 查询 `/api/tags` 与 `/api/show`，返回模型 id、上下文窗口以及原生 vision/thinking/tools 标志。用户选择要加入的条目后再保存。启用 thinking 的条目会通过适配器自动公开 `off`、`low`、`medium`、`high`、`max`；Ollama 不公开输出上限，因此该值仍由用户编辑。
+**获取可用模型** 会把尚未保存的端点和可选的一次性 key 发送到包内仅限 loopback 的 Connection RPC。Host 查询 `/api/tags` 与 `/api/show`，返回模型 id、上下文窗口以及原生 vision/thinking/tools 标志；用户通过 Harness frame overlay 对话框选择要加入草稿的条目。`/api/show` 只报告模型是否支持 thinking，不提供逐模型推理等级。适配器根据 Ollama 文档中的原生 `think` 规则提供等级，并单独处理 GPT-OSS 的较窄规则。Ollama 不公开输出上限，因此该值仍由用户编辑。
 
 Models 页面仍会列出并可选择已保存的 `ollama-cloud` 模型。当前 Harness 版本没有为第三方提供方开放该页内的编辑器扩展点，因此完整编辑器位于插件配置中。
 
@@ -35,7 +35,7 @@ Models 页面仍会列出并可选择已保存的 `ollama-cloud` 模型。当前
 - **OpenAI 兼容**已可由 `@deepseek-ai/dsh-llm-pi-ai` 通过手工声明的 route 支持（`api: openai-completions`，`baseURL: https://ollama.com/v1`）。
 - **Anthropic 兼容**面向 Claude Code 等工具；Harness 使用自己的 provider-neutral 消息表示。
 
-原生 `think` 字段支持 OpenAI `reasoning_effort` 没有的 `"max"`，原生 `images` 可直接接受 base64 数组。
+通用 thinking 模型的原生 `think` 字段支持 OpenAI `reasoning_effort` 没有的 `"max"`；GPT-OSS 只接受 `"low"`、`"medium"`、`"high"`。原生 `images` 可直接接受 base64 数组。
 
 ## 配置
 
@@ -73,9 +73,9 @@ Models 页面仍会列出并可选择已保存的 `ollama-cloud` 模型。当前
 
 ### 模型能力
 
-每个目录条目可声明来自 `/api/show` capabilities 的 `vision`、`thinking` 与 `tools` 标志。`vision: true` 会声明 `inputModalities: ['text', 'image']`；适配器通过持久附件服务接受图片 block，并以 `UNSUPPORTED_CONTENT` 拒绝发送给纯文本模型的图片。`thinking: true` 会在 `reasoning` 下依序公开 `off`、`low`、`medium`、`high`、`max`，默认等级为 `high`。非推理模型完全省略 `reasoning`。
+每个目录条目可声明来自 `/api/show` capabilities 的 `vision`、`thinking` 与 `tools` 标志。`vision: true` 会声明 `inputModalities: ['text', 'image']`；适配器通过持久附件服务接受图片 block，并以 `UNSUPPORTED_CONTENT` 拒绝发送给纯文本模型的图片。`thinking: true` 通常会在 `reasoning` 下依序公开 `off`、`low`、`medium`、`high`、`max`；GPT-OSS id 根据 Ollama 的 [Thinking 文档](https://docs.ollama.com/capabilities/thinking)只公开 `low`、`medium`、`high`。默认等级为 `high`。非推理模型完全省略 `reasoning`。
 
-`think` 线字段映射为：`off` → `think: false`；`low`/`medium`/`high`/`max` → `think: "<level>"`。`GenerateOptions.purpose: 'session-title'` 请求强制使用 `think: false`。非推理模型完全省略 `think` 字段。
+`think` 线字段把 `off` 映射为 `false`，启用的等级映射为同名字符串。session-title 请求在模型可禁用 thinking 时使用 `think: false`；GPT-OSS 使用 `think: "low"`。对 GPT-OSS 直接请求 `off` 会以 `UNSUPPORTED_REASONING_EFFORT` 失败。非推理模型完全省略 `think` 字段。
 
 ### 模型发现
 
@@ -84,7 +84,7 @@ Models 页面仍会列出并可选择已保存的 `ollama-cloud` 模型。当前
 - 来自 `model_info.*.context_length` 或 `parameters` 中 `num_ctx` 的 `contextWindow`（优先使用 `parameters`）
 - 来自 `capabilities` 数组的 capabilities（视觉、推理、工具调用）
 
-幂等的 tags 请求会在一次传输失败后重试；持续失败时只报告不含凭据的网络详情。响应是供界面选择采用的候选元数据；route 实际提供哪些模型仍只由 `settings.yaml` 决定。
+幂等的 tags 请求会在一次传输失败后重试；持续失败时只报告不含凭据的网络详情。候选元数据会显示在 frame overlay 选择器中；只有加入并保存到设置分节的模型才会由 route 公开。
 
 ## 动态配置（设置与凭据）
 
@@ -103,7 +103,7 @@ Models 页面仍会列出并可选择已保存的 `ollama-cloud` 模型。当前
 
 #### 模型看到什么
 
-模型看到调用方已有对话转换后的原生 Ollama role、content、base64 图片数组、工具声明、工具调用与工具结果。适配器不添加 system 文本。thinking 模型还会收到所选原生 `think` 等级；session-title 请求收到 `think: false`。
+模型看到调用方已有对话转换后的原生 Ollama role、content、base64 图片数组、工具声明、工具调用与工具结果。适配器不添加 system 文本。thinking 模型还会收到所选原生 `think` 等级；session-title 请求通常收到 `think: false`，但 GPT-OSS 因无法禁用 thinking 而收到 `think: "low"`。
 
 #### Token 影响
 
@@ -116,7 +116,7 @@ Models 页面仍会列出并可选择已保存的 `ollama-cloud` 模型。当前
 ## 已知限制与延后工作
 
 - **工具名称关联**：Ollama 通过 `tool_name`（函数名称）而非 call id 关联工具结果。如果模型在同一轮调用同名工具两次，Harness `CallId` 能区分它们，但线协议不能；serializer 会按顺序发送两个独立 `{role: 'tool', tool_name: X}` 消息，由 provider 按位置匹配。适配器生成连续 `CallId`，并把 `callId → toolName` 映射保存在 `finish.replayState` 供 replay 使用。
-- **GPT-OSS thinking**：GPT-OSS 要求 `think: "low"|"medium"|"high"`，无法禁用 thinking。适配器为所有 thinking 模型公开 `off`；如果 GPT-OSS 拒绝 `think: false`，错误会以 `INVALID_REQUEST` 传播。未来可增加逐模型 `noOff` 标志。
+- **Thinking 等级元数据**：`/api/show` 会报告 `thinking` 能力，但不会报告每个模型接受的等级。适配器应用 Ollama 文档中的通用 `off`/`low`/`medium`/`high`/`max` 规则及明确的 GPT-OSS `low`/`medium`/`high` 例外；发现过程无法验证更窄的逐模型集合。
 - **未公开 `maxTokens`**：Ollama 不会通过 `/api/show` 公开逐模型最大输出。发现结果的 `maxTokens` 为 `undefined`；适配器的 `defaultMaxTokens` 由部署配置。
 - **OpenAI 兼容端点**：需要 OpenAI 兼容 `/v1/chat/completions` 的用户可通过 `@deepseek-ai/dsh-llm-pi-ai` 手工声明 route，使用 `api: openai-completions` 和 `baseURL: https://ollama.com/v1`。本适配器不支持该协议。
 - **结构化输出**：根据 Ollama Cloud 文档，该服务不支持 structured outputs。本包不公开 `format` 字段。

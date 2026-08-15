@@ -1,0 +1,244 @@
+/** Frame-level model selection overlay opened by the Ollama settings card. */
+
+import { useEffect } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
+import type { InjectFace, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
+import type { OllamaCatalogModelConfig } from '../client-contract.ts'
+import type { OllamaSettingsKey } from './locales.ts'
+
+/** Immutable observable state consumed by the shell overlay. */
+export interface OllamaModelPickerSnapshot {
+  /** Whether the overlay is visible. */
+  open: boolean
+  /** Candidates in provider order. */
+  candidates: readonly OllamaCatalogModelConfig[]
+  /** IDs selected for adoption. */
+  picked: ReadonlySet<string>
+}
+
+type Listener = () => void
+type Adopt = (models: readonly OllamaCatalogModelConfig[]) => void
+
+/** Shared observable joining the settings card to its frame-level overlay. */
+export class OllamaModelPickerController {
+  private snapshot: OllamaModelPickerSnapshot = {
+    open: false,
+    candidates: [],
+    picked: new Set(),
+  }
+  private readonly listeners = new Set<Listener>()
+  private onAdopt: Adopt | undefined
+
+  /** Read the stable snapshot identity until picker state changes. */
+  getSnapshot = (): OllamaModelPickerSnapshot => this.snapshot
+
+  /** Subscribe one renderer listener. */
+  subscribe = (listener: Listener): (() => void) => {
+    this.listeners.add(listener)
+    return () => { this.listeners.delete(listener) }
+  }
+
+  /** Open with every discovered model selected initially. */
+  open(candidates: readonly OllamaCatalogModelConfig[], onAdopt: Adopt): void {
+    this.onAdopt = onAdopt
+    this.publish({
+      open: true,
+      candidates: [...candidates],
+      picked: new Set(candidates.map(model => model.id)),
+    })
+  }
+
+  /** Close without adopting any candidate. */
+  close = (): void => {
+    this.onAdopt = undefined
+    this.publish({ open: false, candidates: [], picked: new Set() })
+  }
+
+  /** Toggle one candidate by id. */
+  toggle = (id: string): void => {
+    const picked = new Set(this.snapshot.picked)
+    if (picked.has(id)) picked.delete(id)
+    else picked.add(id)
+    this.publish({ ...this.snapshot, picked })
+  }
+
+  /** Close and deliver the selected candidates to the card. */
+  adopt = (): void => {
+    const callback = this.onAdopt
+    const selected = this.snapshot.candidates.filter(model => this.snapshot.picked.has(model.id))
+    this.close()
+    callback?.(selected)
+  }
+
+  private publish(snapshot: OllamaModelPickerSnapshot): void {
+    this.snapshot = snapshot
+    for (const listener of this.listeners) listener()
+  }
+}
+
+/** Values contributed to the shell overlay entry. */
+export interface OllamaModelPickerFace {
+  /** Localized picker copy. */
+  t: (key: OllamaSettingsKey) => string
+  hooks: {
+    /** Reactive picker state. */
+    ollamaModelPicker: OllamaModelPickerController
+  }
+  /** Close without adoption. */
+  closePicker: () => void
+  /** Toggle one model id. */
+  togglePickerModel: (id: string) => void
+  /** Adopt the selected models. */
+  adoptPickerModels: () => void
+}
+
+/** Props delivered by the frame overlay slot. */
+export type OllamaModelPickerProps = PropsRuntime<'shell.overlay'> & InjectFace<OllamaModelPickerFace>
+
+const rootStyle: CSSProperties = {
+  position: 'fixed',
+  inset: 0,
+  zIndex: 1000,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  boxSizing: 'border-box',
+  padding: 24,
+}
+const maskStyle: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  background: 'var(--dsw-alias-bg-mask-1)',
+  backdropFilter: 'var(--dsw-mask-blur)',
+}
+const dialogStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  display: 'flex',
+  flexDirection: 'column',
+  width: 'min(520px, 100%)',
+  maxHeight: 'min(680px, calc(100vh - 48px))',
+  overflow: 'hidden',
+  border: '1px solid var(--dsw-alias-border-inverted)',
+  borderRadius: 24,
+  background: 'var(--dsw-alias-bg-layer-2)',
+  boxShadow: 'var(--dsw-shadow-lv3)',
+  color: 'var(--dsw-alias-label-primary)',
+}
+const headerStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  padding: '22px 14px 12px 24px',
+}
+const titleStyle: CSSProperties = { margin: 0, fontSize: 16, lineHeight: '24px', fontWeight: 500 }
+const closeStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 28,
+  height: 28,
+  border: 0,
+  borderRadius: 8,
+  background: 'transparent',
+  color: 'var(--dsw-alias-label-secondary)',
+  cursor: 'pointer',
+  fontSize: 22,
+}
+const descriptionStyle: CSSProperties = {
+  margin: 0,
+  padding: '0 24px',
+  fontSize: 14,
+  lineHeight: '22px',
+  color: 'var(--dsw-alias-label-primary)',
+}
+const listStyle: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 14,
+  minHeight: 0,
+  margin: '20px 24px',
+  padding: 0,
+  overflowY: 'auto',
+  listStyle: 'none',
+}
+const candidateStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  fontSize: 14,
+  lineHeight: '22px',
+  cursor: 'pointer',
+}
+const footerStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'flex-end',
+  gap: 8,
+  padding: '0 24px 24px',
+}
+const outlineButtonStyle: CSSProperties = {
+  height: 36,
+  padding: '0 14px',
+  border: '1px solid var(--dsw-alias-border-l2)',
+  borderRadius: 18,
+  background: 'transparent',
+  color: 'var(--dsw-alias-label-primary)',
+  cursor: 'pointer',
+  fontSize: 14,
+}
+
+/** Render the Ollama model candidate picker in the frame overlay layer. */
+export function OllamaModelPicker(props: OllamaModelPickerProps): ReactNode {
+  const { t } = props
+  const snapshot = props.useOllamaModelPicker(value => value)
+  useEffect(() => {
+    if (!snapshot.open) return
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') props.closePicker()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => { document.removeEventListener('keydown', onKeyDown) }
+  }, [snapshot.open, props.closePicker])
+
+  if (!snapshot.open) return null
+  return (
+    <div style={rootStyle} role="presentation">
+      <div style={maskStyle} aria-hidden="true" onClick={props.closePicker} />
+      <section style={dialogStyle} role="dialog" aria-modal="true" aria-label={t('pickerTitle')}>
+        <div style={headerStyle}>
+          <h2 style={titleStyle}>{t('pickerTitle')}</h2>
+          <button type="button" style={closeStyle} aria-label={t('close')} onClick={props.closePicker}>×</button>
+        </div>
+        <p style={descriptionStyle}>{t('pickerDescription')}</p>
+        <ul style={listStyle}>
+          {snapshot.candidates.map(model => (
+            <li key={model.id}>
+              <label style={candidateStyle}>
+                <input
+                  type="checkbox"
+                  checked={snapshot.picked.has(model.id)}
+                  onChange={() => { props.togglePickerModel(model.id) }}
+                />
+                <span>{model.id}</span>
+              </label>
+            </li>
+          ))}
+        </ul>
+        <div style={footerStyle}>
+          <button type="button" style={outlineButtonStyle} onClick={props.closePicker}>{t('cancel')}</button>
+          <button
+            type="button"
+            style={outlineButtonStyle}
+            disabled={snapshot.picked.size === 0}
+            onClick={props.adoptPickerModels}
+          >
+            {t('addSelected')}
+          </button>
+        </div>
+      </section>
+    </div>
+  )
+}

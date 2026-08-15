@@ -22,6 +22,8 @@ import type { WireAssistantMessage, WireChatRequest, WireMessage, WireTool, Wire
 export interface RequestDefaults {
   /** Whether the selected model supports thinking; absent means unknown. */
   thinking?: boolean | undefined
+  /** Whether the model family accepts `think: false`; defaults to true. */
+  thinkingCanDisable?: boolean | undefined
 }
 
 /** Resolved thinking fields for one request. */
@@ -45,12 +47,18 @@ function resolveThink(options: GenerateOptions, defaults: RequestDefaults): Reso
   // Non-thinking models: omit think entirely. The runtime gates efforts before
   // I/O, but this keeps the serializer self-consistent with the model's capability.
   if (defaults.thinking === false) return {}
-  if (options.purpose === 'session-title') return { think: false }
+  const canDisable = defaults.thinkingCanDisable !== false
+  if (options.purpose === 'session-title') return { think: canDisable ? false : 'low' }
   const effort = options.reasoningEffort === undefined
     ? undefined
     : reasoningEffort(options.reasoningEffort)
   if (effort === undefined) return {}
-  if (effort === 'off') return { think: false }
+  if (effort === 'off') {
+    if (!canDisable) {
+      throw new LlmError('Ollama model does not support disabling thinking', 'UNSUPPORTED_REASONING_EFFORT')
+    }
+    return { think: false }
+  }
   return { think: effort }
 }
 

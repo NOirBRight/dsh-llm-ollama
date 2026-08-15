@@ -20,6 +20,8 @@ import type { WireChatRequest, WireMessage } from './types.ts';
 export interface RequestDefaults {
     /** Whether the selected model supports thinking; absent means unknown. */
     thinking?: boolean | undefined;
+    /** Whether the model family accepts `think: false`; defaults to true. */
+    thinkingCanDisable?: boolean | undefined;
 }
 /**
  * Serialize the conversation into Ollama wire messages. Tool-result blocks

@@ -16,6 +16,8 @@ export const OLLAMA_DEFAULT_STREAM_IDLE_TIMEOUT_MS = 300_000
 export const OLLAMA_RPC_CHANNEL = '/ollama-cloud'
 /** Rich model-discovery endpoint inside {@link OLLAMA_RPC_CHANNEL}. */
 export const OLLAMA_DISCOVER_ENDPOINT = 'models/discover'
+/** Atomic settings-save endpoint inside {@link OLLAMA_RPC_CHANNEL}. */
+export const OLLAMA_SAVE_ENDPOINT = 'settings/save'
 
 /** One model stored in the plugin's advisory catalog. */
 export interface OllamaCatalogModelConfig {
@@ -31,7 +33,7 @@ export interface OllamaCatalogModelConfig {
   maxTokens?: number
   /** Whether the model accepts image input. */
   vision?: boolean
-  /** Whether the model supports thinking and reasoning levels. */
+  /** Whether the model supports native thinking; this does not identify accepted efforts. */
   thinking?: boolean
   /** Whether the model supports tool calls. */
   tools?: boolean
@@ -65,6 +67,24 @@ export interface OllamaDiscoveryRequest {
 export interface OllamaDiscoveryResult {
   /** Models in provider order, including native capability flags. */
   models: OllamaCatalogModelConfig[]
+}
+
+/** Atomic editable-settings payload sent by the package's browser face. */
+export interface OllamaSaveRequest {
+  /** API URL currently shown by the editor. */
+  baseURL: string
+  /** Complete advisory catalog currently shown by the editor. */
+  models: OllamaCatalogModelConfig[]
+  /** Settings descriptor revision from which the editor began. */
+  expectedRevision: number
+}
+
+/** Accepted settings snapshot returned after one atomic Host mutation. */
+export interface OllamaSaveResult {
+  /** Resolved settings after the mutation commits. */
+  settings: OllamaSettingsView
+  /** New descriptor revision accepted by the Host. */
+  revision: number
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -175,4 +195,36 @@ export function decodeOllamaDiscoveryResult(value: unknown): OllamaDiscoveryResu
     models.push(decoded)
   }
   return { models }
+}
+
+/**
+ * Narrow one atomic settings-save request crossing the plugin RPC.
+ * @param value - untrusted RPC payload.
+ * @returns the validated request, or undefined when any field is invalid.
+ */
+export function decodeOllamaSaveRequest(value: unknown): OllamaSaveRequest | undefined {
+  if (!isRecord(value) || typeof value['baseURL'] !== 'string' || value['baseURL'].length === 0) return undefined
+  if (!Array.isArray(value['models']) || !Number.isSafeInteger(value['expectedRevision'])) return undefined
+  const expectedRevision = value['expectedRevision'] as number
+  if (expectedRevision < 0) return undefined
+  const models: OllamaCatalogModelConfig[] = []
+  for (const model of value['models']) {
+    const decoded = decodeOllamaCatalogModel(model)
+    if (decoded === undefined) return undefined
+    models.push(decoded)
+  }
+  return { baseURL: value['baseURL'], models, expectedRevision }
+}
+
+/**
+ * Narrow the accepted settings snapshot returned by the Host save endpoint.
+ * @param value - untrusted RPC result value.
+ * @returns the validated result, or undefined when it is malformed.
+ */
+export function decodeOllamaSaveResult(value: unknown): OllamaSaveResult | undefined {
+  if (!isRecord(value) || !Number.isSafeInteger(value['revision'])) return undefined
+  const revision = value['revision'] as number
+  const settings = decodeOllamaSettings(value['settings'])
+  if (revision < 0 || settings === undefined) return undefined
+  return { settings, revision }
 }
