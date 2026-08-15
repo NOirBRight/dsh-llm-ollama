@@ -278,7 +278,34 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
   }, [open, snapshot.status, snapshot.value?.apiKeyEnv])
   useEffect(() => () => { props.closeModelPicker() }, [props.closeModelPicker])
 
-  if (snapshot.status === 'unavailable') return null
+  if (snapshot.status === 'unavailable') {
+    return (
+      <li style={cardStyle}>
+        <button
+          type="button"
+          style={headerStyle}
+          aria-expanded={open}
+          aria-label={`${t(open ? 'collapse' : 'expand')}: ${t('title')}`}
+          onClick={() => { setOpen(!open) }}
+        >
+          <span style={{ display: 'flex', minWidth: 0, flexDirection: 'column', gap: 3 }}>
+            <span style={{ fontSize: 14, lineHeight: '20px', fontWeight: 600 }}>{t('title')}</span>
+            <span style={{ fontSize: 13, lineHeight: '18px', color: 'var(--dsw-alias-label-tertiary)' }}>
+              {t('description')}
+            </span>
+          </span>
+          <span aria-hidden="true" style={{ fontSize: 18, transform: open ? 'rotate(180deg)' : 'none' }}>⌄</span>
+        </button>
+        {open
+          ? (
+            <div style={bodyStyle}>
+              <p style={statusStyle} role="status">{t('remoteAccess')}</p>
+            </div>
+          )
+          : null}
+      </li>
+    )
+  }
   const title = t('title')
   const disabled = snapshot.status !== 'ready' || !snapshot.writable || busy
   const keyInvalid = apiKey.length > 0 && apiKey.trim().length === 0

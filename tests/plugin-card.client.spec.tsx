@@ -49,6 +49,23 @@ function props(overrides: Partial<OllamaPluginCardProps> = {}): OllamaPluginCard
 }
 
 describe('OllamaPluginCard', () => {
+  it('stays visible in a remote browser and explains the loopback-only configuration plane', () => {
+    const current = snapshot({
+      status: 'unavailable',
+      value: undefined,
+      base: undefined,
+      user: undefined,
+      revision: undefined,
+      writable: false,
+      mode: 'memory',
+    })
+    render(<OllamaPluginCard {...props({ useOllamaSettings: selector => selector(current) })} />)
+
+    fireEvent.click(screen.getByRole('button', { name: `${en.expand}: ${en.title}` }))
+
+    expect(screen.getByRole('status').textContent).toBe(en.remoteAccess)
+  })
+
   it('keeps global request defaults out of the plugin editor', () => {
     render(<OllamaPluginCard {...props()} />)
 
