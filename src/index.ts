@@ -10,8 +10,9 @@
  * in place when it changes.
  *
  * The plugin also registers a loopback Connection channel for model discovery
- * through `/api/tags` + `/api/show` and for atomically saving the card's base
- * URL and model catalog as one revision-fenced settings mutation.
+ * through `/api/tags`, the public cloud-filtered search page, and `/api/show`,
+ * plus atomically saving the card's base URL and model catalog as one
+ * revision-fenced settings mutation.
  * @module dsh-llm-ollama
  */
 

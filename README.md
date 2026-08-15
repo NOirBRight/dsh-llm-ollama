@@ -2,7 +2,7 @@
 
 English | [中文](README.zh.md)
 
-Ollama Cloud native chat adapter for the harness LLM seam: direct `fetch` + NDJSON (newline-delimited JSON) translating the Ollama native `/api/chat` wire format into the `StreamChunk` protocol. Model discovery interrogates `/api/tags` + `/api/show` for context windows and capabilities (vision, thinking, tools) that the OpenAI-compatible `/v1/models` listing does not provide. The same Host plugin also registers Ollama's `/api/web_search` and `/api/web_fetch` as providers in the harness web capability seam under the id `ollama-cloud`.
+Ollama Cloud native chat adapter for the harness LLM seam: direct `fetch` + NDJSON (newline-delimited JSON) translating the Ollama native `/api/chat` wire format into the `StreamChunk` protocol. Model discovery combines the default public endpoint's `/api/tags` response with the cloud-filtered search page, deduplicates ids, removes the HTML `-cloud` suffix without restoring it, and uses `/api/show` for context windows and capabilities (vision, thinking, tools) that the OpenAI-compatible `/v1/models` listing does not provide. The same Host plugin also registers Ollama's `/api/web_search` and `/api/web_fetch` as providers in the harness web capability seam under the id `ollama-cloud`.
 
 The package root exposes the Cordis plugin contract and `OllamaAdapter`; wire serialization, NDJSON parsing, and chunk translation helpers are not part of that root contract. The same npm artifact also exports `./client`, a Web client plugin that contributes one Ollama Cloud card to **Settings → Plugins → Plugin configuration**. No Harness core package or profile patch requires modification.
 
@@ -23,7 +23,7 @@ The repository tracks release-ready `lib/` artifacts, so GitHub installation nee
 
 Open **Settings → Plugins → Plugin configuration → Ollama Cloud**. The card writes the API key through the Harness credentials API under `OLLAMA_API_KEY`; the Host never returns the stored literal in credential or settings responses. It saves the base URL and model catalog together as one revision-fenced `llm-ollama` settings mutation, so reopening cannot observe a partially saved pair. Deployment-level request defaults remain available in YAML but are intentionally omitted from the plugin card. The Harness configuration plane is loopback-only: a browser reached through a remote domain sees the card with an explanatory notice instead of the editor. Configure on the host (or through an SSH forward), and the saved settings keep serving remote sessions unchanged.
 
-**Fetch available models** opens the Harness frame-overlay picker immediately, then calls the package's loopback-only Connection RPC with the unsaved endpoint and any key currently entered; when the field is empty, the Host uses the stored credential. The picker shows loading and failure states instead of remaining absent while discovery runs. The Host reads `/api/tags`, enriches up to six models concurrently through `/api/show`, preserves provider order, and returns model ids, context windows, and native vision/thinking/tools flags. `/api/show` reports only whether thinking is supported; it does not report per-model effort levels. The adapter derives effort choices from Ollama's documented native `think` behavior, including GPT-OSS's narrower rule. Output limits remain editable because Ollama does not disclose them.
+**Fetch available models** opens the Harness frame-overlay picker immediately, then calls the package's loopback-only Connection RPC with the unsaved endpoint and any key currently entered; when the field is empty, the Host uses the stored credential. The picker shows loading and failure states instead of remaining absent while discovery runs. For the default public endpoint, the Host merges `/api/tags` with cloud model cards from `/search?c=cloud`, removes the HTML `-cloud` suffix without restoring it, deduplicates ids, and enriches up to six models concurrently through `/api/show`; custom endpoints use `/api/tags` only. The result preserves native tag order and appends cloud-only ids. `/api/show` reports only whether thinking is supported; it does not report per-model effort levels. The adapter derives effort choices from Ollama's documented native `think` behavior, including GPT-OSS's narrower rule. Output limits remain editable because Ollama does not disclose them.
 
 The Models page still lists saved `ollama-cloud` models and can select them. Current Harness releases do not provide a third-party editor extension inside that page, so this package owns its complete editor under Plugin configuration instead.
 
@@ -44,7 +44,7 @@ Omit `fetchProvider` to keep the built-in local HTTP fetcher while moving only s
 
 This adapter implements only the native `/api/chat` protocol. The [architecture record](docs/architecture.md) explains the protocol and dual-runtime package decision. Ollama Cloud also exposes OpenAI-compatible (`/v1/chat/completions`) and Anthropic-compatible (`/v1/messages`) endpoints, but neither is used here:
 
-- **Discovery** requires `/api/tags` + `/api/show`, which return `model_info.*.context_length` and `capabilities` (vision, thinking, tools). The OpenAI-compatible `/v1/models` returns only model ids.
+- **Discovery** uses `/api/tags` + `/api/show`, and the default public endpoint supplements tags with cloud model cards from `/search?c=cloud`. The native responses return `model_info.*.context_length` and `capabilities` (vision, thinking, tools); the OpenAI-compatible `/v1/models` returns only model ids.
 - **OpenAI-compatible** is already covered by `@deepseek-ai/dsh-llm-pi-ai` as a hand-declared route (`api: openai-completions`, `baseURL: https://ollama.com/v1`).
 - **Anthropic-compatible** exists for tools like Claude Code, not for the harness, which has its own provider-neutral message vocabulary.
 
@@ -92,7 +92,7 @@ The `think` wire field maps `off` to `false` and the enabled efforts to their sa
 
 ### Model discovery
 
-The plugin registers a model discovery handler for the `llm-ollama` settings namespace. The configuration surface's "fetch available models" action calls `GET /api/tags` to list models, then `POST /api/show` per model to extract:
+The plugin registers a model discovery handler for the `llm-ollama` settings namespace. The configuration surface's "fetch available models" action calls `GET /api/tags`; with the default public endpoint it also reads `/search?c=cloud`, keeps only cloud model cards, removes their HTML `-cloud` suffix, and deduplicates them with the tag ids. It then calls `POST /api/show` per model to extract:
 
 - `contextWindow` from `model_info.*.context_length` or `parameters` `num_ctx` (preferring `parameters`)
 - `capabilities` (vision, thinking, tools) from the `capabilities` array

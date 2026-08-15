@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { LlmError } from '@deepseek-ai/dsh-llm'
-import { extractContextWindow, extractCapabilities, discoverModels } from '../src/discovery.ts'
+import { extractCloudModelIds, extractContextWindow, extractCapabilities, discoverModels, PUBLIC_BASE_URL } from '../src/discovery.ts'
 import type { WireShowResponse, WireTagsResponse } from '../src/types.ts'
 import { closeMockServers, mockServer } from './mock-server.ts'
 
@@ -45,6 +45,55 @@ describe('extractCapabilities', () => {
   })
 })
 
+describe('extractCloudModelIds', () => {
+  it('keeps cloud cards, strips the HTML suffix, and deduplicates ids', () => {
+    const html = [
+      '<a href="/library/shared-cloud"><span>cloud</span></a>',
+      '<a href="/library/shared-cloud"><span>cloud</span></a>',
+      '<a href="/library/variant:preview-cloud"><span class="badge"> cloud </span></a>',
+      '<a href="/library/local"><span>tools</span></a>',
+      '<a href="/library/ignored/tags"><span>cloud</span></a>',
+    ].join('')
+    expect(extractCloudModelIds(html)).toEqual(['shared', 'variant:preview'])
+  })
+})
+
+describe('discoverModels', () => {
+  it('merges public cloud search models with tags without restoring suffixes', async () => {
+    const requestedUrls: string[] = []
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+      const url = String(input)
+      requestedUrls.push(url)
+      if (url === PUBLIC_BASE_URL + '/tags') {
+        return new Response(JSON.stringify({
+          models: [{ model: 'shared' }, { model: 'tag-only' }],
+        }), { status: 200 })
+      }
+      if (url === 'https://ollama.com/search?c=cloud') {
+        return new Response([
+          '<a href="/library/shared-cloud"><span>cloud</span></a>',
+          '<a href="/library/cloud-only-cloud"><span>cloud</span></a>',
+          '<a href="/library/variant:preview-cloud"><span>cloud</span></a>',
+        ].join(''), { status: 200, headers: { 'content-type': 'text/html' } })
+      }
+      if (url === PUBLIC_BASE_URL + '/show') {
+        const body = JSON.parse(String(init?.body)) as { model: string }
+        return new Response(JSON.stringify({
+          model_info: { [body.model + '.context_length']: 8192 },
+          capabilities: ['tools'],
+        }), { status: 200 })
+      }
+      throw new Error('unexpected discovery URL: ' + url)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const models = await discoverModels({ baseURL: PUBLIC_BASE_URL, apiKey: 'test-key' })
+
+    expect(models.map(model => model.id)).toEqual(['shared', 'tag-only', 'cloud-only', 'variant:preview'])
+    expect(requestedUrls.slice(0, 2)).toEqual([PUBLIC_BASE_URL + '/tags', 'https://ollama.com/search?c=cloud'])
+    expect(fetchMock).toHaveBeenCalledTimes(6)
+  })
+})
 describe('discoverModels', () => {
   it('lists models from /api/tags and enriches with /api/show', async () => {
     const tags: WireTagsResponse = {

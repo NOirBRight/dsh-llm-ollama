@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-这是 Harness LLM 能力的 Ollama Cloud 原生聊天适配器：通过直接 `fetch` 和 NDJSON（逐行 JSON）把 Ollama 原生 `/api/chat` 线协议转换为 `StreamChunk` 协议。模型发现会查询 `/api/tags` 和 `/api/show`，获取 OpenAI 兼容 `/v1/models` 列表不提供的上下文窗口与能力（视觉、推理、工具调用）。同一个 Host 插件还把 Ollama 的 `/api/web_search` 与 `/api/web_fetch` 以 `ollama-cloud` 为 id 注册进 Harness 的 web 能力 seam。
+这是 Harness LLM 能力的 Ollama Cloud 原生聊天适配器：通过直接 `fetch` 和 NDJSON（逐行 JSON）把 Ollama 原生 `/api/chat` 线协议转换为 `StreamChunk` 协议。默认公共端点的模型发现会把 `/api/tags` 与 cloud 筛选搜索页合并，按 id 去重，移除 HTML 中的 `-cloud` 后缀且不还原，再通过 `/api/show` 获取 OpenAI 兼容 `/v1/models` 列表不提供的上下文窗口与能力（视觉、推理、工具调用）。同一个 Host 插件还把 Ollama 的 `/api/web_search` 与 `/api/web_fetch` 以 `ollama-cloud` 为 id 注册进 Harness 的 web 能力 seam。
 
 包根入口公开 Cordis 插件协议和 `OllamaAdapter`；线协议序列化、NDJSON 解析与 chunk 转换辅助函数不属于根入口的公开协议。同一个 npm 包还导出 `./client` Web client 插件，在 **设置 → 插件 → 插件配置** 中贡献一张 Ollama Cloud 卡片。安装无需修改任何 Harness 核心包或 profile patch。
 
@@ -23,7 +23,7 @@ npm 版本发布后，`dsh plugin --profile web add dsh-llm-ollama` 会从 regis
 
 打开 **设置 → 插件 → 插件配置 → Ollama Cloud**。卡片通过 Harness 凭据 API 把 API key 写入 `OLLAMA_API_KEY`；Host 不会在凭据或设置响应中返回已保存的明文。base URL 与模型目录会通过一次带 revision 防护的 `llm-ollama` 设置 mutation 共同保存，因此再次打开时不会看到只保存其中一项的状态。部署级请求默认值仍可在 YAML 中配置，但插件卡片不会展示这些高级选项。Harness 配置面仅限 loopback：通过远程域名访问的浏览器会看到卡片及说明提示，而不是编辑器。请在主机本机（或经 SSH 转发）完成配置，已保存的设置对远程会话照常生效。
 
-**获取可用模型** 会立即打开 Harness frame overlay 选择器，再把尚未保存的端点和输入框中的当前 key 发送到包内仅限 loopback 的 Connection RPC；输入框为空时，Host 使用已保存的凭据。发现期间选择器会明确显示加载或失败状态，而不是在请求完成前保持不出现。Host 先读取 `/api/tags`，再以最多六路并发通过 `/api/show` 丰富模型元数据，同时保持 provider 顺序，最终返回模型 id、上下文窗口以及原生 vision/thinking/tools 标志。`/api/show` 只报告模型是否支持 thinking，不提供逐模型推理等级。适配器根据 Ollama 文档中的原生 `think` 规则提供等级，并单独处理 GPT-OSS 的较窄规则。Ollama 不公开输出上限，因此该值仍由用户编辑。
+**获取可用模型** 会立即打开 Harness frame overlay 选择器，再把尚未保存的端点和输入框中的当前 key 发送到包内仅限 loopback 的 Connection RPC；输入框为空时，Host 使用已保存的凭据。发现期间选择器会明确显示加载或失败状态，而不是在请求完成前保持不出现。使用默认公共端点时，Host 会把 `/api/tags` 与 `/search?c=cloud` 的 cloud 模型卡片合并，移除 HTML 中的 `-cloud` 后缀且不还原，按 id 去重，再以最多六路并发通过 `/api/show` 丰富模型元数据；自定义端点只读取 `/api/tags`。结果保留 tag 顺序，并追加只在 cloud 列表中的模型。`/api/show` 只报告模型是否支持 thinking，不提供逐模型推理等级。适配器根据 Ollama 文档中的原生 `think` 规则提供等级，并单独处理 GPT-OSS 的较窄规则。Ollama 不公开输出上限，因此该值仍由用户编辑。
 
 Models 页面仍会列出并可选择已保存的 `ollama-cloud` 模型。当前 Harness 版本没有为第三方提供方开放该页内的编辑器扩展点，因此完整编辑器位于插件配置中。
 
@@ -44,7 +44,7 @@ Models 页面仍会列出并可选择已保存的 `ollama-cloud` 模型。当前
 
 本适配器只实现原生 `/api/chat` 协议。[架构记录](docs/architecture.zh.md)说明了协议与双运行时包的决策。Ollama Cloud 也提供 OpenAI 兼容（`/v1/chat/completions`）与 Anthropic 兼容（`/v1/messages`）端点，但本包不使用它们：
 
-- **发现**需要 `/api/tags` 和 `/api/show`，它们会返回 `model_info.*.context_length` 与 `capabilities`（视觉、推理、工具调用）；OpenAI 兼容 `/v1/models` 只返回模型 id。
+- **发现**使用 `/api/tags` 和 `/api/show`；默认公共端点还会从 `/search?c=cloud` 补充 cloud 模型卡片。原生响应会返回 `model_info.*.context_length` 与 `capabilities`（视觉、推理、工具调用）；OpenAI 兼容 `/v1/models` 只返回模型 id。
 - **OpenAI 兼容**已可由 `@deepseek-ai/dsh-llm-pi-ai` 通过手工声明的 route 支持（`api: openai-completions`，`baseURL: https://ollama.com/v1`）。
 - **Anthropic 兼容**面向 Claude Code 等工具；Harness 使用自己的 provider-neutral 消息表示。
 
@@ -92,7 +92,7 @@ Models 页面仍会列出并可选择已保存的 `ollama-cloud` 模型。当前
 
 ### 模型发现
 
-插件为 `llm-ollama` 设置命名空间注册模型发现 handler。配置界面的“获取可用模型”先调用 `GET /api/tags` 列出模型，再逐个调用 `POST /api/show` 提取：
+插件为 `llm-ollama` 设置命名空间注册模型发现 handler。配置界面的“获取可用模型”先调用 `GET /api/tags`；使用默认公共端点时还会读取 `/search?c=cloud`，只保留 cloud 模型卡片，移除 HTML 中的 `-cloud` 后缀，并与 tag id 去重。随后逐个调用 `POST /api/show` 提取：
 
 - 来自 `model_info.*.context_length` 或 `parameters` 中 `num_ctx` 的 `contextWindow`（优先使用 `parameters`）
 - 来自 `capabilities` 数组的 capabilities（视觉、推理、工具调用）
