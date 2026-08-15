@@ -44,6 +44,15 @@ function props(overrides: Partial<OllamaPluginCardProps> = {}): OllamaPluginCard
 }
 
 describe('OllamaPluginCard', () => {
+  it('keeps global request defaults out of the plugin editor', () => {
+    render(<OllamaPluginCard {...props()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: `${en.expand}: ${en.title}` }))
+
+    expect(screen.queryByText('Request defaults')).toBeNull()
+    expect(screen.queryByLabelText('Stream idle timeout (ms)')).toBeNull()
+  })
+
   it('stores an API key and adopts native model capabilities from discovery', async () => {
     const saveConfiguration = vi.fn(() => Promise.resolve())
     const discoverModels = vi.fn(() => Promise.resolve([

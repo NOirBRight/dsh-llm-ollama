@@ -77,7 +77,7 @@ function usableProbeKey(raw: string): string {
   if (checked.ok) return checked.value
   throw new LlmError(
     checked.reason === 'empty'
-      ? 'this provider\'s API key is blank; enter it on the Models page, or clear it to probe unauthenticated'
+      ? 'this provider\'s API key is blank; enter it in Plugin configuration, or clear it to probe unauthenticated'
       : 'this provider\'s API key contains characters no HTTP header can carry; paste the raw key only',
     INVALID_CREDENTIAL_CODE,
   )
@@ -90,6 +90,38 @@ function authHeaders(apiKey: string | undefined): Record<string, string> {
     ...apiKey === undefined ? {} : { authorization: `Bearer ${apiKey}` },
     ...attributionHeaders(),
   }
+}
+
+/** Two attempts make the idempotent tags probe tolerate one transient transport failure. */
+const TAGS_NETWORK_ATTEMPTS = 2
+
+/** Describe a transport failure without including request headers or credentials. */
+function networkDetail(error: unknown): string {
+  if (!(error instanceof Error)) return ''
+  const cause = typeof error.cause === 'object' && error.cause !== null ? error.cause : undefined
+  const code = cause !== undefined && 'code' in cause && typeof cause.code === 'string' ? cause.code : undefined
+  const message = error.message.length === 0 ? '' : `: ${error.message}`
+  return code === undefined ? message : `${message} (${code})`
+}
+
+/** Fetch the idempotent tags listing, retrying one transport-level failure. */
+async function fetchTags(url: string, headers: Record<string, string>, signal: AbortSignal | undefined): Promise<Response> {
+  let failure: unknown
+  for (let attempt = 0; attempt < TAGS_NETWORK_ATTEMPTS; attempt += 1) {
+    try {
+      return await fetch(url, {
+        method: 'GET',
+        headers,
+        ...signal === undefined ? {} : { signal },
+      })
+    } catch (error: unknown) {
+      if (signal?.aborted) {
+        throw new LlmError('model discovery aborted by caller', 'ABORTED', { cause: error })
+      }
+      failure = error
+    }
+  }
+  throw new LlmError(`could not reach ${url}${networkDetail(failure)}`, 'DISCOVERY_FAILED', { cause: failure })
 }
 
 /**
@@ -177,19 +209,7 @@ export async function discoverModels(
 
   // List models via /api/tags.
   const tagsUrl = `${baseURL}/tags`
-  let tagsResponse: Response
-  try {
-    tagsResponse = await fetch(tagsUrl, {
-      method: 'GET',
-      headers: authHeaders(apiKey),
-      ...request.signal === undefined ? {} : { signal: request.signal },
-    })
-  } catch (error: unknown) {
-    if (request.signal?.aborted) {
-      throw new LlmError('model discovery aborted by caller', 'ABORTED', { cause: error })
-    }
-    throw new LlmError(`could not reach ${tagsUrl}`, 'DISCOVERY_FAILED', { cause: error })
-  }
+  const tagsResponse = await fetchTags(tagsUrl, authHeaders(apiKey), request.signal)
   if (!tagsResponse.ok) {
     throw new LlmError(
       `${tagsUrl} answered ${tagsResponse.status}${tagsResponse.status === 401 || tagsResponse.status === 403 ? '; check the API key' : ''}`,

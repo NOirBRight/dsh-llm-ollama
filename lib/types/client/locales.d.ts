@@ -14,11 +14,6 @@ export declare const en: {
     readonly apiKeyUnset: "No API key configured";
     readonly baseURL: "API URL";
     readonly connection: "Connection";
-    readonly defaults: "Request defaults";
-    readonly contextWindow: "Fallback context window";
-    readonly maxTokens: "Maximum output tokens";
-    readonly maxTokensHint: "Blank uses the provider default.";
-    readonly streamIdleTimeout: "Stream idle timeout (ms)";
     readonly models: "Model catalog";
     readonly fetchModels: "Fetch available models";
     readonly fetchingModels: "Fetching models…";
@@ -44,7 +39,6 @@ export declare const en: {
     readonly saving: "Saving…";
     readonly saved: "Saved";
     readonly invalidBaseURL: "Enter an HTTP or HTTPS API URL.";
-    readonly invalidPositiveInteger: "Token and timeout values must be positive integers.";
     readonly invalidModel: "Every model needs a unique ID and valid positive capacities.";
     readonly invalidApiKey: "The API key cannot contain only whitespace.";
     readonly requestFailed: "Request failed.";

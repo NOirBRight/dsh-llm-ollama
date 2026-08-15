@@ -1,10 +1,13 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { LlmError } from '@deepseek-ai/dsh-llm'
 import { extractContextWindow, extractCapabilities, discoverModels } from '../src/discovery.ts'
 import type { WireShowResponse, WireTagsResponse } from '../src/types.ts'
 import { closeMockServers, mockServer } from './mock-server.ts'
 
-afterEach(async () => { await closeMockServers() })
+afterEach(async () => {
+  await closeMockServers()
+  vi.unstubAllGlobals()
+})
 
 describe('extractContextWindow', () => {
   it('reads *.context_length from model_info', () => {
@@ -85,6 +88,30 @@ describe('discoverModels', () => {
     ])
     // Verify auth header was sent.
     expect(server.headers[0]?.authorization).toBe('Bearer test-key')
+  })
+
+  it('retries one transient /api/tags transport failure', async () => {
+    const transportError = new TypeError('fetch failed', { cause: { code: 'ECONNRESET' } })
+    const fetchMock = vi.fn()
+      .mockRejectedValueOnce(transportError)
+      .mockResolvedValueOnce(new Response(JSON.stringify({ models: [] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(discoverModels({ baseURL: 'https://ollama.example/api' })).resolves.toEqual([])
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('reports the safe transport detail after both /api/tags attempts fail', async () => {
+    const transportError = new TypeError('fetch failed', { cause: { code: 'ECONNRESET' } })
+    const fetchMock = vi.fn(() => Promise.reject(transportError))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(discoverModels({ baseURL: 'https://ollama.example/api' }))
+      .rejects.toThrow('could not reach https://ollama.example/api/tags: fetch failed (ECONNRESET)')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
   it('throws DISCOVERY_FAILED on 401', async () => {

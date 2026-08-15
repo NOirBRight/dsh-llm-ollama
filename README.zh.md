@@ -21,7 +21,7 @@ npm 版本发布后，`dsh plugin --profile web add dsh-llm-ollama` 会从 regis
 
 ## Web 配置
 
-打开 **设置 → 插件 → 插件配置 → Ollama Cloud**。卡片通过 Harness 凭据 API 把 API key 写入 `OLLAMA_API_KEY`；Host 不会在凭据或设置响应中返回已保存的明文。卡片通过带 revision 防护的 `llm-ollama` 设置分节编辑 base URL、后备上下文窗口、可选输出上限、流式空闲超时与模型目录。
+打开 **设置 → 插件 → 插件配置 → Ollama Cloud**。卡片通过 Harness 凭据 API 把 API key 写入 `OLLAMA_API_KEY`；Host 不会在凭据或设置响应中返回已保存的明文。卡片通过带 revision 防护的 `llm-ollama` 设置分节编辑 base URL 与模型目录。部署级请求默认值仍可在 YAML 中配置，但插件卡片不会展示这些高级选项。
 
 **获取可用模型** 会把尚未保存的端点和可选的一次性 key 发送到包内仅限 loopback 的 Connection RPC。Host 查询 `/api/tags` 与 `/api/show`，返回模型 id、上下文窗口以及原生 vision/thinking/tools 标志。用户选择要加入的条目后再保存。启用 thinking 的条目会通过适配器自动公开 `off`、`low`、`medium`、`high`、`max`；Ollama 不公开输出上限，因此该值仍由用户编辑。
 
@@ -84,7 +84,7 @@ Models 页面仍会列出并可选择已保存的 `ollama-cloud` 模型。当前
 - 来自 `model_info.*.context_length` 或 `parameters` 中 `num_ctx` 的 `contextWindow`（优先使用 `parameters`）
 - 来自 `capabilities` 数组的 capabilities（视觉、推理、工具调用）
 
-响应是供界面选择采用的候选元数据；route 实际提供哪些模型仍只由 `settings.yaml` 决定。
+幂等的 tags 请求会在一次传输失败后重试；持续失败时只报告不含凭据的网络详情。响应是供界面选择采用的候选元数据；route 实际提供哪些模型仍只由 `settings.yaml` 决定。
 
 ## 动态配置（设置与凭据）
 

@@ -54,9 +54,6 @@ interface ModelDraft {
 
 interface Draft {
   baseURL: string
-  defaultContextWindow: string
-  maxTokens: string
-  streamIdleTimeoutMs: string
   models: ModelDraft[]
 }
 
@@ -155,9 +152,6 @@ function modelDraftOf(model: OllamaCatalogModelConfig): ModelDraft {
 function draftOf(settings: OllamaSettingsView): Draft {
   return {
     baseURL: settings.baseURL,
-    defaultContextWindow: String(settings.defaultContextWindow),
-    maxTokens: settings.maxTokens === undefined ? '' : String(settings.maxTokens),
-    streamIdleTimeoutMs: String(settings.streamIdleTimeoutMs),
     models: settings.models.map(modelDraftOf),
   }
 }
@@ -194,14 +188,10 @@ function modelSettingsOf(draft: ModelDraft): OllamaCatalogModelConfig {
 }
 
 function settingsOf(draft: Draft, current: OllamaSettingsView): OllamaSettingsView {
-  const maxTokens = integerOf(draft.maxTokens)
   return {
-    apiKeyEnv: current.apiKeyEnv,
+    ...current,
     baseURL: draft.baseURL.trim(),
     models: draft.models.map(modelSettingsOf),
-    ...maxTokens === undefined ? {} : { maxTokens },
-    defaultContextWindow: integerOf(draft.defaultContextWindow) ?? Number.NaN,
-    streamIdleTimeoutMs: integerOf(draft.streamIdleTimeoutMs) ?? Number.NaN,
   }
 }
 
@@ -284,13 +274,8 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
   const title = t('title')
   const disabled = snapshot.status !== 'ready' || !snapshot.writable || busy
   const keyInvalid = apiKey.length > 0 && apiKey.trim().length === 0
-  const numbersInvalid = draft !== undefined && (
-    Number.isNaN(integerOf(draft.defaultContextWindow))
-    || Number.isNaN(integerOf(draft.maxTokens))
-    || Number.isNaN(integerOf(draft.streamIdleTimeoutMs))
-  )
   const invalid = draft !== undefined && (
-    !validURL(draft.baseURL.trim()) || numbersInvalid || modelFailure(draft.models) || keyInvalid
+    !validURL(draft.baseURL.trim()) || modelFailure(draft.models) || keyInvalid
   )
 
   const patchDraft = (next: Partial<Draft>): void => {
@@ -404,7 +389,6 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
 
   let validation: string | undefined
   if (draft !== undefined && !validURL(draft.baseURL.trim())) validation = t('invalidBaseURL')
-  else if (numbersInvalid) validation = t('invalidPositiveInteger')
   else if (draft !== undefined && modelFailure(draft.models)) validation = t('invalidModel')
   else if (keyInvalid) validation = t('invalidApiKey')
 
@@ -462,43 +446,6 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
                         value={draft.baseURL}
                         disabled={disabled}
                         onChange={(event) => { patchDraft({ baseURL: event.target.value }) }}
-                      />
-                    </label>
-                  </section>
-
-                  <section style={sectionStyle}>
-                    <h3 style={sectionTitleStyle}>{t('defaults')}</h3>
-                    <div style={rowStyle}>
-                      <label style={fieldStyle}>
-                        <span style={labelStyle}>{t('contextWindow')}</span>
-                        <input
-                          style={inputStyle}
-                          inputMode="numeric"
-                          value={draft.defaultContextWindow}
-                          disabled={disabled}
-                          onChange={(event) => { patchDraft({ defaultContextWindow: event.target.value }) }}
-                        />
-                      </label>
-                      <label style={fieldStyle}>
-                        <span style={labelStyle}>{t('maxTokens')}</span>
-                        <input
-                          style={inputStyle}
-                          inputMode="numeric"
-                          value={draft.maxTokens}
-                          disabled={disabled}
-                          onChange={(event) => { patchDraft({ maxTokens: event.target.value }) }}
-                        />
-                        <span style={hintStyle}>{t('maxTokensHint')}</span>
-                      </label>
-                    </div>
-                    <label style={fieldStyle}>
-                      <span style={labelStyle}>{t('streamIdleTimeout')}</span>
-                      <input
-                        style={inputStyle}
-                        inputMode="numeric"
-                        value={draft.streamIdleTimeoutMs}
-                        disabled={disabled}
-                        onChange={(event) => { patchDraft({ streamIdleTimeoutMs: event.target.value }) }}
                       />
                     </label>
                   </section>

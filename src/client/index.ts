@@ -66,21 +66,11 @@ export function apply(ctx: ClientContext): void {
 
   const saveConfiguration: OllamaPluginCardFace['saveConfiguration'] = async (settings, apiKey) => {
     const current = scope.getSnapshot().value
-    const fields = [
-      'baseURL',
-      'models',
-      'defaultContextWindow',
-      'streamIdleTimeoutMs',
-    ] as const
+    const fields = ['baseURL', 'models'] as const
     for (const field of fields) {
       if (same(current?.[field], settings[field])) continue
       await scope.set(field, settings[field])
       if (!same(scope.getSnapshot().value?.[field], settings[field])) throw new Error(t('requestFailed'))
-    }
-    if (!same(current?.maxTokens, settings.maxTokens)) {
-      if (settings.maxTokens === undefined) await scope.unset('maxTokens')
-      else await scope.set('maxTokens', settings.maxTokens)
-      if (!same(scope.getSnapshot().value?.maxTokens, settings.maxTokens)) throw new Error(t('requestFailed'))
     }
     if (apiKey !== undefined) {
       const ref = scope.getSnapshot().value?.apiKeyEnv ?? DEFAULT_API_KEY_ENV

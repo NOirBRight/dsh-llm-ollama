@@ -21,7 +21,7 @@ The repository tracks release-ready `lib/` artifacts, so GitHub installation nee
 
 ## Web configuration
 
-Open **Settings → Plugins → Plugin configuration → Ollama Cloud**. The card writes the API key through the Harness credentials API under `OLLAMA_API_KEY`; the Host never returns the stored literal in credential or settings responses. It edits the base URL, fallback context window, optional output cap, stream idle timeout, and model catalog through the revision-fenced `llm-ollama` settings section.
+Open **Settings → Plugins → Plugin configuration → Ollama Cloud**. The card writes the API key through the Harness credentials API under `OLLAMA_API_KEY`; the Host never returns the stored literal in credential or settings responses. It edits the base URL and model catalog through the revision-fenced `llm-ollama` settings section. Deployment-level request defaults remain available in YAML but are intentionally omitted from the plugin card.
 
 **Fetch available models** calls the package's loopback-only Connection RPC with the unsaved endpoint and an optional one-shot key. The Host interrogates `/api/tags` and `/api/show`, then returns model ids, context windows, and native vision/thinking/tools flags. The user selects which rows to add before saving. Thinking rows automatically expose `off`, `low`, `medium`, `high`, and `max` through the adapter; output limits remain editable because Ollama does not disclose them.
 
@@ -84,7 +84,7 @@ The plugin registers a model discovery handler for the `llm-ollama` settings nam
 - `contextWindow` from `model_info.*.context_length` or `parameters` `num_ctx` (preferring `parameters`)
 - `capabilities` (vision, thinking, tools) from the `capabilities` array
 
-The reply is candidate metadata the surface offers for adoption; `settings.yaml` remains the only thing that decides what a route serves.
+The idempotent tags request retries one transport-level failure before reporting a credential-safe network detail. The reply is candidate metadata the surface offers for adoption; `settings.yaml` remains the only thing that decides what a route serves.
 
 ## Dynamic configuration (settings + credentials)
 
