@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import type { InjectFace, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { OllamaCatalogModelConfig } from '../client-contract.ts'
@@ -236,7 +237,7 @@ export function OllamaModelPicker(props: OllamaModelPickerProps): ReactNode {
   }, [snapshot.open, props.closePicker])
 
   if (!snapshot.open) return null
-  return (
+  return createPortal((
     <div style={rootStyle} role="presentation">
       <div style={maskStyle} aria-hidden="true" onClick={props.closePicker} />
       <section
@@ -289,5 +290,5 @@ export function OllamaModelPicker(props: OllamaModelPickerProps): ReactNode {
         </div>
       </section>
     </div>
-  )
+  ), document.body)
 }

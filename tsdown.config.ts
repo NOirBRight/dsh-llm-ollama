@@ -41,6 +41,7 @@ const client: UserConfig = {
     neverBundle: [
       'react',
       'react/jsx-runtime',
+      'react-dom',
       '@deepseek-ai/cordis',
       '@deepseek-ai/dsh-api-remotes/client',
       '@deepseek-ai/dsh-client-connection/client',

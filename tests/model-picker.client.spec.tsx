@@ -36,7 +36,8 @@ describe('OllamaModelPicker', () => {
     ])
     renderPicker(controller)
 
-    expect(screen.getByRole('dialog', { name: en.pickerTitle })).toBeTruthy()
+    const dialog = screen.getByRole('dialog', { name: en.pickerTitle })
+    expect(dialog.parentElement?.parentElement).toBe(document.body)
     const choices = screen.getAllByRole<HTMLInputElement>('checkbox')
     expect(choices.map(choice => choice.checked)).toEqual([true, true])
     fireEvent.click(choices[1] as HTMLInputElement)

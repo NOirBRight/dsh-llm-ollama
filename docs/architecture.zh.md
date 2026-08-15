@@ -39,6 +39,6 @@ Models 编辑器只识别一组封闭的内置 provider 布局。加入 Ollama �
 - **工具名关联**：Ollama 通过 `tool_name`（函数名）关联工具结果，不是 call id。适配器生成顺序 `CallId` 并在 `finish.replayState` 中保存 `callId → toolName` 映射，以便 serializer 在回放时重建关联。如果模型在一轮中调用同一工具两次，线格式无法区分两个结果；serializer 按顺序发送，provider 按位置匹配。
 - **NDJSON 传输**：适配器附带新的 `ndjson.ts` 解析器（带 UTF-8 边界安全的行分割），而不是复用 `dsh-llm-deepseek` 的 `eventsource-parser` SSE 解析器。终止块携带 `done: true`（没有 `[DONE]` 哨兵）。
 - **发现丰富度**：`/api/tags` + `/api/show` 发现返回 OpenAI 兼容列表无法提供的上下文窗口和能力标志。client 会在 RPC 完成前打开选择器；Host 最多并发丰富六个 tag，并按列表顺序写回结果。包的 loopback RPC 为自己的 client 卡片保留 Ollama 专用的 vision、thinking 和 tools 标志。`/api/show` 不会标识可接受的 thinking 等级。
-- **单包 Web 配置**：`dsh plugin add` 同时安装 Host 与 client 入口。卡片通过 `settingsScope` 读取设置，通过一次带 revision 防护的 Host mutation 保存 URL 与目录，通过 `credentials.set` 写凭据，并通过同一条仅限 loopback 的 Connection 通道执行丰富发现。设置响应不包含密钥。
+- **单包 Web 配置**：`dsh plugin add` 同时安装 Host 与 client 入口。卡片通过 `settingsScope` 读取设置，通过一次带 revision 防护的 Host mutation 保存 URL 与目录，通过 `credentials.set` 写凭据，并通过同一条仅限 loopback 的 Connection 通道执行丰富发现。它在 `shell.overlay` 注册选择器，并把可见对话框 portal 到 `document.body`；这与 DSH modal 组合方式一致，可避免设置弹窗将其遮住。设置响应不包含密钥。
 - **Thinking 等级**：适配器应用 Ollama 文档中的通用等级集及明确的 GPT-OSS 例外。`/api/show` 只报告 `thinking` 能力，因此无法发现更窄的逐模型集合。
 - **OpenAI 兼容覆盖**：想要 OpenAI 兼容端点的用户通过 `dsh-llm-pi-ai` 手声明路由使用。本适配器不支持该协议，避免重复。
