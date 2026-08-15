@@ -23,7 +23,7 @@ npm 版本发布后，`dsh plugin --profile web add dsh-llm-ollama` 会从 regis
 
 打开 **设置 → 插件 → 插件配置 → Ollama Cloud**。卡片通过 Harness 凭据 API 把 API key 写入 `OLLAMA_API_KEY`；Host 不会在凭据或设置响应中返回已保存的明文。base URL 与模型目录会通过一次带 revision 防护的 `llm-ollama` 设置 mutation 共同保存，因此再次打开时不会看到只保存其中一项的状态。部署级请求默认值仍可在 YAML 中配置，但插件卡片不会展示这些高级选项。
 
-**获取可用模型** 会把尚未保存的端点和可选的一次性 key 发送到包内仅限 loopback 的 Connection RPC。Host 查询 `/api/tags` 与 `/api/show`，返回模型 id、上下文窗口以及原生 vision/thinking/tools 标志；用户通过 Harness frame overlay 对话框选择要加入草稿的条目。`/api/show` 只报告模型是否支持 thinking，不提供逐模型推理等级。适配器根据 Ollama 文档中的原生 `think` 规则提供等级，并单独处理 GPT-OSS 的较窄规则。Ollama 不公开输出上限，因此该值仍由用户编辑。
+**获取可用模型** 会立即打开 Harness frame overlay 选择器，再把尚未保存的端点和输入框中的当前 key 发送到包内仅限 loopback 的 Connection RPC；输入框为空时，Host 使用已保存的凭据。发现期间选择器会明确显示加载或失败状态，而不是在请求完成前保持不出现。Host 先读取 `/api/tags`，再以最多六路并发通过 `/api/show` 丰富模型元数据，同时保持 provider 顺序，最终返回模型 id、上下文窗口以及原生 vision/thinking/tools 标志。`/api/show` 只报告模型是否支持 thinking，不提供逐模型推理等级。适配器根据 Ollama 文档中的原生 `think` 规则提供等级，并单独处理 GPT-OSS 的较窄规则。Ollama 不公开输出上限，因此该值仍由用户编辑。
 
 Models 页面仍会列出并可选择已保存的 `ollama-cloud` 模型。当前 Harness 版本没有为第三方提供方开放该页内的编辑器扩展点，因此完整编辑器位于插件配置中。
 

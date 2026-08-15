@@ -25,8 +25,12 @@ export interface OllamaPluginCardFace {
     saveConfiguration: (settings: OllamaSettingsView, apiKey?: string) => Promise<OllamaSaveResult>;
     /** Interrogate the draft endpoint without storing its one-shot key. */
     discoverModels: (request: OllamaDiscoveryRequest) => Promise<readonly OllamaCatalogModelConfig[]>;
-    /** Open the frame-level picker and return selected models for adoption. */
-    openModelPicker: (candidates: readonly OllamaCatalogModelConfig[], onAdopt: (models: readonly OllamaCatalogModelConfig[]) => void) => void;
+    /** Open the frame-level picker immediately while discovery loads. */
+    beginModelPicker: (onAdopt: (models: readonly OllamaCatalogModelConfig[]) => void) => void;
+    /** Populate the open picker with discovered candidates. */
+    completeModelPicker: (candidates: readonly OllamaCatalogModelConfig[]) => void;
+    /** Show a discovery failure in the open picker. */
+    failModelPicker: (message: string) => void;
     /** Close a picker whose owning settings card unmounts. */
     closeModelPicker: () => void;
 }

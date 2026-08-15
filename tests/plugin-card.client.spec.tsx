@@ -6,7 +6,7 @@ import type { SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-runtime/clie
 import { OllamaPluginCard } from '../src/client/OllamaPluginCard.tsx'
 import type { OllamaPluginCardProps } from '../src/client/OllamaPluginCard.tsx'
 import { en } from '../src/client/locales.ts'
-import type { OllamaSettingsView } from '../src/client-contract.ts'
+import type { OllamaCatalogModelConfig, OllamaSettingsView } from '../src/client-contract.ts'
 
 afterEach(() => { cleanup() })
 
@@ -33,13 +33,16 @@ function snapshot(overrides: Partial<SettingsScopeSnapshot<OllamaSettingsView>> 
 
 function props(overrides: Partial<OllamaPluginCardProps> = {}): OllamaPluginCardProps {
   const current = snapshot()
+  let adopt: ((models: readonly OllamaCatalogModelConfig[]) => void) | undefined
   return {
     t: key => en[key],
     useOllamaSettings: selector => selector(current),
     describeCredential: vi.fn(() => Promise.resolve({ configured: false, writable: true })),
     saveConfiguration: vi.fn(next => Promise.resolve({ settings: next, revision: 2 })),
     discoverModels: vi.fn(() => Promise.resolve([])),
-    openModelPicker: vi.fn((candidates, onAdopt) => { onAdopt(candidates) }),
+    beginModelPicker: vi.fn(onAdopt => { adopt = onAdopt }),
+    completeModelPicker: vi.fn(candidates => { adopt?.(candidates) }),
+    failModelPicker: vi.fn(),
     closeModelPicker: vi.fn(),
     ...overrides,
   } as OllamaPluginCardProps
@@ -58,6 +61,24 @@ describe('OllamaPluginCard', () => {
     expect(save.style.background).toBe('var(--dsw-alias-button-primary-fill)')
   })
 
+  it('opens the picker before discovery settles', async () => {
+    let resolveDiscovery: ((models: readonly OllamaCatalogModelConfig[]) => void) | undefined
+    const discoverModels = vi.fn(() => new Promise<readonly OllamaCatalogModelConfig[]>(resolve => {
+      resolveDiscovery = resolve
+    }))
+    const beginModelPicker = vi.fn()
+    const completeModelPicker = vi.fn()
+    render(<OllamaPluginCard {...props({ discoverModels, beginModelPicker, completeModelPicker })} />)
+    fireEvent.click(screen.getByRole('button', { name: `${en.expand}: ${en.title}` }))
+
+    fireEvent.click(screen.getByRole('button', { name: en.fetchModels }))
+
+    expect(beginModelPicker).toHaveBeenCalledTimes(1)
+    expect(completeModelPicker).not.toHaveBeenCalled()
+    resolveDiscovery?.([{ id: 'gemma3' }])
+    await waitFor(() => { expect(completeModelPicker).toHaveBeenCalledWith([{ id: 'gemma3' }]) })
+  })
+
   it('stores an API key and adopts native model capabilities from discovery', async () => {
     const saveConfiguration = vi.fn((next: OllamaSettingsView) => Promise.resolve({ settings: next, revision: 2 }))
     const discoverModels = vi.fn(() => Promise.resolve([
@@ -74,6 +95,7 @@ describe('OllamaPluginCard', () => {
 
     fireEvent.click(screen.getByRole('button', { name: `${en.expand}: ${en.title}` }))
     fireEvent.change(screen.getByLabelText(en.apiKey), { target: { value: ' ollama-secret ' } })
+    expect(screen.getByText(en.apiKeyPending)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: en.fetchModels }))
 
     await waitFor(() => { expect(discoverModels).toHaveBeenCalledWith({

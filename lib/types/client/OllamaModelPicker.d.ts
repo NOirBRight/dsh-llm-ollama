@@ -7,10 +7,14 @@ import type { OllamaSettingsKey } from './locales.ts';
 export interface OllamaModelPickerSnapshot {
     /** Whether the overlay is visible. */
     open: boolean;
+    /** Whether model metadata is still loading. */
+    loading: boolean;
     /** Candidates in provider order. */
     candidates: readonly OllamaCatalogModelConfig[];
     /** IDs selected for adoption. */
     picked: ReadonlySet<string>;
+    /** Visible discovery failure, when loading did not complete. */
+    error?: string;
 }
 type Listener = () => void;
 type Adopt = (models: readonly OllamaCatalogModelConfig[]) => void;
@@ -23,8 +27,12 @@ export declare class OllamaModelPickerController {
     getSnapshot: () => OllamaModelPickerSnapshot;
     /** Subscribe one renderer listener. */
     subscribe: (listener: Listener) => (() => void);
-    /** Open with every discovered model selected initially. */
-    open(candidates: readonly OllamaCatalogModelConfig[], onAdopt: Adopt): void;
+    /** Open immediately while discovery loads. */
+    begin(onAdopt: Adopt): void;
+    /** Populate an open loading picker with every model selected initially. */
+    complete(candidates: readonly OllamaCatalogModelConfig[]): void;
+    /** Keep the open picker visible with a discovery failure. */
+    fail(message: string): void;
     /** Close without adopting any candidate. */
     close: () => void;
     /** Toggle one candidate by id. */

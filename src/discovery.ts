@@ -21,10 +21,12 @@ import type { LlmDiscoveredModel, LlmModelDiscoveryRequest } from '@deepseek-ai/
 import { attributionHeaders } from '@deepseek-ai/dsh-llm'
 import { OLLAMA_PUBLIC_BASE_URL } from './client-contract.ts'
 import type { OllamaCatalogModelConfig } from './client-contract.ts'
-import type { WireShowResponse, WireTagsResponse } from './types.ts'
+import type { WireShowResponse, WireTagModel, WireTagsResponse } from './types.ts'
 
 /** Endpoint replies larger than this are refused. */
 const MAX_RESPONSE_BYTES = 4 * 1024 * 1024
+/** Maximum concurrent `/api/show` reads during one discovery operation. */
+const SHOW_CONCURRENCY = 6
 
 /** The public Ollama Cloud API base URL. */
 export const PUBLIC_BASE_URL = OLLAMA_PUBLIC_BASE_URL
@@ -189,6 +191,59 @@ export function extractCapabilities(capabilities: string[] | undefined): OllamaM
   }
 }
 
+/** Enrich one tags entry, retaining its id when `/api/show` cannot answer. */
+async function discoverTaggedModel(
+  tag: WireTagModel,
+  baseURL: string,
+  apiKey: string | undefined,
+  signal: AbortSignal | undefined,
+): Promise<OllamaDiscoveredModel | undefined> {
+  const id = tag.model ?? tag.name
+  if (typeof id !== 'string' || id.length === 0) return undefined
+  const fallback: OllamaDiscoveredModel = {
+    id,
+    ...tag.name !== undefined && tag.name !== id ? { name: tag.name } : {},
+  }
+  const showUrl = `${baseURL}/show`
+  let showResponse: Response
+  try {
+    showResponse = await fetch(showUrl, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...authHeaders(apiKey) },
+      body: JSON.stringify({ model: id }),
+      ...signal === undefined ? {} : { signal },
+    })
+  } catch (error: unknown) {
+    if (signal?.aborted) {
+      throw new LlmError('model discovery aborted by caller', 'ABORTED', { cause: error })
+    }
+    return fallback
+  }
+  if (!showResponse.ok) return fallback
+  let showText: string
+  try {
+    showText = await readBounded(showResponse, showUrl)
+  } catch (error: unknown) {
+    if (signal?.aborted) {
+      throw new LlmError('model discovery aborted by caller', 'ABORTED', { cause: error })
+    }
+    return fallback
+  }
+  let showBody: WireShowResponse
+  try {
+    showBody = JSON.parse(showText) as WireShowResponse
+  } catch {
+    return fallback
+  }
+  const contextWindow = extractContextWindow(showBody)
+  const capabilities = extractCapabilities(showBody.capabilities)
+  return {
+    ...fallback,
+    ...contextWindow === undefined ? {} : { contextWindow },
+    ...capabilities,
+  }
+}
+
 /**
  * Interrogate one Ollama Cloud endpoint for the models it advertises.
  * Calls `GET /api/tags` to list models, then `POST /api/show` per model to
@@ -238,55 +293,22 @@ export async function discoverModels(
     )
   }
 
-  // For each model, call /api/show to get context length and capabilities.
-  const models: OllamaDiscoveredModel[] = []
-  for (const tag of tagsBody.models) {
-    const id = tag.model ?? tag.name
-    if (typeof id !== 'string' || id.length === 0) continue
-    const showUrl = `${baseURL}/show`
-    let showResponse: Response
-    try {
-      showResponse = await fetch(showUrl, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', ...authHeaders(apiKey) },
-        body: JSON.stringify({ model: id }),
-        ...request.signal === undefined ? {} : { signal: request.signal },
-      })
-    } catch (error: unknown) {
-      if (request.signal?.aborted) {
-        throw new LlmError('model discovery aborted by caller', 'ABORTED', { cause: error })
+  // Enrich models concurrently while retaining the endpoint's listing order.
+  const models = new Array<OllamaDiscoveredModel | undefined>(tagsBody.models.length)
+  let cursor = 0
+  const worker = async (): Promise<void> => {
+    for (;;) {
+      const index = cursor
+      cursor += 1
+      if (index >= tagsBody.models.length) return
+      const tag = tagsBody.models[index]
+      if (tag !== undefined) {
+        models[index] = await discoverTaggedModel(tag, baseURL, apiKey, request.signal)
       }
-      // A single model's show failure should not deny the user the rest.
-      models.push({ id, ...tag.name !== undefined && tag.name !== id ? { name: tag.name } : {} })
-      continue
     }
-    if (!showResponse.ok) {
-      // Skip show for models that fail it; the tags listing still has the id.
-      models.push({ id, ...tag.name !== undefined && tag.name !== id ? { name: tag.name } : {} })
-      continue
-    }
-    let showText: string
-    try {
-      showText = await readBounded(showResponse, showUrl)
-    } catch {
-      models.push({ id, ...tag.name !== undefined && tag.name !== id ? { name: tag.name } : {} })
-      continue
-    }
-    let showBody: WireShowResponse
-    try {
-      showBody = JSON.parse(showText) as WireShowResponse
-    } catch {
-      models.push({ id, ...tag.name !== undefined && tag.name !== id ? { name: tag.name } : {} })
-      continue
-    }
-    const contextWindow = extractContextWindow(showBody)
-    const capabilities = extractCapabilities(showBody.capabilities)
-    models.push({
-      id,
-      ...tag.name !== undefined && tag.name !== id ? { name: tag.name } : {},
-      ...contextWindow === undefined ? {} : { contextWindow },
-      ...capabilities,
-    })
   }
-  return models
+  await Promise.all(
+    Array.from({ length: Math.min(SHOW_CONCURRENCY, tagsBody.models.length) }, worker),
+  )
+  return models.filter((model): model is OllamaDiscoveredModel => model !== undefined)
 }

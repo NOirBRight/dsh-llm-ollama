@@ -125,7 +125,9 @@ export function apply(ctx: ClientContext): void {
       describeCredential,
       saveConfiguration,
       discoverModels,
-      openModelPicker: (candidates, onAdopt) => { picker.open(candidates, onAdopt) },
+      beginModelPicker: onAdopt => { picker.begin(onAdopt) },
+      completeModelPicker: candidates => { picker.complete(candidates) },
+      failModelPicker: message => { picker.fail(message) },
       closeModelPicker: picker.close,
     }),
   }, OllamaPluginCard))

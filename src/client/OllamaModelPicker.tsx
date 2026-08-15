@@ -11,10 +11,14 @@ import type { OllamaSettingsKey } from './locales.ts'
 export interface OllamaModelPickerSnapshot {
   /** Whether the overlay is visible. */
   open: boolean
+  /** Whether model metadata is still loading. */
+  loading: boolean
   /** Candidates in provider order. */
   candidates: readonly OllamaCatalogModelConfig[]
   /** IDs selected for adoption. */
   picked: ReadonlySet<string>
+  /** Visible discovery failure, when loading did not complete. */
+  error?: string
 }
 
 type Listener = () => void
@@ -24,6 +28,7 @@ type Adopt = (models: readonly OllamaCatalogModelConfig[]) => void
 export class OllamaModelPickerController {
   private snapshot: OllamaModelPickerSnapshot = {
     open: false,
+    loading: false,
     candidates: [],
     picked: new Set(),
   }
@@ -39,20 +44,33 @@ export class OllamaModelPickerController {
     return () => { this.listeners.delete(listener) }
   }
 
-  /** Open with every discovered model selected initially. */
-  open(candidates: readonly OllamaCatalogModelConfig[], onAdopt: Adopt): void {
+  /** Open immediately while discovery loads. */
+  begin(onAdopt: Adopt): void {
     this.onAdopt = onAdopt
+    this.publish({ open: true, loading: true, candidates: [], picked: new Set() })
+  }
+
+  /** Populate an open loading picker with every model selected initially. */
+  complete(candidates: readonly OllamaCatalogModelConfig[]): void {
+    if (!this.snapshot.open || !this.snapshot.loading) return
     this.publish({
       open: true,
+      loading: false,
       candidates: [...candidates],
       picked: new Set(candidates.map(model => model.id)),
     })
   }
 
+  /** Keep the open picker visible with a discovery failure. */
+  fail(message: string): void {
+    if (!this.snapshot.open || !this.snapshot.loading) return
+    this.publish({ open: true, loading: false, candidates: [], picked: new Set(), error: message })
+  }
+
   /** Close without adopting any candidate. */
   close = (): void => {
     this.onAdopt = undefined
-    this.publish({ open: false, candidates: [], picked: new Set() })
+    this.publish({ open: false, loading: false, candidates: [], picked: new Set() })
   }
 
   /** Toggle one candidate by id. */
@@ -65,6 +83,7 @@ export class OllamaModelPickerController {
 
   /** Close and deliver the selected candidates to the card. */
   adopt = (): void => {
+    if (this.snapshot.loading || this.snapshot.error !== undefined || this.snapshot.picked.size === 0) return
     const callback = this.onAdopt
     const selected = this.snapshot.candidates.filter(model => this.snapshot.picked.has(model.id))
     this.close()
@@ -172,6 +191,19 @@ const candidateStyle: CSSProperties = {
   lineHeight: '22px',
   cursor: 'pointer',
 }
+const statusStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  minHeight: 96,
+  margin: '20px 24px',
+  fontSize: 14,
+  lineHeight: '22px',
+  color: 'var(--dsw-alias-label-secondary)',
+}
+const errorStyle: CSSProperties = {
+  ...statusStyle,
+  color: 'var(--dsw-alias-state-error-primary)',
+}
 const footerStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
@@ -207,32 +239,49 @@ export function OllamaModelPicker(props: OllamaModelPickerProps): ReactNode {
   return (
     <div style={rootStyle} role="presentation">
       <div style={maskStyle} aria-hidden="true" onClick={props.closePicker} />
-      <section style={dialogStyle} role="dialog" aria-modal="true" aria-label={t('pickerTitle')}>
+      <section
+        style={dialogStyle}
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('pickerTitle')}
+        aria-busy={snapshot.loading}
+      >
         <div style={headerStyle}>
           <h2 style={titleStyle}>{t('pickerTitle')}</h2>
           <button type="button" style={closeStyle} aria-label={t('close')} onClick={props.closePicker}>×</button>
         </div>
         <p style={descriptionStyle}>{t('pickerDescription')}</p>
-        <ul style={listStyle}>
-          {snapshot.candidates.map(model => (
-            <li key={model.id}>
-              <label style={candidateStyle}>
-                <input
-                  type="checkbox"
-                  checked={snapshot.picked.has(model.id)}
-                  onChange={() => { props.togglePickerModel(model.id) }}
-                />
-                <span>{model.id}</span>
-              </label>
-            </li>
-          ))}
-        </ul>
+        {snapshot.loading
+          ? <p style={statusStyle} role="status">{t('pickerLoading')}</p>
+          : snapshot.error !== undefined
+            ? <p style={errorStyle} role="alert">{snapshot.error}</p>
+            : (
+              <ul style={listStyle}>
+                {snapshot.candidates.map(model => (
+                  <li key={model.id}>
+                    <label style={candidateStyle}>
+                      <input
+                        type="checkbox"
+                        checked={snapshot.picked.has(model.id)}
+                        onChange={() => { props.togglePickerModel(model.id) }}
+                      />
+                      <span>{model.id}</span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            )}
         <div style={footerStyle}>
           <button type="button" style={outlineButtonStyle} onClick={props.closePicker}>{t('cancel')}</button>
           <button
             type="button"
-            style={outlineButtonStyle}
-            disabled={snapshot.picked.size === 0}
+            style={{
+              ...outlineButtonStyle,
+              ...(snapshot.loading || snapshot.error !== undefined || snapshot.picked.size === 0
+                ? { cursor: 'not-allowed', opacity: 0.4 }
+                : {}),
+            }}
+            disabled={snapshot.loading || snapshot.error !== undefined || snapshot.picked.size === 0}
             onClick={props.adoptPickerModels}
           >
             {t('addSelected')}

@@ -90,6 +90,33 @@ describe('discoverModels', () => {
     expect(server.headers[0]?.authorization).toBe('Bearer test-key')
   })
 
+  it('bounds concurrent /api/show enrichment and preserves tag order', async () => {
+    const ids = Array.from({ length: 12 }, (_, index) => `model-${String(index)}`)
+    let active = 0
+    let maxActive = 0
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      if (String(input).endsWith('/tags')) {
+        return new Response(JSON.stringify({ models: ids.map(id => ({ model: id })) }), { status: 200 })
+      }
+      const request = JSON.parse(String(init?.body)) as { model: string }
+      active += 1
+      maxActive = Math.max(maxActive, active)
+      await new Promise(resolve => setTimeout(resolve, 10))
+      active -= 1
+      return new Response(JSON.stringify({
+        model_info: { [`${request.model}.context_length`]: 8192 },
+        capabilities: ['tools'],
+      }), { status: 200 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const models = await discoverModels({ baseURL: 'https://ollama.example/api' })
+
+    expect(models.map(model => model.id)).toEqual(ids)
+    expect(maxActive).toBeGreaterThan(1)
+    expect(maxActive).toBeLessThanOrEqual(6)
+  })
+
   it('retries one transient /api/tags transport failure', async () => {
     const transportError = new TypeError('fetch failed', { cause: { code: 'ECONNRESET' } })
     const fetchMock = vi.fn()

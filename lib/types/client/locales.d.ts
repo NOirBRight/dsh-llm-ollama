@@ -11,6 +11,7 @@ export declare const en: {
     readonly apiKey: "API key";
     readonly apiKeyPlaceholder: "Enter API key";
     readonly apiKeyConfigured: "Configured — enter a new value to replace it";
+    readonly apiKeyPending: "New key entered — discovery uses it now; Save stores it";
     readonly apiKeyUnset: "No API key configured";
     readonly baseURL: "API URL";
     readonly connection: "Connection";
@@ -20,6 +21,7 @@ export declare const en: {
     readonly fetchEmpty: "The endpoint returned no models.";
     readonly pickerTitle: "Choose models to add";
     readonly pickerDescription: "Select the models to add to this catalog.";
+    readonly pickerLoading: "Fetching model metadata…";
     readonly addSelected: "Add selected";
     readonly cancel: "Cancel";
     readonly close: "Close";

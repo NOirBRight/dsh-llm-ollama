@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { useSyncExternalStore } from 'react'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   OllamaModelPicker,
@@ -29,10 +29,11 @@ describe('OllamaModelPicker', () => {
   it('uses the frame overlay dialog lifecycle and adopts only selected models', () => {
     const controller = new OllamaModelPickerController()
     const adopted = vi.fn()
-    controller.open([
+    controller.begin(adopted)
+    controller.complete([
       { id: 'gemma3', vision: true },
       { id: 'qwen3', thinking: true },
-    ], adopted)
+    ])
     renderPicker(controller)
 
     expect(screen.getByRole('dialog', { name: en.pickerTitle })).toBeTruthy()
@@ -45,10 +46,24 @@ describe('OllamaModelPicker', () => {
     expect(screen.queryByRole('dialog', { name: en.pickerTitle })).toBeNull()
   })
 
+  it('opens immediately with loading and keeps failures visible', () => {
+    const controller = new OllamaModelPickerController()
+    controller.begin(vi.fn())
+    renderPicker(controller)
+
+    expect(screen.getByRole('dialog', { name: en.pickerTitle }).getAttribute('aria-busy')).toBe('true')
+    expect(screen.getByRole('status').textContent).toBe(en.pickerLoading)
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: en.addSelected }).disabled).toBe(true)
+
+    act(() => { controller.fail('could not reach endpoint') })
+
+    expect(screen.getByRole('alert').textContent).toBe('could not reach endpoint')
+  })
+
   it('closes on Escape without adopting', () => {
     const controller = new OllamaModelPickerController()
     const adopted = vi.fn()
-    controller.open([{ id: 'gemma3' }], adopted)
+    controller.begin(adopted)
     renderPicker(controller)
 
     fireEvent.keyDown(document, { key: 'Escape' })
