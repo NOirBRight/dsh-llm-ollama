@@ -17,11 +17,11 @@ dsh web
 
 After an npm release, `dsh plugin --profile web add dsh-llm-ollama` installs the same package from the registry.
 
-The package's `dsh.bundle` manifest inserts the Host adapter, while its `dsh.client` manifest makes the running Web host serve `lib/client.js`. Removing the bundle removes both faces. A source checkout can use `dsh plugin --profile web add link:/absolute/path/to/dsh-llm-ollama` after building the package.
+The repository tracks release-ready `lib/` artifacts, so GitHub installation needs no build-script allowlist. The package's `dsh.bundle` manifest inserts the Host adapter, while its `dsh.client` manifest makes the running Web host serve `lib/client.js`. Removing the bundle removes both faces. A source checkout can use `dsh plugin --profile web add link:/absolute/path/to/dsh-llm-ollama` after building the package.
 
 ## Web configuration
 
-Open **Settings → Plugins → Plugin configuration → Ollama Cloud**. The card writes the API key through the Harness credentials API under `OLLAMA_API_KEY`; the literal is never returned to the browser. It edits the base URL, fallback context window, optional output cap, stream idle timeout, and model catalog through the revision-fenced `llm-ollama` settings section.
+Open **Settings → Plugins → Plugin configuration → Ollama Cloud**. The card writes the API key through the Harness credentials API under `OLLAMA_API_KEY`; the Host never returns the stored literal in credential or settings responses. It edits the base URL, fallback context window, optional output cap, stream idle timeout, and model catalog through the revision-fenced `llm-ollama` settings section.
 
 **Fetch available models** calls the package's loopback-only Connection RPC with the unsaved endpoint and an optional one-shot key. The Host interrogates `/api/tags` and `/api/show`, then returns model ids, context windows, and native vision/thinking/tools flags. The user selects which rows to add before saving. Thinking rows automatically expose `off`, `low`, `medium`, `high`, and `max` through the adapter; output limits remain editable because Ollama does not disclose them.
 

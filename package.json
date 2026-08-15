@@ -45,7 +45,6 @@
     "build": "tsc -p tsconfig.json && tsdown",
     "test": "vitest run",
     "pack:check": "node scripts/check-pack.mjs",
-    "prepare": "pnpm run build",
     "check": "pnpm run build && pnpm run test && pnpm run pack:check"
   },
   "engines": {

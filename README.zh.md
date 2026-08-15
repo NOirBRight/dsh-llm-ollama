@@ -17,11 +17,11 @@ dsh web
 
 npm 版本发布后，`dsh plugin --profile web add dsh-llm-ollama` 会从 registry 安装同一个包。
 
-包内的 `dsh.bundle` manifest 插入 Host 适配器，`dsh.client` manifest 让正在运行的 Web Host 提供 `lib/client.js`。移除 bundle 会同时移除两个入口。源码 checkout 构建完成后可运行 `dsh plugin --profile web add link:/absolute/path/to/dsh-llm-ollama`。
+仓库会跟踪可直接发布的 `lib/` 产物，因此从 GitHub 安装时无需允许构建脚本。包内的 `dsh.bundle` manifest 插入 Host 适配器，`dsh.client` manifest 让正在运行的 Web Host 提供 `lib/client.js`。移除 bundle 会同时移除两个入口。源码 checkout 构建完成后可运行 `dsh plugin --profile web add link:/absolute/path/to/dsh-llm-ollama`。
 
 ## Web 配置
 
-打开 **设置 → 插件 → 插件配置 → Ollama Cloud**。卡片通过 Harness 凭据 API 把 API key 写入 `OLLAMA_API_KEY`；保存后浏览器不会取回明文。卡片通过带 revision 防护的 `llm-ollama` 设置分节编辑 base URL、后备上下文窗口、可选输出上限、流式空闲超时与模型目录。
+打开 **设置 → 插件 → 插件配置 → Ollama Cloud**。卡片通过 Harness 凭据 API 把 API key 写入 `OLLAMA_API_KEY`；Host 不会在凭据或设置响应中返回已保存的明文。卡片通过带 revision 防护的 `llm-ollama` 设置分节编辑 base URL、后备上下文窗口、可选输出上限、流式空闲超时与模型目录。
 
 **获取可用模型** 会把尚未保存的端点和可选的一次性 key 发送到包内仅限 loopback 的 Connection RPC。Host 查询 `/api/tags` 与 `/api/show`，返回模型 id、上下文窗口以及原生 vision/thinking/tools 标志。用户选择要加入的条目后再保存。启用 thinking 的条目会通过适配器自动公开 `off`、`low`、`medium`、`high`、`max`；Ollama 不公开输出上限，因此该值仍由用户编辑。
 
