@@ -9,7 +9,7 @@ export const DEFAULT_API_KEY_ENV = 'OLLAMA_API_KEY'
 /** Public Ollama Cloud native API base URL. */
 export const OLLAMA_PUBLIC_BASE_URL = 'https://ollama.com/api'
 /** Default context capacity for models without discovered metadata. */
-export const OLLAMA_DEFAULT_CONTEXT_WINDOW = 4096
+export const OLLAMA_DEFAULT_CONTEXT_WINDOW = 262_144
 /** Default maximum idle interval while a stream read is outstanding. */
 export const OLLAMA_DEFAULT_STREAM_IDLE_TIMEOUT_MS = 300_000
 /** Private Connection RPC channel used by this package's two runtime faces. */

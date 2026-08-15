@@ -83,7 +83,7 @@ describe('Ollama rich-discovery RPC', () => {
       apiKeyEnv: 'OLLAMA_API_KEY',
       baseURL: 'https://ollama.com/api',
       models: [],
-      defaultContextWindow: 4096,
+      defaultContextWindow: 262_144,
       streamIdleTimeoutMs: 300_000,
     }
     let value = current

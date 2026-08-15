@@ -3,7 +3,7 @@ import type { IncomingMessage, Server, ServerResponse } from 'node:http'
 
 /** One scripted behavior for the next request the mock server receives. */
 export type Behavior =
-  | { kind: 'ndjson'; lines: string[]; delayMs?: number }
+  | { kind: 'sse'; events: string[] }
   | { kind: 'json'; status: number; body: string; headers?: Record<string, string> }
   | { kind: 'close-early'; lines: string[] }
 
@@ -24,16 +24,11 @@ export async function closeMockServers(): Promise<void> {
   await Promise.all(servers.splice(0).map(server => new Promise(resolve => server.close(resolve))))
 }
 
-/** A minimal complete text generation as NDJSON lines. */
-export const textLines = [
-  '{"model":"test","created_at":"2025-01-01T00:00:00Z","message":{"role":"assistant","content":"hello"},"done":false}',
-  '{"model":"test","created_at":"2025-01-01T00:00:00Z","message":{"role":"assistant","content":""},"done":true,"done_reason":"stop","prompt_eval_count":3,"eval_count":1}',
-]
-
-/** A minimal tool-call generation as NDJSON lines. */
-export const toolCallLines = [
-  '{"model":"test","created_at":"2025-01-01T00:00:00Z","message":{"role":"assistant","content":"","tool_calls":[{"function":{"name":"get_weather","arguments":{"city":"NYC"}}}]},"done":false}',
-  '{"model":"test","created_at":"2025-01-01T00:00:00Z","message":{"role":"assistant","content":""},"done":true,"done_reason":"stop","prompt_eval_count":5,"eval_count":2}',
+/** A minimal complete OpenAI Chat Completions SSE response. */
+export const openAITextEvents = [
+  '{"id":"chatcmpl-test","object":"chat.completion.chunk","created":1,"model":"gpt-oss:20b","choices":[{"index":0,"delta":{"role":"assistant","content":"hello"}}]}',
+  '{"id":"chatcmpl-test","object":"chat.completion.chunk","created":1,"model":"gpt-oss:20b","choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":3,"completion_tokens":1,"total_tokens":4}}',
+  '[DONE]',
 ]
 
 /** Local Ollama API stand-in: replays scripted behaviors per request. */
@@ -56,22 +51,12 @@ export async function mockServer(script: Behavior[]): Promise<MockServer> {
         response.end(behavior.body)
         return
       }
-      response.writeHead(200, { 'content-type': 'application/x-ndjson' })
-      const lines = behavior.lines
-      const delayMs = behavior.kind === 'ndjson' ? behavior.delayMs : undefined
-      const write = (index: number): void => {
-        if (index >= lines.length) {
-          response.end()
-          return
-        }
-        response.write(`${lines[index]}\n`)
-        if (delayMs !== undefined) {
-          setTimeout(() =>{  write(index + 1) }, delayMs)
-        } else {
-          write(index + 1)
-        }
+      if (behavior.kind === 'sse') {
+        response.writeHead(200, { 'content-type': 'text/event-stream' })
+        response.end(behavior.events.map(event => `data: ${event}\n\n`).join(''))
+        return
       }
-      write(0)
+      response.writeHead(500).end(`unsupported mock behavior: ${behavior.kind}`)
     })
   })
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))

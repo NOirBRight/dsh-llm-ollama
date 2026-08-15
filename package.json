@@ -1,7 +1,7 @@
 {
   "name": "dsh-llm-ollama",
-  "description": "Ollama Cloud native chat adapter and Web configuration card for DeepSeek Harness",
-  "version": "0.2.3",
+  "description": "Ollama Cloud models, OpenAI-compatible chat, and Web Search/Fetch for DeepSeek Harness",
+  "version": "0.3.0",
   "publishConfig": {
     "access": "public"
   },
@@ -51,6 +51,9 @@
     "node": "^22.19.0 || >=24.0.0"
   },
   "license": "MIT",
+  "dependencies": {
+    "@earendil-works/pi-ai": "^0.82.1"
+  },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
@@ -84,6 +87,7 @@
     "@deepseek-ai/dsh-launch-environment": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-invariants": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-llm": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-llm-pi-ai": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-settings": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-timeout": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-web": "^0.1.0-rc.6",
@@ -108,6 +112,7 @@
     "@deepseek-ai/dsh-launch-environment": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-invariants": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-llm": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-llm-pi-ai": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-settings": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-timeout": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-web": "^0.1.0-rc.6",

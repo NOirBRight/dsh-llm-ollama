@@ -1,45 +1,91 @@
-# 架构：Ollama Cloud 原生协议与插件入口
+# 架构：Ollama 独立能力与 OpenAI-compatible 聊天
 
 [English](architecture.md) | 中文
 
-## Problem
+已接受的协议决策记录在 [ADR 0001](adr/0001-separate-chat-protocol-from-ollama-capabilities.zh.md)。
 
-Ollama Cloud 暴露三种线协议：原生 `/api/chat`（NDJSON 流式）、OpenAI 兼容 `/v1/chat/completions`（SSE）和 Anthropic 兼容 `/v1/messages`（SSE）。适配器需要选择实现哪一种。
+## 能力归属
 
-## Decision
+本包拥有一个 Ollama 特有 provider 身份 ollama-cloud，但不会把每个 Ollama endpoint 当作同一种协议。
 
-`dsh-llm-ollama` 适配器只实现原生 `/api/chat` 协议。它遵循 `dsh-llm-deepseek` 的直接 fetch 模板（分拆 wire-types / serialize / NDJSON-parse / translate / adapter 模块），通过 `/api/tags` 与 `/api/show` 发现模型，按原生 tag id 去重并保留 tag 顺序。
+聊天通过共享的 pi-ai adapter 使用 OpenAI Chat Completions：
 
-原生协议是唯一暴露适配器发现功能所需模型元数据的协议：`/api/show` 返回 `model_info.*.context_length` 和 `capabilities`（vision、thinking、tools）。OpenAI 兼容的 `/v1/models` 只返回 `{id, created, owned_by}`。Anthropic 兼容端点没有模型列表。
+    DSH GenerateOptions
+      -> OllamaAdapter
+      -> PiAiAdapter
+      -> POST <chat-base>/chat/completions
+      -> DSH StreamChunk
 
-原生 `think` 字段遵循 Ollama 通用的 `false`/`"low"`/`"medium"`/`"high"`/`"max"` 规则，GPT-OSS 则只接受 `"low"`/`"medium"`/`"high"`。OpenAI 兼容的 `reasoning_effort` 只接受 `"none"`/`"low"`/`"medium"`/`"high"`；只有通用原生规则支持 `"max"`。
+Ollama 特有的独立能力继续使用原生 API：
 
-独立安装的 npm 包同时携带两个运行时入口。Host 入口注册适配器、设置分节、模型发现，以及用于丰富发现和原子编辑器保存的仅限 loopback Connection RPC；`dsh.client` 入口向 `settings.plugin.item` 贡献卡片，并向 `shell.overlay` 贡献模型选择器。用户可通过凭据 API 保存 API key、探测尚未保存的端点、选择发现的模型，并编辑容量与能力标志。bundle 不要求修改 Harness 核心或 profile 文件。
+    模型发现  -> GET /api/tags + POST /api/show
+    网页搜索  -> POST /api/web_search
+    网页抓取  -> POST /api/web_fetch
 
-## Alternatives considered
+DSH 通过 ctx.web 路由 web_search 和 web_fetch。它们的 provider 选择与当前聊天模型和 adapter 无关。
 
-### 为什么不用 OpenAI 兼容端点？
+## Endpoint 映射
 
-OpenAI 兼容的 `/v1/chat/completions` 端点已经可以通过 `@deepseek-ai/dsh-llm-pi-ai` 作为手声明路由使用（`api: openai-completions`、`baseURL: https://ollama.com/v1`、`apiKeyEnv: OLLAMA_API_KEY`）。为同一端点构建第二个适配器会重复 pi-ai 的 SSE 解析、call-id 工具调用处理和 `reasoning_effort` 映射。更重要的是，OpenAI 兼容的 `/v1/models` 列表只返回模型 id，不包含上下文窗口或能力声明。原生 `/api/show` 会提供这些字段，但两种列表都不提供逐模型输出上限或可接受的 thinking 等级。
+llm-ollama 设置节保存 Ollama 原生 base URL，因为模型发现和 Web 能力会直接使用它。默认值是：
 
-### 为什么不用 Anthropic 兼容端点？
+    https://ollama.com/api
 
-Anthropic 兼容的 `/v1/messages` 端点为使用 Anthropic API 的工具（如 Claude Code）而存在。harness 有自己的 provider-neutral 消息词汇；没有消费者需要 Anthropic 的线格式。支持它会增加第三个 serializer 和 translator，没有净收益。
+聊天 adapter 会把相邻的原生地址映射为：
 
-### 为什么不在一个适配器里支持全部三种？
+    https://ollama.com/v1
 
-一个适配器只说一种协议。在一个适配器里支持三种线格式会让 serializer/translator 表面翻三倍（三种消息格式、三种流式格式、三种工具调用关联模型），没有消费者收益。harness 的消息词汇是 provider-neutral 的；适配器翻译为一种线格式，想要其他格式的用户使用相应的适配器（pi-ai 用于 OpenAI 兼容）。
+以 /api 结尾的地址替换为 /v1；已经以 /v1 结尾的地址保持不变；其他自定义根地址追加 /v1。
 
-### 为什么不修改 Models 页面？
+## 模型目录
 
-Models 编辑器只识别一组封闭的内置 provider 布局。加入 Ollama 专用分支会让此外部包依赖 Harness 核心修改，下一个第三方适配器仍会遇到同一问题。现有 `settings.plugin.item` client slot 允许包自行持有编辑器，无需修改应用。通用的 Models 页面 provider 编辑器扩展点仍属于上游事项。
+发现过程读取 /api/tags、去重原生 id，并通过 /api/show enrich 选中模型。原生元数据会提供 context length 及 vision、tools、thinking 能力，而 /v1/models 不提供这些信息。
 
-## Consequences
+保存的目录会转换成 pi-ai 聊天模型：
 
-- **工具名关联**：Ollama 通过 `tool_name`（函数名）关联工具结果，不是 call id。适配器生成顺序 `CallId` 并在 `finish.replayState` 中保存 `callId → toolName` 映射，以便 serializer 在回放时重建关联。如果模型在一轮中调用同一工具两次，线格式无法区分两个结果；serializer 按顺序发送，provider 按位置匹配。
-- **NDJSON 传输**：适配器附带新的 `ndjson.ts` 解析器（带 UTF-8 边界安全的行分割），而不是复用 `dsh-llm-deepseek` 的 `eventsource-parser` SSE 解析器。终止块携带 `done: true`（没有 `[DONE]` 哨兵）。
-- **发现丰富度**：`/api/tags` + `/api/show` 发现返回 OpenAI 兼容列表无法提供的上下文窗口和能力标志。client 会在 RPC 完成前打开选择器；Host 最多并发丰富六个合并后的模型，保留 tag 顺序并追加只在 cloud 列表中的模型。选择器根据草稿初始化选中状态，保留只存在于当前目录的模型，并用应用后的集合替换草稿目录。包的 loopback RPC 为自己的 client 卡片保留 Ollama 专用的 vision、thinking 和 tools 标志。`/api/show` 不会标识可接受的 thinking 等级。
-- **单包 Web 配置**：`dsh plugin add` 同时安装 Host 与 client 入口。卡片通过 `settingsScope` 读取设置，通过一次带 revision 防护的 Host mutation 保存 URL 与目录，通过 `credentials.set` 写凭据，并通过同一条仅限 loopback 的 Connection 通道执行丰富发现。它在 `shell.overlay` 注册选择器，并把可见对话框 portal 到 `document.body`；这与 DSH modal 组合方式一致，可避免设置弹窗将其遮住。设置响应不包含密钥。
-- **Thinking 等级**：适配器应用 Ollama 文档中的通用等级集及明确的 GPT-OSS 例外。`/api/show` 只报告 `thinking` 能力，因此无法发现更窄的逐模型集合。
-- **Web 能力 provider**：Host 插件还把 `/api/web_search` 与 `/api/web_fetch` 以 `ollama-cloud` 为 id 注册进 `ctx.web`，与聊天路由共享凭据和 API 地址。选择仍属部署策略（base bundle pin 的是 `deepseek-official`）；profile 通过在 cordis patch 中 pin `searchProvider`/`fetchProvider` 完成切换。携带凭据的请求设置 `redirect: 'error'`，密钥不会泄露给重定向目标。抓取 provider 把 Ollama 提取的正文报告为 `text`。
-- **OpenAI 兼容覆盖**：想要 OpenAI 兼容端点的用户通过 `dsh-llm-pi-ai` 手声明路由使用。本适配器不支持该协议，避免重复。
+- vision 决定 text/image 输入模态；
+- thinking 决定 reasoning 是否可用；
+- 普通 thinking model 提供 off、low、medium、high、max；
+- GPT-OSS 提供 low、medium、high；
+- 发现到的 context length 决定 pi-ai 模型容量；
+- 模型级或 route 级 maxTokens 成为请求默认；
+- 不在已保存目录中的模型会被拒绝。
+
+默认 fallback context window 是 262,144 tokens。正常情况下发现过程应该提供精确值；该 fallback 也会在元数据缺失时，为 pi-ai 的上下文安全余量留出空间。
+
+## OpenAI compatibility profile
+
+Adapter 会显式固定 Ollama 对应的 pi-ai compatibility，而不是依赖通用 endpoint 推断：
+
+- 使用 max_tokens，不使用 max_completion_tokens；
+- thinking model 发送 reasoning_effort；
+- 请求 streaming usage；
+- system message 保持 system role；
+- 不发送 store 或 prompt_cache 字段。
+
+Provider 签发的 OpenAI tool-call ID 会贯穿工具结果和 session log。旧私有原生 adapter 为聊天本地合成的 ID 不再用于新请求。
+
+## 运行时两面
+
+Host plugin 注册：
+
+- OllamaAdapter route；
+- llm-ollama 设置节；
+- Ollama Web Search/Fetch provider；
+- loopback-only 的模型发现/保存 RPC。
+
+Client plugin 提供 Ollama Cloud 设置卡片和模型选择器。聊天协议迁移不会改变设置命名空间、凭据引用、provider id 和 picker 行为。
+
+## Web 请求韧性
+
+Search 和 Fetch 会在跟随 redirect 前拒绝。每次尝试都有可配置的 webRequestTimeoutMs 预算，默认 15 秒。一次瞬时超时或收到 HTTP 响应前的传输失败会重试；HTTP 错误、格式错误响应、缺失凭据、redirect 和调用方取消不会重试。
+
+## 备选方案
+
+不使用 OpenAI Responses，因为 Ollama 只支持 non-stateful 版本，而 DSH 已经管理历史。不使用 Anthropic Messages，因为 Ollama Cloud 需要额外 Bearer 认证，并且该兼容面没有模型列表或 prompt caching。在一个 route 下支持多个聊天协议会成倍增加 serializer、replay 和失败行为，但当前没有相应消费者。
+
+## 已知限制
+
+- 共享 PiAiAdapter 当前不支持 GenerateOptions.stop。
+- Ollama 不会公开逐模型输出上限，因此 maxTokens 仍由部署配置。
+- /api/show 会报告 thinking 能力，但不会报告精确的 effort 集合；插件应用 Ollama 文档中的通用规则和 GPT-OSS 例外。
+- v0.2.2 及更早版本写入的旧日志可能包含重复 ollama-call-0；本次不会迁移它们。

@@ -1,18 +1,12 @@
 /**
- * Register an {@link OllamaAdapter} for the `ollama-cloud` provider route on
- * `ctx.llm`, with connection facts resolved per request instead of frozen at
- * load: the plugin layers its `cordis.yml` entry config under the optional
- * `llm-ollama` user-settings section (`ctx.settings`) and resolves the API
- * key through the optional credential seam (`ctx.credentials`), so a changed
- * base URL, catalog, or key reaches the very next request without restarting
- * anything, while an in-flight stream keeps the facts it started with. The
- * one registration-captured fact — the retry policy — re-registers the route
- * in place when it changes.
+ * Register the `ollama-cloud` route with chat delegated to pi-ai OpenAI Chat
+ * Completions, while keeping Ollama-native discovery and Web Search/Fetch as
+ * independent capabilities. Connection facts resolve per operation from the
+ * optional `llm-ollama` settings section and the credential seam, so saved
+ * endpoint, catalog, and key changes reach the next operation.
  *
- * The plugin also registers a loopback Connection channel for model discovery
- * through `/api/tags`, the public cloud-filtered search page, and `/api/show`,
- * plus atomically saving the card's base URL and model catalog as one
- * revision-fenced settings mutation.
+ * A loopback Connection channel serves `/api/tags` plus `/api/show` discovery
+ * and atomically saves the card's native base URL and model catalog.
  * @module dsh-llm-ollama
  */
 
@@ -114,9 +108,9 @@ export interface Config {
   baseURL?: string
   /** Advisory models shown by discovery consumers; defaults to none. */
   models?: OllamaCatalogModel[]
-  /** Default per-request output cap; omitted sends no `num_predict` (provider default = unlimited). */
+  /** Default per-request output cap; omitted leaves the request cap to the model profile. */
   maxTokens?: number
-  /** Positive context capacity used when the selected model has no exact value (default 4096). */
+  /** Positive context capacity used when the selected model has no exact value (default 262144). */
   defaultContextWindow?: number
   /** Maximum provider idle time while one stream read is outstanding (default five minutes). */
   streamIdleTimeoutMs?: number

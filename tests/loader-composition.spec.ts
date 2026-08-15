@@ -18,7 +18,7 @@ import LlmRuntime from '@deepseek-ai/dsh-llm'
 import WebRuntime from '@deepseek-ai/dsh-web'
 import * as LlmOllama from '../src/index.ts'
 import { assemble } from './assemble.ts'
-import { closeMockServers, mockServer, textLines } from './mock-server.ts'
+import { closeMockServers, mockServer, openAITextEvents } from './mock-server.ts'
 
 let root: string | undefined
 let context: Context | undefined
@@ -79,7 +79,7 @@ async function loadComposition(options: { baseURL: string, web?: boolean }): Pro
 describe('llm-ollama real composition', () => {
   it('boots from cordis.yml and registers the ollama-cloud route', async () => {
     vi.stubEnv('OLLAMA_API_KEY', 'test-key')
-    const server = await mockServer([{ kind: 'ndjson', lines: textLines }])
+    const server = await mockServer([{ kind: 'sse', events: openAITextEvents }])
     const { ctx } = await loadComposition({ baseURL: server.url })
 
     // The route is registered and live.
@@ -100,7 +100,7 @@ describe('llm-ollama real composition', () => {
 
   it('fails with MISSING_CREDENTIAL when no key is available', async () => {
     vi.stubEnv('OLLAMA_API_KEY', '')
-    const server = await mockServer([{ kind: 'ndjson', lines: textLines }])
+    const server = await mockServer([{ kind: 'sse', events: openAITextEvents }])
     const { ctx } = await loadComposition({ baseURL: server.url })
 
     // The route is still registered (key resolves per request, not at load).
@@ -134,7 +134,7 @@ describe('llm-ollama real composition', () => {
 
   it('removes the route and directory on disposal (HMR-safety)', async () => {
     vi.stubEnv('OLLAMA_API_KEY', 'test-key')
-    const server = await mockServer([{ kind: 'ndjson', lines: textLines }])
+    const server = await mockServer([{ kind: 'sse', events: openAITextEvents }])
     const { ctx } = await loadComposition({ baseURL: server.url })
 
     expect(ctx.llm.listProviders()).toHaveLength(1)

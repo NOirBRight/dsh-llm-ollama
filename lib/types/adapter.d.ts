@@ -1,9 +1,8 @@
 /**
- * `OllamaAdapter`: fetch + NDJSON against an Ollama Cloud `/api/chat` endpoint,
- * emitting harness `StreamChunk`s. The adapter is transport-only: connection
- * facts arrive through a thunk resolved once per operation and the bearer
- * token through a per-request resolver, so the registering plugin owns
- * validation, layering, and credential policy.
+ * Ollama Cloud chat adapter for the Harness LLM seam. The public adapter and
+ * provider route stay Ollama-specific, while the chat wire implementation is
+ * delegated to pi-ai's OpenAI Chat Completions support. Ollama-native APIs
+ * remain in use for discovery and Web Search/Fetch outside this class.
  *
  * @module dsh-llm-ollama/adapter
  */
@@ -18,15 +17,15 @@ import type { WireError } from './types.ts';
 export type OllamaCatalogModel = OllamaCatalogModelConfig;
 /**
  * Validated connection facts for one operation. The plugin's
- * `resolveAdapterOptions` is the one explicit resolve step producing this
+ * resolveAdapterOptions is the one explicit resolve step producing this
  * shape; the adapter trusts it and re-reads it per operation.
  */
 export interface OllamaConnectionOptions {
-    /** Endpoint base; `/chat` is appended. */
+    /** Native Ollama endpoint base; discovery and Web providers use it as-is. */
     baseURL: string;
     /** Credential reference of this same resolution, resolved per request. */
     apiKeyEnv: CredentialRef;
-    /** Advisory models exposed to discovery consumers; requests remain unrestricted. */
+    /** Models exposed to discovery consumers and accepted for chat requests. */
     models: readonly OllamaCatalogModel[];
     /** Positive context capacity used when the selected model has no exact value. */
     defaultContextWindow: number;
@@ -39,13 +38,13 @@ export interface OllamaConnectionOptions {
     /** Provider-owned model-request retry policy, already resolved. */
     retryPolicy: ResolvedRetryPolicy;
 }
-/** Constructor options for {@link OllamaAdapter}: the operation-local resolution hooks the plugin owns. */
+/** Constructor options for OllamaAdapter: the operation-local resolution hooks the plugin owns. */
 export interface OllamaAdapterOptions {
     /** Current validated connection facts; called once per operation. */
     options: () => OllamaConnectionOptions;
     /**
      * Resolve the bearer token for the connection facts of one request. Throws
-     * `LlmError` `MISSING_CREDENTIAL` when no key is available anywhere.
+     * LlmError MISSING_CREDENTIAL when no key is available anywhere.
      */
     resolveApiKey: (connection: OllamaConnectionOptions) => Promise<string>;
     /** Resolve the optional durable attachment service at request time. */
@@ -54,7 +53,7 @@ export interface OllamaAdapterOptions {
 /** Default maximum idle interval while an adapter stream read is outstanding. */
 export declare const DEFAULT_STREAM_IDLE_TIMEOUT_MS = 300000;
 /** Default combined request/response context capacity. */
-export declare const DEFAULT_CONTEXT_WINDOW = 4096;
+export declare const DEFAULT_CONTEXT_WINDOW = 262144;
 /**
  * Test whether Ollama documents the model family as low/medium/high-only.
  * @param model - Ollama wire model id.
@@ -62,28 +61,24 @@ export declare const DEFAULT_CONTEXT_WINDOW = 4096;
  */
 export declare function isGptOssModel(model: string): boolean;
 /**
- * Map an HTTP status to a stable LlmError code.
+ * Map an HTTP status to a stable LlmError code for source-compatible callers.
  * @param status - status of a non-2xx provider response.
  * @param error - parsed provider error body, when available.
  * @returns the normalized harness error code.
  */
 export declare function httpErrorCode(status: number, error?: WireError): string;
-/**
- * The Ollama Cloud native chat adapter. One instance serves every model name
- * it was registered under (the harness model name IS the wire model name).
- *
- * One stable signal reaches both initial fetch and body reads. Caller aborts
- * map to `ABORTED`; the configured per-read idle watchdog maps to `TIMEOUT`.
- */
+/** The Ollama Cloud chat adapter backed by pi-ai OpenAI Chat Completions. */
 export declare class OllamaAdapter extends LlmAdapter {
     private readonly config;
+    private snapshot;
     constructor(config: OllamaAdapterOptions);
+    /** Rebuild the delegated adapter only when the plugin publishes a new options snapshot. */
+    private current;
     providerInfo(provider: string): LlmProviderInfo;
-    providerRetryPolicy(_provider: string): ResolvedRetryPolicy;
+    providerRetryPolicy(provider: string): ResolvedRetryPolicy | undefined;
     listModels(provider: string): Promise<readonly LlmModelInfo[]>;
-    resolveModel(provider: string, model: string, _signal?: AbortSignal): Promise<LlmResolvedModelInfo>;
+    resolveModel(provider: string, model: string, signal?: AbortSignal): Promise<LlmResolvedModelInfo>;
     stream(options: GenerateOptions): AsyncIterable<StreamChunk>;
-    private request;
 }
 /** Re-export the discovery function for the plugin entry. */
 export { discoverModels };

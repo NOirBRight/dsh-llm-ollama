@@ -1,45 +1,91 @@
-# Architecture: Ollama Cloud native protocol and plugin faces
+# Architecture: Ollama capabilities with OpenAI-compatible chat
 
 English | [中文](architecture.zh.md)
 
-## Problem
+The accepted protocol decision is recorded in [ADR 0001](adr/0001-separate-chat-protocol-from-ollama-capabilities.md).
 
-Ollama Cloud exposes three wire protocols: native `/api/chat` (NDJSON streaming), OpenAI-compatible `/v1/chat/completions` (SSE), and Anthropic-compatible `/v1/messages` (SSE). The adapter must choose which to implement.
+## Capability ownership
 
-## Decision
+The package owns one Ollama-specific provider identity, ollama-cloud, but it does not treat every Ollama endpoint as one protocol.
 
-The `dsh-llm-ollama` adapter implements only the native `/api/chat` protocol. It follows the `dsh-llm-deepseek` direct-fetch template (separate wire-types / serialize / NDJSON-parse / translate / adapter modules) and discovers models from `/api/tags` plus `/api/show`, deduplicating native tag ids while retaining tag order.
+Chat uses OpenAI Chat Completions through the shared pi-ai-backed adapter:
 
-The native protocol is the only one that exposes the model metadata the adapter's discovery feature needs: `/api/show` returns `model_info.*.context_length` and `capabilities` (vision, thinking, tools). The OpenAI-compatible `/v1/models` returns only `{id, created, owned_by}`. The Anthropic-compatible endpoint has no model listing at all.
+    DSH GenerateOptions
+      -> OllamaAdapter
+      -> PiAiAdapter
+      -> POST <chat-base>/chat/completions
+      -> DSH StreamChunk
 
-The native `think` field follows Ollama's general `false`/`"low"`/`"medium"`/`"high"`/`"max"` rule, with GPT-OSS restricted to `"low"`/`"medium"`/`"high"`. OpenAI-compatible `reasoning_effort` accepts only `"none"`/`"low"`/`"medium"`/`"high"`; the general native rule is the only one with `"max"`.
+Ollama-specific independent capabilities remain native:
 
-The independently installed npm package carries both runtime faces. Its Host entry registers the adapter, settings section, model discovery, and a loopback-only Connection RPC for rich discovery and atomic editor saves. Its `dsh.client` entry contributes one card to `settings.plugin.item` and a model picker to `shell.overlay`; users store the API key through the credentials API, interrogate an unsaved endpoint, select discovered models, and edit capacities and capability flags. The bundle requires no Harness core or profile-file modification.
+    model discovery  -> GET /api/tags + POST /api/show
+    web search       -> POST /api/web_search
+    web fetch        -> POST /api/web_fetch
 
-## Alternatives considered
+DSH routes web_search and web_fetch through ctx.web. Their provider selection is independent of the selected chat model and adapter.
 
-### Why not the OpenAI-compatible endpoint?
+## Endpoint mapping
 
-The OpenAI-compatible `/v1/chat/completions` endpoint is already usable through `@deepseek-ai/dsh-llm-pi-ai` as a hand-declared route (`api: openai-completions`, `baseURL: https://ollama.com/v1`, `apiKeyEnv: OLLAMA_API_KEY`). Building a second adapter for the same endpoint would duplicate pi-ai's SSE parsing, call-id tool-call handling, and `reasoning_effort` mapping. More importantly, the OpenAI-compatible `/v1/models` listing returns only model ids, with no context windows or capabilities. Native `/api/show` supplies those fields, although neither listing supplies per-model output limits or accepted thinking efforts.
+The llm-ollama settings section stores the native Ollama base URL because discovery and Web capabilities use it directly. The default is:
 
-### Why not the Anthropic-compatible endpoint?
+    https://ollama.com/api
 
-The Anthropic-compatible `/v1/messages` endpoint exists for tools that speak Anthropic's API (Claude Code). The harness has its own provider-neutral message vocabulary; no consumer needs Anthropic's wire format. Supporting it would add a third serializer and translator for no net benefit.
+The chat adapter maps the native sibling endpoint to:
 
-### Why not support all three in one adapter?
+    https://ollama.com/v1
 
-One adapter speaks one protocol. Supporting three wire formats in one adapter would triple the serializer/translator surface (three message formats, three streaming formats, three tool-call correlation models) for no consumer benefit. The harness message vocabulary is provider-neutral; the adapter translates to one wire format, and users who want a different one use the appropriate adapter (pi-ai for OpenAI-compatible).
+A base ending in /api becomes /v1, an existing /v1 remains unchanged, and every other custom root gains a trailing /v1.
 
-### Why not patch the Models page?
+## Model catalog
 
-The Models editor recognizes a closed set of built-in provider layouts. Adding an Ollama-specific branch would make this external package depend on a Harness core modification and repeat the same problem for the next third-party adapter. The existing `settings.plugin.item` client slot lets the package own its editor without changing the application. A generic Models-page provider-editor extension remains an upstream concern.
+Discovery reads /api/tags, deduplicates native ids, and enriches selected models through /api/show. The native metadata provides context length plus vision, tools, and thinking capabilities that /v1/models does not expose.
 
-## Consequences
+The saved catalog is converted into pi-ai model descriptors for chat:
 
-- **Tool-name correlation**: Ollama correlates tool results by `tool_name` (the function name), not by a call id. The adapter generates sequential `CallId`s and stores the `callId → toolName` mapping in `finish.replayState` so the serializer can reconstruct the correlation on replay. If the model calls the same tool twice in one turn, the wire cannot distinguish the two results; the serializer sends them in order and the provider matches positionally.
-- **NDJSON transport**: The adapter ships a new `ndjson.ts` parser (line-splitting with UTF-8 boundary safety) instead of reusing the `eventsource-parser` SSE parser from `dsh-llm-deepseek`. The terminal chunk carries `done: true` (no `[DONE]` sentinel).
-- **Discovery richness**: The `/api/tags` + `/api/show` discovery returns context windows and capability flags that the OpenAI-compatible listing cannot. The client opens its picker before the RPC settles; the Host enriches up to six native tag models concurrently and preserves tag order. The picker seeds checked state from the draft, retains current-only ids, and replaces the draft catalog with the adopted set. The package's loopback RPC preserves Ollama-specific vision, thinking, and tools flags for its own card. `/api/show` does not identify accepted thinking efforts.
-- **Single-package Web setup**: `dsh plugin add` installs the Host and client faces together. The card reads through `settingsScope`, saves the URL and catalog through one revision-fenced Host mutation, writes credentials through `credentials.set`, and performs rich discovery through the same loopback-only Connection channel. Its `shell.overlay` contribution portals the visible dialog to `document.body`, matching DSH modal composition so the Settings dialog cannot cover it. No secret is included in a settings response.
-- **Thinking efforts**: The adapter applies Ollama's documented general effort set and its explicit GPT-OSS exception. It cannot discover a narrower model-specific set because `/api/show` reports only the `thinking` capability.
-- **Web capability providers**: The Host plugin also registers `/api/web_search` and `/api/web_fetch` with `ctx.web` under `ollama-cloud`, sharing the chat route's credential and base URL. Selection remains deployment policy (the base bundle pins `deepseek-official`); a profile switches by pinning `searchProvider`/`fetchProvider` in its cordis patch. Credentialed requests set `redirect: 'error'` so the key cannot leak to a redirect target. The fetch provider reports Ollama's extracted page content as `text`.
-- **OpenAI-compatible coverage**: Users who want the OpenAI-compatible endpoint use `dsh-llm-pi-ai` with a hand-declared route. This adapter does not support that protocol, avoiding duplication.
+- vision controls text/image input modalities;
+- thinking controls reasoning availability;
+- ordinary thinking models expose off, low, medium, high, and max;
+- GPT-OSS exposes low, medium, and high;
+- discovered context length sizes the pi-ai model;
+- a configured model or route maxTokens becomes a request default;
+- models absent from the saved catalog are rejected.
+
+The fallback context window is 262,144 tokens. Discovery should provide an exact value for normal operation; the fallback also leaves headroom for pi-ai's context-safety reserve when metadata is unavailable.
+
+## OpenAI compatibility profile
+
+The adapter pins Ollama-specific pi-ai compatibility instead of relying on generic endpoint detection:
+
+- use max_tokens, not max_completion_tokens;
+- send reasoning_effort for thinking models;
+- request streaming usage;
+- keep system messages as system messages;
+- do not send store or prompt_cache fields.
+
+Provider-issued OpenAI tool-call IDs are retained end to end through tool results and the session log. The old private native adapter's locally synthesized call IDs are no longer used for new chat requests.
+
+## Runtime faces
+
+The Host plugin registers:
+
+- the OllamaAdapter route;
+- the llm-ollama settings section;
+- Ollama Web Search and Fetch providers;
+- the loopback-only discovery/save RPC.
+
+The client plugin contributes the Ollama Cloud settings card and model picker. The settings namespace, credential reference, provider id, and picker behavior remain stable across the chat protocol migration.
+
+## Web request resilience
+
+Search and Fetch reject redirects before following them. Each attempt has a configurable webRequestTimeoutMs budget, defaulting to 15 seconds. One transient timeout or pre-response transport failure is retried; HTTP errors, malformed replies, missing credentials, redirects, and caller cancellation are not retried.
+
+## Alternatives
+
+OpenAI Responses is not used because Ollama supports only the non-stateful flavor and DSH already owns history. Anthropic Messages is not used because Ollama Cloud requires an additional Bearer authorization header and the compatibility surface has no model listing or prompt caching. Supporting multiple chat protocols behind one route would multiply serializer, replay, and failure behavior without a current consumer.
+
+## Known limitations
+
+- GenerateOptions.stop remains unsupported by the shared PiAiAdapter.
+- Ollama does not publish per-model output limits, so maxTokens remains deployment configuration.
+- /api/show reports thinking capability but not the exact accepted effort set; the plugin applies Ollama's documented general rule and GPT-OSS exception.
+- Existing logs written by v0.2.2 and earlier can contain duplicate ollama-call-0 values; they are not migrated.
