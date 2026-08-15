@@ -35,8 +35,8 @@ export interface OllamaPluginCardFace {
   saveConfiguration: (settings: OllamaSettingsView, apiKey?: string) => Promise<OllamaSaveResult>
   /** Interrogate the draft endpoint without storing its one-shot key. */
   discoverModels: (request: OllamaDiscoveryRequest) => Promise<readonly OllamaCatalogModelConfig[]>
-  /** Open the frame-level picker immediately while discovery loads. */
-  beginModelPicker: (onAdopt: (models: readonly OllamaCatalogModelConfig[]) => void) => void
+  /** Open the frame-level picker immediately with the current selected ids. */
+  beginModelPicker: (initiallyPicked: ReadonlySet<string>, onAdopt: (models: readonly OllamaCatalogModelConfig[]) => void) => void
   /** Populate the open picker with discovered candidates. */
   completeModelPicker: (candidates: readonly OllamaCatalogModelConfig[]) => void
   /** Show a discovery failure in the open picker. */
@@ -360,17 +360,23 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
 
   const fetchModels = async (): Promise<void> => {
     if (draft === undefined) return
+    const currentModels = draft.models.map(modelSettingsOf)
+    const initiallyPicked = new Set(currentModels.map(model => model.id))
     setFetching(true)
     setFailure(undefined)
     setNotice(undefined)
-    props.beginModelPicker(selected => {
+    props.beginModelPicker(initiallyPicked, selected => {
       setDraft(current => {
         if (current === undefined) return current
-        const merged = new Map(current.models.map(model => [model.id, model]))
+        const currentById = new Map(current.models.map(model => [model.id.trim(), model]))
+        const next = new Map<string, ModelDraft>()
         for (const candidate of selected) {
-          merged.set(candidate.id, { ...merged.get(candidate.id), ...modelDraftOf(candidate) })
+          const existing = currentById.get(candidate.id)
+          next.set(candidate.id, existing === undefined
+            ? modelDraftOf(candidate)
+            : { ...existing, ...modelDraftOf(candidate) })
         }
-        return { ...current, models: [...merged.values()] }
+        return { ...current, models: [...next.values()] }
       })
       setFailure(undefined)
       setNotice(undefined)
@@ -386,7 +392,9 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
         setFailure(message)
         return
       }
-      props.completeModelPicker(found)
+      const foundIds = new Set(found.map(model => model.id))
+      const currentOnly = currentModels.filter(model => !foundIds.has(model.id))
+      props.completeModelPicker([...found, ...currentOnly])
     } catch (error: unknown) {
       const message = messageOf(error, t('requestFailed'))
       props.failModelPicker(message)

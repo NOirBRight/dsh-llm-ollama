@@ -40,7 +40,7 @@ function props(overrides: Partial<OllamaPluginCardProps> = {}): OllamaPluginCard
     describeCredential: vi.fn(() => Promise.resolve({ configured: false, writable: true })),
     saveConfiguration: vi.fn(next => Promise.resolve({ settings: next, revision: 2 })),
     discoverModels: vi.fn(() => Promise.resolve([])),
-    beginModelPicker: vi.fn(onAdopt => { adopt = onAdopt }),
+    beginModelPicker: vi.fn((_picked, onAdopt) => { adopt = onAdopt }),
     completeModelPicker: vi.fn(candidates => { adopt?.(candidates) }),
     failModelPicker: vi.fn(),
     closeModelPicker: vi.fn(),
@@ -140,6 +140,49 @@ describe('OllamaPluginCard', () => {
     )
   })
 
+  it('seeds selection from current models and replaces the catalog on adoption', async () => {
+    const currentModels: OllamaCatalogModelConfig[] = [
+      { id: 'keep', name: 'Keep', contextWindow: 4096 },
+      { id: 'remove', name: 'Remove' },
+    ]
+    const current = { ...settings, models: currentModels }
+    const currentSnapshot = snapshot({ value: current, base: current, user: { models: currentModels } })
+    let adopt: ((models: readonly OllamaCatalogModelConfig[]) => void) | undefined
+    const beginModelPicker = vi.fn((_picked: ReadonlySet<string>, onAdopt: (models: readonly OllamaCatalogModelConfig[]) => void) => {
+      adopt = onAdopt
+    })
+    const completeModelPicker = vi.fn()
+    const discoverModels = vi.fn(() => Promise.resolve([
+      { id: 'keep', name: 'Keep discovered', contextWindow: 8192 },
+      { id: 'new', name: 'New', contextWindow: 16384 },
+    ]))
+    const saveConfiguration = vi.fn(async (next: OllamaSettingsView) => ({ settings: next, revision: 2 }))
+    render(<OllamaPluginCard {...props({
+      useOllamaSettings: selector => selector(currentSnapshot),
+      beginModelPicker,
+      completeModelPicker,
+      discoverModels,
+      saveConfiguration,
+    })} />)
+
+    fireEvent.click(screen.getByRole('button', { name: `${en.expand}: ${en.title}` }))
+    fireEvent.click(screen.getByRole('button', { name: en.fetchModels }))
+
+    await waitFor(() => { expect(completeModelPicker).toHaveBeenCalledWith([
+      { id: 'keep', name: 'Keep discovered', contextWindow: 8192 },
+      { id: 'new', name: 'New', contextWindow: 16384 },
+      { id: 'remove', name: 'Remove' },
+    ]) })
+    expect(beginModelPicker).toHaveBeenCalledWith(new Set(['keep', 'remove']), expect.any(Function))
+    adopt?.([{ id: 'new', name: 'New', contextWindow: 16384 }])
+    await waitFor(() => { expect(screen.getByLabelText<HTMLInputElement>(en.modelId).value).toBe('new') })
+
+    fireEvent.click(screen.getByRole('button', { name: en.save }))
+    await waitFor(() => { expect(saveConfiguration).toHaveBeenCalledTimes(1) })
+    expect(saveConfiguration).toHaveBeenCalledWith(expect.objectContaining({
+      models: [{ id: 'new', name: 'New', contextWindow: 16384 }],
+    }), undefined)
+  })
   it('treats a base-URL-only user layer as an inherited model catalog', () => {
     const current = snapshot({ user: { baseURL: 'https://example.test/api' } })
     render(<OllamaPluginCard {...props({ useOllamaSettings: selector => selector(current) })} />)

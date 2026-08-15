@@ -29,7 +29,7 @@ describe('OllamaModelPicker', () => {
   it('uses the frame overlay dialog lifecycle and adopts only selected models', () => {
     const controller = new OllamaModelPickerController()
     const adopted = vi.fn()
-    controller.begin(adopted)
+    controller.begin(adopted, new Set(['gemma3', 'qwen3']))
     controller.complete([
       { id: 'gemma3', vision: true },
       { id: 'qwen3', thinking: true },
@@ -41,12 +41,36 @@ describe('OllamaModelPicker', () => {
     const choices = screen.getAllByRole<HTMLInputElement>('checkbox')
     expect(choices.map(choice => choice.checked)).toEqual([true, true])
     fireEvent.click(choices[1] as HTMLInputElement)
-    fireEvent.click(screen.getByRole('button', { name: en.addSelected }))
+    fireEvent.click(screen.getByRole('button', { name: en.applySelected }))
 
     expect(adopted).toHaveBeenCalledWith([{ id: 'gemma3', vision: true }])
     expect(screen.queryByRole('dialog', { name: en.pickerTitle })).toBeNull()
   })
 
+  it('can apply an empty selection to clear the catalog', () => {
+    const controller = new OllamaModelPickerController()
+    const adopted = vi.fn()
+    controller.begin(adopted, new Set(['gemma3']))
+    controller.complete([{ id: 'gemma3' }])
+    renderPicker(controller)
+
+    fireEvent.click(screen.getByRole<HTMLInputElement>('checkbox'))
+    fireEvent.click(screen.getByRole('button', { name: en.applySelected }))
+
+    expect(adopted).toHaveBeenCalledWith([])
+  })
+  it('matches the current model selection when discovery completes', () => {
+    const controller = new OllamaModelPickerController()
+    controller.begin(vi.fn(), new Set(['qwen3']))
+    controller.complete([
+      { id: 'gemma3' },
+      { id: 'qwen3' },
+    ])
+    renderPicker(controller)
+
+    const choices = screen.getAllByRole<HTMLInputElement>('checkbox')
+    expect(choices.map(choice => choice.checked)).toEqual([false, true])
+  })
   it('opens immediately with loading and keeps failures visible', () => {
     const controller = new OllamaModelPickerController()
     controller.begin(vi.fn())
@@ -54,7 +78,7 @@ describe('OllamaModelPicker', () => {
 
     expect(screen.getByRole('dialog', { name: en.pickerTitle }).getAttribute('aria-busy')).toBe('true')
     expect(screen.getByRole('status').textContent).toBe(en.pickerLoading)
-    expect(screen.getByRole<HTMLButtonElement>('button', { name: en.addSelected }).disabled).toBe(true)
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: en.applySelected }).disabled).toBe(true)
 
     act(() => { controller.fail('could not reach endpoint') })
 

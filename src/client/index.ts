@@ -125,7 +125,7 @@ export function apply(ctx: ClientContext): void {
       describeCredential,
       saveConfiguration,
       discoverModels,
-      beginModelPicker: onAdopt => { picker.begin(onAdopt) },
+      beginModelPicker: (initiallyPicked, onAdopt) => { picker.begin(onAdopt, initiallyPicked) },
       completeModelPicker: candidates => { picker.complete(candidates) },
       failModelPicker: message => { picker.fail(message) },
       closeModelPicker: picker.close,

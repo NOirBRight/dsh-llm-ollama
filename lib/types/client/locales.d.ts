@@ -20,10 +20,10 @@ export declare const en: {
     readonly fetchModels: "Fetch available models";
     readonly fetchingModels: "Fetching models…";
     readonly fetchEmpty: "The endpoint returned no models.";
-    readonly pickerTitle: "Choose models to add";
-    readonly pickerDescription: "Select the models to add to this catalog.";
+    readonly pickerTitle: "Select model catalog";
+    readonly pickerDescription: "Select the models to keep in this catalog.";
     readonly pickerLoading: "Fetching model metadata…";
-    readonly addSelected: "Add selected";
+    readonly applySelected: "Apply selected";
     readonly cancel: "Cancel";
     readonly close: "Close";
     readonly addModel: "Add model manually";

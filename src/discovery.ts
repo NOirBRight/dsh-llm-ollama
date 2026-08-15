@@ -2,12 +2,10 @@
  * Answering "which models can this Ollama Cloud endpoint serve?" for the
  * configuration surface's "fetch available models" action.
  *
- * The native `/api/tags` endpoint supplies tag metadata, while the public
- * Ollama Cloud search page supplies model cards marked with the `cloud`
- * capability. The two lists are merged without restoring the website's
- * `-cloud` suffix; `/api/show` then discloses each model's context length
- * and capabilities (vision, thinking, tools), which the OpenAI-compatible
- * `/v1/models` listing does not provide.
+ * The native `/api/tags` endpoint supplies the model listing; `/api/show`
+ * then discloses each model's context length and capabilities (vision,
+ * thinking, tools), which the OpenAI-compatible `/v1/models` listing does
+ * not provide.
  *
  * Nothing here is stored: the request carries a draft the user is still
  * editing, and the reply is candidate metadata the surface offers for
@@ -31,58 +29,6 @@ const SHOW_CONCURRENCY = 6
 
 /** The public Ollama Cloud API base URL. */
 export const PUBLIC_BASE_URL = OLLAMA_PUBLIC_BASE_URL
-/** The public Ollama Cloud search page filtered to models with the cloud capability. */
-const PUBLIC_CLOUD_SEARCH_URL = 'https://ollama.com/search?c=cloud'
-
-/** Anchor blocks for model cards on Ollama's server-rendered search page. */
-const MODEL_CARD_ANCHOR = /<a\b([^>]*\bhref\s*=\s*["'][^"']+["'][^>]*)>([\s\S]*?)<\/a>/gi
-/** The cloud capability badge inside one model card. */
-const CLOUD_BADGE = /<span\b[^>]*>\s*cloud\s*<\/span>/i
-/** One href attribute within an anchor's opening tag. */
-const HREF_ATTRIBUTE = /\bhref\s*=\s*(["'])(.*?)\1/i
-
-/**
- * Remove the cloud-only suffix used by model names in HTML catalog links.
- * @param id - HTML model id.
- * @returns the model id without a trailing cloud suffix.
- */
-function stripHtmlCloudSuffix(id: string): string {
-  return id.replace(/(?:-cloud|:cloud)$/, '')
-}
-
-/**
- * Extract unique cloud model ids from Ollama's filtered search page.
- *
- * The page is server-rendered and has no JSON catalog endpoint. Only library
- * links whose card contains the exact cloud capability badge are accepted.
- * The HTML-only cloud suffix is removed and never restored in the result.
- * @param html - HTML returned by GET /search?c=cloud.
- * @returns model ids in page order, without duplicate cards.
- */
-export function extractCloudModelIds(html: string): readonly string[] {
-  const ids = new Set<string>()
-  for (const match of html.matchAll(MODEL_CARD_ANCHOR)) {
-    const attributes = match[1]
-    const card = match[2]
-    if (attributes === undefined || card === undefined || !CLOUD_BADGE.test(card)) continue
-    const href = HREF_ATTRIBUTE.exec(attributes)?.[2]
-    if (href === undefined) continue
-    const path = href.split(/[?#]/, 1)[0] ?? ''
-    if (!path.startsWith('/library/') || path.endsWith('/tags')) continue
-    const encodedId = path.slice('/library/'.length).replace(/^\/+|\/+$/g, '')
-    if (encodedId.length === 0) continue
-    let id: string
-    try {
-      id = decodeURIComponent(encodedId)
-    } catch {
-      continue
-    }
-    const normalized = stripHtmlCloudSuffix(id)
-    if (normalized.length > 0) ids.add(normalized)
-  }
-  return [...ids]
-}
-
 /**
  * Read a reply body, refusing one that outgrows the ceiling. A declared length
  * is checked first so an honest server is turned away without transferring
@@ -178,70 +124,6 @@ async function fetchTags(url: string, headers: Record<string, string>, signal: A
   throw new LlmError(`could not reach ${url}${networkDetail(failure)}`, 'DISCOVERY_FAILED', { cause: failure })
 }
 
-/** Headers for the public HTML catalog; no provider credential is sent. */
-function cloudSearchHeaders(): Record<string, string> {
-  return { accept: 'text/html', ...attributionHeaders() }
-}
-
-/** Fetch the public cloud-filtered catalog page without forwarding the API key. */
-async function fetchCloudSearch(signal: AbortSignal | undefined): Promise<Response> {
-  try {
-    return await fetch(PUBLIC_CLOUD_SEARCH_URL, {
-      method: 'GET',
-      headers: cloudSearchHeaders(),
-      ...signal === undefined ? {} : { signal },
-    })
-  } catch (error: unknown) {
-    if (signal?.aborted) {
-      throw new LlmError('model discovery aborted by caller', 'ABORTED', { cause: error })
-    }
-    throw new LlmError(
-      'could not reach ' + PUBLIC_CLOUD_SEARCH_URL + networkDetail(error),
-      'DISCOVERY_FAILED',
-      { cause: error },
-    )
-  }
-}
-
-/** Two attempts tolerate a transient connection close while reading the HTML catalog. */
-const CLOUD_SEARCH_ATTEMPTS = 2
-
-/** Read and parse the public cloud model catalog used to supplement the /api/tags listing. */
-async function discoverCloudModelIds(signal: AbortSignal | undefined): Promise<readonly string[]> {
-  let failure: unknown
-  for (let attempt = 0; attempt < CLOUD_SEARCH_ATTEMPTS; attempt += 1) {
-    try {
-      const response = await fetchCloudSearch(signal)
-      if (!response.ok) {
-        throw new LlmError(
-          PUBLIC_CLOUD_SEARCH_URL + ' answered ' + response.status,
-          'DISCOVERY_FAILED',
-        )
-      }
-      const html = await readBounded(response, PUBLIC_CLOUD_SEARCH_URL)
-      const ids = extractCloudModelIds(html)
-      if (ids.length === 0) {
-        throw new LlmError(
-          PUBLIC_CLOUD_SEARCH_URL + ' did not contain cloud model cards',
-          'DISCOVERY_FAILED',
-        )
-      }
-      return ids
-    } catch (error: unknown) {
-      if (signal?.aborted) {
-        throw new LlmError('model discovery aborted by caller', 'ABORTED', { cause: error })
-      }
-      failure = error
-    }
-  }
-  if (failure instanceof LlmError) throw failure
-  throw new LlmError(
-    'could not read ' + PUBLIC_CLOUD_SEARCH_URL + networkDetail(failure),
-    'DISCOVERY_FAILED',
-    { cause: failure },
-  )
-}
-
 /**
  * Extract the context window from a `/api/show` response. Scans `model_info`
  * for any `*.context_length` key (e.g. `gemma3.context_length`,
@@ -308,26 +190,20 @@ export function extractCapabilities(capabilities: string[] | undefined): OllamaM
 }
 
 /**
- * Merge native tag rows with cloud search ids, retaining the first row for each id.
+ * Deduplicate native tag rows, retaining the first row for each id.
  * @param tags - rows returned by the native tags endpoint.
- * @param cloudIds - ids extracted from the cloud-filtered HTML catalog.
- * @returns unique rows in native tag order followed by cloud-only ids.
+ * @returns unique rows in native tag order.
  */
-export function mergeCloudModels(tags: readonly WireTagModel[], cloudIds: readonly string[]): readonly WireTagModel[] {
-  const merged: WireTagModel[] = []
+export function uniqueTagModels(tags: readonly WireTagModel[]): readonly WireTagModel[] {
+  const unique: WireTagModel[] = []
   const seen = new Set<string>()
   for (const tag of tags) {
     const id = tag.model ?? tag.name
     if (id === undefined || id.length === 0 || seen.has(id)) continue
     seen.add(id)
-    merged.push(tag)
+    unique.push(tag)
   }
-  for (const id of cloudIds) {
-    if (id.length === 0 || seen.has(id)) continue
-    seen.add(id)
-    merged.push({ model: id })
-  }
-  return merged
+  return unique
 }
 
 /** Enrich one tags entry, retaining its id when `/api/show` cannot answer. */
@@ -385,9 +261,8 @@ async function discoverTaggedModel(
 
 /**
  * Interrogate one Ollama Cloud endpoint for the models it advertises.
- * Calls `GET /api/tags`, supplements the public endpoint with the cloud-filtered
- * search page, then calls `POST /api/show` per unique model to extract context
- * length and capabilities.
+ * Calls `GET /api/tags`, then calls `POST /api/show` per unique model to
+ * extract context length and capabilities.
  * @param request - the endpoint and one-shot credential to use.
  * @param storedApiKey - the credential the named route already stored, asked
  *   for only when the draft carries none.
@@ -433,28 +308,24 @@ export async function discoverModels(
     )
   }
 
-  // The public tags response omits some cloud aliases; the HTML catalog supplies the missing ids.
-  const cloudIds = baseURL === PUBLIC_BASE_URL
-    ? await discoverCloudModelIds(request.signal)
-    : []
-  const mergedTags = mergeCloudModels(tagsBody.models, cloudIds)
+  const uniqueTags = uniqueTagModels(tagsBody.models)
 
-  // Enrich models concurrently while retaining the merged listing order.
-  const models = new Array<OllamaDiscoveredModel | undefined>(mergedTags.length)
+  // Enrich models concurrently while retaining the API tag order.
+  const models = new Array<OllamaDiscoveredModel | undefined>(uniqueTags.length)
   let cursor = 0
   const worker = async (): Promise<void> => {
     for (;;) {
       const index = cursor
       cursor += 1
-      if (index >= mergedTags.length) return
-      const tag = mergedTags[index]
+      if (index >= uniqueTags.length) return
+      const tag = uniqueTags[index]
       if (tag !== undefined) {
         models[index] = await discoverTaggedModel(tag, baseURL, apiKey, request.signal)
       }
     }
   }
   await Promise.all(
-    Array.from({ length: Math.min(SHOW_CONCURRENCY, mergedTags.length) }, worker),
+    Array.from({ length: Math.min(SHOW_CONCURRENCY, uniqueTags.length) }, worker),
   )
   return models.filter((model): model is OllamaDiscoveredModel => model !== undefined)
 }

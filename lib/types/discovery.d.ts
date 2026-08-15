@@ -2,12 +2,10 @@
  * Answering "which models can this Ollama Cloud endpoint serve?" for the
  * configuration surface's "fetch available models" action.
  *
- * The native `/api/tags` endpoint supplies tag metadata, while the public
- * Ollama Cloud search page supplies model cards marked with the `cloud`
- * capability. The two lists are merged without restoring the website's
- * `-cloud` suffix; `/api/show` then discloses each model's context length
- * and capabilities (vision, thinking, tools), which the OpenAI-compatible
- * `/v1/models` listing does not provide.
+ * The native `/api/tags` endpoint supplies the model listing; `/api/show`
+ * then discloses each model's context length and capabilities (vision,
+ * thinking, tools), which the OpenAI-compatible `/v1/models` listing does
+ * not provide.
  *
  * Nothing here is stored: the request carries a draft the user is still
  * editing, and the reply is candidate metadata the surface offers for
@@ -21,16 +19,6 @@ import type { OllamaCatalogModelConfig } from './client-contract.ts';
 import type { WireShowResponse, WireTagModel } from './types.ts';
 /** The public Ollama Cloud API base URL. */
 export declare const PUBLIC_BASE_URL = "https://ollama.com/api";
-/**
- * Extract unique cloud model ids from Ollama's filtered search page.
- *
- * The page is server-rendered and has no JSON catalog endpoint. Only library
- * links whose card contains the exact cloud capability badge are accepted.
- * The HTML-only cloud suffix is removed and never restored in the result.
- * @param html - HTML returned by GET /search?c=cloud.
- * @returns model ids in page order, without duplicate cards.
- */
-export declare function extractCloudModelIds(html: string): readonly string[];
 /**
  * Extract the context window from a `/api/show` response. Scans `model_info`
  * for any `*.context_length` key (e.g. `gemma3.context_length`,
@@ -60,17 +48,15 @@ export type OllamaDiscoveredModel = LlmDiscoveredModel & OllamaCatalogModelConfi
  */
 export declare function extractCapabilities(capabilities: string[] | undefined): OllamaModelCapabilities;
 /**
- * Merge native tag rows with cloud search ids, retaining the first row for each id.
+ * Deduplicate native tag rows, retaining the first row for each id.
  * @param tags - rows returned by the native tags endpoint.
- * @param cloudIds - ids extracted from the cloud-filtered HTML catalog.
- * @returns unique rows in native tag order followed by cloud-only ids.
+ * @returns unique rows in native tag order.
  */
-export declare function mergeCloudModels(tags: readonly WireTagModel[], cloudIds: readonly string[]): readonly WireTagModel[];
+export declare function uniqueTagModels(tags: readonly WireTagModel[]): readonly WireTagModel[];
 /**
  * Interrogate one Ollama Cloud endpoint for the models it advertises.
- * Calls `GET /api/tags`, supplements the public endpoint with the cloud-filtered
- * search page, then calls `POST /api/show` per unique model to extract context
- * length and capabilities.
+ * Calls `GET /api/tags`, then calls `POST /api/show` per unique model to
+ * extract context length and capabilities.
  * @param request - the endpoint and one-shot credential to use.
  * @param storedApiKey - the credential the named route already stored, asked
  *   for only when the draft carries none.

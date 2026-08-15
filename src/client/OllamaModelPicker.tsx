@@ -45,20 +45,21 @@ export class OllamaModelPickerController {
     return () => { this.listeners.delete(listener) }
   }
 
-  /** Open immediately while discovery loads. */
-  begin(onAdopt: Adopt): void {
+  /** Open immediately while discovery loads with the current selection captured. */
+  begin(onAdopt: Adopt, initiallyPicked: ReadonlySet<string> = new Set()): void {
     this.onAdopt = onAdopt
-    this.publish({ open: true, loading: true, candidates: [], picked: new Set() })
+    this.publish({ open: true, loading: true, candidates: [], picked: new Set(initiallyPicked) })
   }
 
-  /** Populate an open loading picker with every model selected initially. */
+  /** Populate an open loading picker, retaining only current ids present in the result. */
   complete(candidates: readonly OllamaCatalogModelConfig[]): void {
     if (!this.snapshot.open || !this.snapshot.loading) return
+    const candidateIds = new Set(candidates.map(model => model.id))
     this.publish({
       open: true,
       loading: false,
       candidates: [...candidates],
-      picked: new Set(candidates.map(model => model.id)),
+      picked: new Set([...this.snapshot.picked].filter(id => candidateIds.has(id))),
     })
   }
 
@@ -84,7 +85,7 @@ export class OllamaModelPickerController {
 
   /** Close and deliver the selected candidates to the card. */
   adopt = (): void => {
-    if (this.snapshot.loading || this.snapshot.error !== undefined || this.snapshot.picked.size === 0) return
+    if (this.snapshot.loading || this.snapshot.error !== undefined) return
     const callback = this.onAdopt
     const selected = this.snapshot.candidates.filter(model => this.snapshot.picked.has(model.id))
     this.close()
@@ -278,14 +279,14 @@ export function OllamaModelPicker(props: OllamaModelPickerProps): ReactNode {
             type="button"
             style={{
               ...outlineButtonStyle,
-              ...(snapshot.loading || snapshot.error !== undefined || snapshot.picked.size === 0
+              ...(snapshot.loading || snapshot.error !== undefined
                 ? { cursor: 'not-allowed', opacity: 0.4 }
                 : {}),
             }}
-            disabled={snapshot.loading || snapshot.error !== undefined || snapshot.picked.size === 0}
+            disabled={snapshot.loading || snapshot.error !== undefined}
             onClick={props.adoptPickerModels}
           >
-            {t('addSelected')}
+            {t('applySelected')}
           </button>
         </div>
       </section>

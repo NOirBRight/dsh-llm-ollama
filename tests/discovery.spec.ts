@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { LlmError } from '@deepseek-ai/dsh-llm'
-import { extractCloudModelIds, extractContextWindow, extractCapabilities, discoverModels, PUBLIC_BASE_URL } from '../src/discovery.ts'
+import { extractContextWindow, extractCapabilities, discoverModels, PUBLIC_BASE_URL, uniqueTagModels } from '../src/discovery.ts'
 import type { WireShowResponse, WireTagsResponse } from '../src/types.ts'
 import { closeMockServers, mockServer } from './mock-server.ts'
 
@@ -45,36 +45,33 @@ describe('extractCapabilities', () => {
   })
 })
 
-describe('extractCloudModelIds', () => {
-  it('keeps cloud cards, strips the HTML suffix, and deduplicates ids', () => {
-    const html = [
-      '<a href="/library/shared-cloud"><span>cloud</span></a>',
-      '<a href="/library/shared-cloud"><span>cloud</span></a>',
-      '<a href="/library/variant:preview-cloud"><span class="badge"> cloud </span></a>',
-      '<a href="/library/local"><span>tools</span></a>',
-      '<a href="/library/ignored/tags"><span>cloud</span></a>',
-    ].join('')
-    expect(extractCloudModelIds(html)).toEqual(['shared', 'variant:preview'])
+describe('uniqueTagModels', () => {
+  it('deduplicates API tags while retaining the first row and order', () => {
+    expect(uniqueTagModels([
+      { model: 'shared', name: 'first' },
+      { model: 'shared', name: 'duplicate' },
+      { name: 'name-only' },
+      { model: '' },
+    ])).toEqual([
+      { model: 'shared', name: 'first' },
+      { name: 'name-only' },
+    ])
   })
 })
 
 describe('discoverModels', () => {
-  it('merges public cloud search models with tags without restoring suffixes', async () => {
+  it('uses only public /api/tags and never requests the HTML cloud catalog', async () => {
     const requestedUrls: string[] = []
     const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
       const url = String(input)
       requestedUrls.push(url)
       if (url === PUBLIC_BASE_URL + '/tags') {
         return new Response(JSON.stringify({
-          models: [{ model: 'shared' }, { model: 'tag-only' }],
+          models: [{ model: 'shared' }, { model: 'tag-only' }, { model: 'shared' }],
         }), { status: 200 })
       }
       if (url === 'https://ollama.com/search?c=cloud') {
-        return new Response([
-          '<a href="/library/shared-cloud"><span>cloud</span></a>',
-          '<a href="/library/cloud-only-cloud"><span>cloud</span></a>',
-          '<a href="/library/variant:preview-cloud"><span>cloud</span></a>',
-        ].join(''), { status: 200, headers: { 'content-type': 'text/html' } })
+        throw new Error('HTML cloud catalog must not be requested')
       }
       if (url === PUBLIC_BASE_URL + '/show') {
         const body = JSON.parse(String(init?.body)) as { model: string }
@@ -89,9 +86,13 @@ describe('discoverModels', () => {
 
     const models = await discoverModels({ baseURL: PUBLIC_BASE_URL, apiKey: 'test-key' })
 
-    expect(models.map(model => model.id)).toEqual(['shared', 'tag-only', 'cloud-only', 'variant:preview'])
-    expect(requestedUrls.slice(0, 2)).toEqual([PUBLIC_BASE_URL + '/tags', 'https://ollama.com/search?c=cloud'])
-    expect(fetchMock).toHaveBeenCalledTimes(6)
+    expect(models.map(model => model.id)).toEqual(['shared', 'tag-only'])
+    expect(requestedUrls).toEqual([
+      PUBLIC_BASE_URL + '/tags',
+      PUBLIC_BASE_URL + '/show',
+      PUBLIC_BASE_URL + '/show',
+    ])
+    expect(fetchMock).toHaveBeenCalledTimes(3)
   })
 })
 describe('discoverModels', () => {

@@ -27,9 +27,9 @@ export declare class OllamaModelPickerController {
     getSnapshot: () => OllamaModelPickerSnapshot;
     /** Subscribe one renderer listener. */
     subscribe: (listener: Listener) => (() => void);
-    /** Open immediately while discovery loads. */
-    begin(onAdopt: Adopt): void;
-    /** Populate an open loading picker with every model selected initially. */
+    /** Open immediately while discovery loads with the current selection captured. */
+    begin(onAdopt: Adopt, initiallyPicked?: ReadonlySet<string>): void;
+    /** Populate an open loading picker, retaining only current ids present in the result. */
     complete(candidates: readonly OllamaCatalogModelConfig[]): void;
     /** Keep the open picker visible with a discovery failure. */
     fail(message: string): void;
