@@ -1,0 +1,8 @@
+# dsh-llm-ollama bundle patch: register the Ollama Cloud adapter as one new
+# loader row. Every config field is optional — the adapter layers the
+# `llm-ollama` settings section over this entry and resolves the API key
+# through the credentials seam (OLLAMA_API_KEY) per request, so users finish
+# setup from the Web Plugin configuration page without editing this file.
+- insert:
+    - id: llm-ollama
+      name: 'dsh-llm-ollama'
