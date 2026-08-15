@@ -15,6 +15,7 @@ import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import LlmRuntime from '@deepseek-ai/dsh-llm'
+import WebRuntime from '@deepseek-ai/dsh-web'
 import * as LlmOllama from '../src/index.ts'
 import { assemble } from './assemble.ts'
 import { closeMockServers, mockServer, textLines } from './mock-server.ts'
@@ -31,12 +32,13 @@ afterEach(async () => {
   vi.unstubAllEnvs()
 })
 
-async function loadComposition(options: { baseURL: string }): Promise<{ ctx: Context }> {
+async function loadComposition(options: { baseURL: string, web?: boolean }): Promise<{ ctx: Context }> {
   root = await mkdtemp(join(tmpdir(), 'dsh-llm-ollama-comp-'))
   const configPath = join(root, 'cordis.yml')
   await writeFile(configPath, [
     '- id: llm',
     "  name: 'test-llm-service'",
+    ...options.web === true ? ['- id: web', "  name: 'test-web-service'"] : [],
     '- id: llm-ollama',
     "  name: 'dsh-llm-ollama'",
     '  config:',
@@ -56,6 +58,7 @@ async function loadComposition(options: { baseURL: string }): Promise<{ ctx: Con
   ctx.loader.builtins.include = Include
   const modules = new Map<string, unknown>([
     ['test-llm-service', LlmRuntime],
+    ['test-web-service', WebRuntime],
     ['dsh-llm-ollama', LlmOllama],
   ])
   ctx.loader.internal = {
@@ -106,6 +109,27 @@ describe('llm-ollama real composition', () => {
     const result = await assemble(ctx, { model: 'gpt-oss:20b', messages: [] })
     expect(result.finish.kind).toBe('error')
     expect((result.finish as { failure: { code: string } }).failure.code).toBe('MISSING_CREDENTIAL')
+  })
+
+  it('registers ollama-cloud web providers that serve search and fetch through the seam', async () => {
+    vi.stubEnv('OLLAMA_API_KEY', 'test-key')
+    const server = await mockServer([
+      { kind: 'json', status: 200, body: '{"results":[{"title":"Ollama","url":"https://ollama.com/","content":"Cloud models…"}]}' },
+      { kind: 'json', status: 200, body: '{"title":"Ollama","content":"Extracted page…","links":[]}' },
+    ])
+    const { ctx } = await loadComposition({ baseURL: server.url, web: true })
+
+    // Exactly one usable provider of each kind: the seam auto-selects ours.
+    const search = await ctx.web.search({ query: 'what is ollama?', maxResults: 5 })
+    expect(search.sources).toEqual([{ url: 'https://ollama.com/', title: 'Ollama', snippet: 'Cloud models…' }])
+    const fetched = await ctx.web.fetch({ url: 'https://ollama.com/blog/web-search' })
+    expect(fetched.body).toEqual({ kind: 'text', content: 'Extracted page…' })
+    expect(server.headers.map(h => h.authorization)).toEqual(['Bearer test-key', 'Bearer test-key'])
+
+    // Disposal unregisters both providers (HMR-safety).
+    await ctx.fiber.dispose()
+    context = undefined
+    expect(true).toBe(true)
   })
 
   it('removes the route and directory on disposal (HMR-safety)', async () => {

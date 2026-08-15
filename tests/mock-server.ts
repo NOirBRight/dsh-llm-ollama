@@ -4,7 +4,7 @@ import type { IncomingMessage, Server, ServerResponse } from 'node:http'
 /** One scripted behavior for the next request the mock server receives. */
 export type Behavior =
   | { kind: 'ndjson'; lines: string[]; delayMs?: number }
-  | { kind: 'json'; status: number; body: string }
+  | { kind: 'json'; status: number; body: string; headers?: Record<string, string> }
   | { kind: 'close-early'; lines: string[] }
 
 export interface MockServer {
@@ -52,7 +52,7 @@ export async function mockServer(script: Behavior[]): Promise<MockServer> {
         return
       }
       if (behavior.kind === 'json') {
-        response.writeHead(behavior.status, { 'content-type': 'application/json' })
+        response.writeHead(behavior.status, { 'content-type': 'application/json', ...behavior.headers })
         response.end(behavior.body)
         return
       }

@@ -2,7 +2,7 @@
 
 English | [中文](README.zh.md)
 
-Ollama Cloud native chat adapter for the harness LLM seam: direct `fetch` + NDJSON (newline-delimited JSON) translating the Ollama native `/api/chat` wire format into the `StreamChunk` protocol. Model discovery interrogates `/api/tags` + `/api/show` for context windows and capabilities (vision, thinking, tools) that the OpenAI-compatible `/v1/models` listing does not provide.
+Ollama Cloud native chat adapter for the harness LLM seam: direct `fetch` + NDJSON (newline-delimited JSON) translating the Ollama native `/api/chat` wire format into the `StreamChunk` protocol. Model discovery interrogates `/api/tags` + `/api/show` for context windows and capabilities (vision, thinking, tools) that the OpenAI-compatible `/v1/models` listing does not provide. The same Host plugin also registers Ollama's `/api/web_search` and `/api/web_fetch` as providers in the harness web capability seam under the id `ollama-cloud`.
 
 The package root exposes the Cordis plugin contract and `OllamaAdapter`; wire serialization, NDJSON parsing, and chunk translation helpers are not part of that root contract. The same npm artifact also exports `./client`, a Web client plugin that contributes one Ollama Cloud card to **Settings → Plugins → Plugin configuration**. No Harness core package or profile patch requires modification.
 
@@ -26,6 +26,19 @@ Open **Settings → Plugins → Plugin configuration → Ollama Cloud**. The car
 **Fetch available models** opens the Harness frame-overlay picker immediately, then calls the package's loopback-only Connection RPC with the unsaved endpoint and any key currently entered; when the field is empty, the Host uses the stored credential. The picker shows loading and failure states instead of remaining absent while discovery runs. The Host reads `/api/tags`, enriches up to six models concurrently through `/api/show`, preserves provider order, and returns model ids, context windows, and native vision/thinking/tools flags. `/api/show` reports only whether thinking is supported; it does not report per-model effort levels. The adapter derives effort choices from Ollama's documented native `think` behavior, including GPT-OSS's narrower rule. Output limits remain editable because Ollama does not disclose them.
 
 The Models page still lists saved `ollama-cloud` models and can select them. Current Harness releases do not provide a third-party editor extension inside that page, so this package owns its complete editor under Plugin configuration instead.
+
+## Web search and fetch
+
+When the deployment mounts the web capability seam, the Host plugin registers Ollama's [web search](https://docs.ollama.com/capabilities/web-search) and web fetch endpoints as providers under the id `ollama-cloud`, reusing the same credential and base URL as the chat route. Registration alone changes nothing: provider selection is deployment policy, and the base bundle pins `deepseek-official`. To route the agent's web search/fetch tools through Ollama, pin both providers in the profile's `cordis.patch.yml` (`~/.dsh/profiles/web/cordis.patch.yml` for the Web profile):
+
+```yaml
+- id: web
+  config:
+    searchProvider: ollama-cloud
+    fetchProvider: ollama-cloud
+```
+
+Omit `fetchProvider` to keep the built-in local HTTP fetcher while moving only search to Ollama. Restart the profile after editing. Both providers reject redirects before following them, so the API key can never be forwarded to a redirect target.
 
 ## Protocol choice
 

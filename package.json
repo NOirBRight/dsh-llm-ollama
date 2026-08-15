@@ -1,7 +1,7 @@
 {
   "name": "dsh-llm-ollama",
   "description": "Ollama Cloud native chat adapter and Web configuration card for DeepSeek Harness",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "publishConfig": {
     "access": "public"
   },
@@ -86,6 +86,7 @@
     "@deepseek-ai/dsh-llm": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-settings": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-timeout": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-web": "^0.1.0-rc.6",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
@@ -109,6 +110,7 @@
     "@deepseek-ai/dsh-llm": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-settings": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-timeout": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-web": "^0.1.0-rc.6",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^22.0.0",
     "@types/react": "~18.3.1",

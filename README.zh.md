@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-这是 Harness LLM 能力的 Ollama Cloud 原生聊天适配器：通过直接 `fetch` 和 NDJSON（逐行 JSON）把 Ollama 原生 `/api/chat` 线协议转换为 `StreamChunk` 协议。模型发现会查询 `/api/tags` 和 `/api/show`，获取 OpenAI 兼容 `/v1/models` 列表不提供的上下文窗口与能力（视觉、推理、工具调用）。
+这是 Harness LLM 能力的 Ollama Cloud 原生聊天适配器：通过直接 `fetch` 和 NDJSON（逐行 JSON）把 Ollama 原生 `/api/chat` 线协议转换为 `StreamChunk` 协议。模型发现会查询 `/api/tags` 和 `/api/show`，获取 OpenAI 兼容 `/v1/models` 列表不提供的上下文窗口与能力（视觉、推理、工具调用）。同一个 Host 插件还把 Ollama 的 `/api/web_search` 与 `/api/web_fetch` 以 `ollama-cloud` 为 id 注册进 Harness 的 web 能力 seam。
 
 包根入口公开 Cordis 插件协议和 `OllamaAdapter`；线协议序列化、NDJSON 解析与 chunk 转换辅助函数不属于根入口的公开协议。同一个 npm 包还导出 `./client` Web client 插件，在 **设置 → 插件 → 插件配置** 中贡献一张 Ollama Cloud 卡片。安装无需修改任何 Harness 核心包或 profile patch。
 
@@ -26,6 +26,19 @@ npm 版本发布后，`dsh plugin --profile web add dsh-llm-ollama` 会从 regis
 **获取可用模型** 会立即打开 Harness frame overlay 选择器，再把尚未保存的端点和输入框中的当前 key 发送到包内仅限 loopback 的 Connection RPC；输入框为空时，Host 使用已保存的凭据。发现期间选择器会明确显示加载或失败状态，而不是在请求完成前保持不出现。Host 先读取 `/api/tags`，再以最多六路并发通过 `/api/show` 丰富模型元数据，同时保持 provider 顺序，最终返回模型 id、上下文窗口以及原生 vision/thinking/tools 标志。`/api/show` 只报告模型是否支持 thinking，不提供逐模型推理等级。适配器根据 Ollama 文档中的原生 `think` 规则提供等级，并单独处理 GPT-OSS 的较窄规则。Ollama 不公开输出上限，因此该值仍由用户编辑。
 
 Models 页面仍会列出并可选择已保存的 `ollama-cloud` 模型。当前 Harness 版本没有为第三方提供方开放该页内的编辑器扩展点，因此完整编辑器位于插件配置中。
+
+## 网页搜索与抓取
+
+当部署挂载 web 能力 seam 时，Host 插件会把 Ollama 的[网页搜索](https://docs.ollama.com/capabilities/web-search)与网页抓取端点以 `ollama-cloud` 为 id 注册为 provider，与聊天路由复用同一份凭据和 API 地址。注册本身不改变任何行为：provider 选择属于部署策略，base bundle 默认 pin 的是 `deepseek-official`。要让 agent 的网页搜索/抓取工具改走 Ollama，在 profile 的 `cordis.patch.yml`（Web profile 为 `~/.dsh/profiles/web/cordis.patch.yml`）中 pin 两个 provider：
+
+```yaml
+- id: web
+  config:
+    searchProvider: ollama-cloud
+    fetchProvider: ollama-cloud
+```
+
+省略 `fetchProvider` 则只把搜索切到 Ollama，抓取继续使用内置的本地 HTTP 抓取器。编辑后重启 profile 生效。两个 provider 都会在跟随重定向前拒绝请求，API key 不会被转发到重定向目标。
 
 ## 协议选择
 

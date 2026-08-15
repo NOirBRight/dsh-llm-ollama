@@ -23,6 +23,8 @@ export type { OllamaAdapterOptions, OllamaCatalogModel, OllamaConnectionOptions 
 export { PUBLIC_BASE_URL, discoverModels } from './discovery.ts';
 export { extractContextWindow, extractCapabilities } from './discovery.ts';
 export type { OllamaDiscoveredModel, OllamaModelCapabilities } from './discovery.ts';
+export { OLLAMA_WEB_PROVIDER_ID, OllamaWebFetchProvider, OllamaWebSearchProvider } from './web.ts';
+export type { OllamaWebProviderOptions } from './web.ts';
 export { DEFAULT_API_KEY_ENV, OLLAMA_DISCOVER_ENDPOINT, OLLAMA_PROVIDER, OLLAMA_PUBLIC_BASE_URL, OLLAMA_RPC_CHANNEL, OLLAMA_SAVE_ENDPOINT, OLLAMA_SETTINGS_NAMESPACE, decodeOllamaCatalogModel, decodeOllamaDiscoveryRequest, decodeOllamaDiscoveryResult, decodeOllamaSaveRequest, decodeOllamaSaveResult, decodeOllamaSettings, } from './client-contract.ts';
 export type { OllamaCatalogModelConfig, OllamaDiscoveryRequest, OllamaDiscoveryResult, OllamaSaveRequest, OllamaSaveResult, OllamaSettingsView, } from './client-contract.ts';
 export type * from './types.ts';

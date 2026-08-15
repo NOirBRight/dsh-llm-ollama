@@ -18,6 +18,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type {} from '@deepseek-ai/dsh-client-connection'
+import type {} from '@deepseek-ai/dsh-web'
 import { assertUsableApiKey, LlmError, resolveRetryPolicy, RetryPolicySchema } from '@deepseek-ai/dsh-llm'
 import type { RetryPolicyConfig } from '@deepseek-ai/dsh-llm'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
@@ -33,6 +34,11 @@ import {
 import type { OllamaCatalogModel, OllamaConnectionOptions } from './adapter.ts'
 import { PUBLIC_BASE_URL } from './discovery.ts'
 import { discoverModels } from './discovery.ts'
+import {
+  OllamaWebFetchProvider,
+  OllamaWebSearchProvider,
+} from './web.ts'
+import type { OllamaWebProviderOptions } from './web.ts'
 import {
   decodeOllamaDiscoveryRequest,
   decodeOllamaSaveRequest,
@@ -54,6 +60,8 @@ export type { OllamaAdapterOptions, OllamaCatalogModel, OllamaConnectionOptions 
 export { PUBLIC_BASE_URL, discoverModels } from './discovery.ts'
 export { extractContextWindow, extractCapabilities } from './discovery.ts'
 export type { OllamaDiscoveredModel, OllamaModelCapabilities } from './discovery.ts'
+export { OLLAMA_WEB_PROVIDER_ID, OllamaWebFetchProvider, OllamaWebSearchProvider } from './web.ts'
+export type { OllamaWebProviderOptions } from './web.ts'
 export {
   DEFAULT_API_KEY_ENV,
   OLLAMA_DISCOVER_ENDPOINT,
@@ -296,6 +304,22 @@ export function apply(ctx: Context, config: Config): void {
     return launchEnvironmentOf(ctx).get(ref)?.value
   }
   ctx.llm.registerModelDiscovery(NS, request => discoverModels(request, storedApiKey))
+
+  // Offer Ollama's web search/fetch to the web seam when the deployment mounts
+  // it. Selection stays deployment policy: the base bundle pins the DeepSeek
+  // provider, and a profile switches by pinning `searchProvider`/`fetchProvider`
+  // to `ollama-cloud` in its cordis patch.
+  ctx.effect(() => {
+    const web = ctx.get('web')
+    if (web === undefined) return () => {}
+    const shared: OllamaWebProviderOptions = {
+      baseURL: () => options().baseURL,
+      resolveApiKey: storedApiKey,
+    }
+    const disposeSearch = web.registerSearchProvider(new OllamaWebSearchProvider(shared))
+    const disposeFetch = web.registerFetchProvider(new OllamaWebFetchProvider(shared))
+    return () => { disposeSearch(); disposeFetch() }
+  }, 'llm-ollama: web providers')
 
   // The package channel preserves Ollama's provider-specific discovery flags
   // and keeps multi-field editor saves atomic behind Connection's loopback fence.
