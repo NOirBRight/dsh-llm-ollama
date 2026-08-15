@@ -29,6 +29,13 @@ export interface ToolCallReplayEntry {
   toolName: string
 }
 
+/** Optional deterministic identity prefix for tool calls missing a provider id. */
+export interface TranslateOptions {
+  callIdPrefix?: string
+}
+
+let fallbackStreamSequence = 0
+
 /**
  * Map the wire `done_reason` to the harness `FinishReason`. Ollama uses
  * `"stop"` for both normal completion and tool-call turns, so the presence of
@@ -86,7 +93,11 @@ function closeBlock(block: OpenBlock): ContentBlock {
  *   A `stop` finish with no opened blocks is a degenerate provider completion and maps to an
  *   `EMPTY_RESPONSE` error finish instead of a successful empty message.
  */
-export async function* translate(chunks: AsyncIterable<WireChatChunk>): AsyncGenerator<StreamChunk> {
+export async function* translate(
+  chunks: AsyncIterable<WireChatChunk>,
+  options: TranslateOptions = {},
+): AsyncGenerator<StreamChunk> {
+  const callIdPrefix = options.callIdPrefix ?? `ollama-call-${++fallbackStreamSequence}`
   let nextIndex = 0
   let textBlock: OpenBlock | undefined
   let reasoningBlock: OpenBlock | undefined
@@ -127,7 +138,10 @@ export async function* translate(chunks: AsyncIterable<WireChatChunk>): AsyncGen
 
     // Ollama sends complete tool calls per chunk (not argument fragments).
     for (const call of message.tool_calls ?? []) {
-      const callId = `ollama-call-${toolCallCounter++}`
+      const ordinal = toolCallCounter++
+      const callId = typeof call.id === 'string' && call.id.length > 0
+        ? call.id
+        : `${callIdPrefix}-${ordinal}`
       const toolName = call.function.name
       const argumentsJson = JSON.stringify(call.function.arguments)
       const block = open('tool-call')

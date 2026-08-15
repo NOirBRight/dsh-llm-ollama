@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { WebError } from '@deepseek-ai/dsh-web'
 import {
   OLLAMA_WEB_PROVIDER_ID,
@@ -8,7 +8,10 @@ import {
 import type { OllamaWebProviderOptions } from '../src/web.ts'
 import { closeMockServers, mockServer } from './mock-server.ts'
 
-afterEach(async () => { await closeMockServers() })
+afterEach(async () => {
+  await closeMockServers()
+  vi.unstubAllGlobals()
+})
 
 function options(baseURL: string, apiKey?: string): OllamaWebProviderOptions {
   return {
@@ -86,6 +89,7 @@ describe('OllamaWebSearchProvider', () => {
 
     await expect(provider.search({ query: 'x' })).rejects.toMatchObject({ code: 'WEB_PROVIDER_ERROR' })
     expect(target.requests).toEqual([])
+    expect(redirector.requests).toHaveLength(1)
   })
 
   it('fails with WEB_PROVIDER_ERROR on upstream errors', async () => {
@@ -101,6 +105,79 @@ describe('OllamaWebSearchProvider', () => {
     const server = await mockServer([{ kind: 'json', status: 200, body: '{}' }])
     const provider = new OllamaWebSearchProvider(options(server.url, 'test-key'))
     await expect(provider.search({ query: 'x' })).rejects.toMatchObject({ code: 'OLLAMA_WEB_BAD_REPLY' })
+    expect(server.requests).toHaveLength(1)
+  })
+
+  it('times out one attempt and retries the search once', async () => {
+    let calls = 0
+    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      calls++
+      if (calls === 1) {
+        return await new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => { reject(init.signal?.reason) }, { once: true })
+        })
+      }
+      return new Response('{"results":[]}', { status: 200 })
+    }))
+    const provider = new OllamaWebSearchProvider({
+      ...options('https://ollama.test/api', 'test-key'),
+      requestTimeoutMs: 5,
+    })
+
+    const result = await provider.search({ query: 'x' })
+
+    expect(result.sources).toEqual([])
+    expect(calls).toBe(2)
+  })
+
+  it('retries one transport failure and reports the final timeout', async () => {
+    let calls = 0
+    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      calls++
+      if (calls === 1) throw new TypeError('fetch failed')
+      return await new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => { reject(init.signal?.reason) }, { once: true })
+      })
+    }))
+    const provider = new OllamaWebSearchProvider({
+      ...options('https://ollama.test/api', 'test-key'),
+      requestTimeoutMs: 5,
+    })
+
+    await expect(provider.search({ query: 'x' })).rejects.toMatchObject({ code: 'OLLAMA_WEB_TIMEOUT' })
+    expect(calls).toBe(2)
+  })
+
+  it('does not retry an HTTP failure', async () => {
+    const server = await mockServer([{ kind: 'json', status: 500, body: '{"error":"boom"}' }])
+    const provider = new OllamaWebSearchProvider({
+      ...options(server.url, 'test-key'),
+      requestTimeoutMs: 5,
+    })
+
+    await expect(provider.search({ query: 'x' })).rejects.toMatchObject({ code: 'WEB_PROVIDER_ERROR' })
+    expect(server.requests).toHaveLength(1)
+  })
+
+  it('does not retry caller cancellation', async () => {
+    let calls = 0
+    const controller = new AbortController()
+    vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      calls++
+      if (init?.signal?.aborted) throw init.signal.reason
+      return await new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => { reject(init.signal?.reason) }, { once: true })
+      })
+    }))
+    const provider = new OllamaWebSearchProvider({
+      ...options('https://ollama.test/api', 'test-key'),
+      requestTimeoutMs: 30_000,
+    })
+
+    const pending = provider.search({ query: 'x' }, controller.signal)
+    controller.abort(new Error('stop'))
+    await expect(pending).rejects.toMatchObject({ code: 'ABORTED' })
+    expect(calls).toBe(1)
   })
 })
 

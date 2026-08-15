@@ -79,6 +79,8 @@ export type WireMessage =
 
 /** A completed tool call; `arguments` is a JSON object, not a string. */
 export interface WireToolCall {
+  /** Provider-issued call id returned by current Ollama releases; older responses may omit it. */
+  id?: string
   function: {
     name: string
     description?: string

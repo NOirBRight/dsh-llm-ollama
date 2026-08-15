@@ -38,7 +38,7 @@ When the deployment mounts the web capability seam, the Host plugin registers Ol
     fetchProvider: ollama-cloud
 ```
 
-Omit `fetchProvider` to keep the built-in local HTTP fetcher while moving only search to Ollama. Restart the profile after editing. Both providers reject redirects before following them, so the API key can never be forwarded to a redirect target.
+Omit `fetchProvider` to keep the built-in local HTTP fetcher while moving only search to Ollama. Restart the profile after editing. Both providers reject redirects before following them, so the API key can never be forwarded to a redirect target. Each request has a 15-second provider-side budget by default and retries one transient timeout or transport failure.
 
 ## Protocol choice
 
@@ -60,6 +60,7 @@ The native `think` field supports `"max"` for the general thinking-model contrac
     baseURL: https://ollama.com/api # default; the public Ollama Cloud API
     maxTokens: 4096            # optional positive per-request output cap; omitted sends no num_predict (unlimited)
     streamIdleTimeoutMs: 300000 # optional; positive finite Node timer delay; five-minute default
+    webRequestTimeoutMs: 15000  # optional positive per-attempt Search/Fetch budget; default 15 seconds
     retryPolicy:              # optional; omission uses bounded normal defaults
       mode: normal
       backoff:
@@ -128,7 +129,7 @@ An unchanged model and translated message prefix remain prefix-stable. Changes t
 
 ## Known Limitations and Deferred Work
 
-- **Tool-name correlation**: Ollama correlates tool results by `tool_name` (the function name), not by a call id. If the model calls the same tool twice in one turn, the harness `CallId` distinguishes them, but the wire cannot — the serializer sends both as separate `{role: 'tool', tool_name: X}` messages in order, and the provider matches them positionally. The adapter generates sequential `CallId`s and stores the `callId → toolName` mapping in `finish.replayState` for replay.
+- **Tool-name correlation**: Ollama correlates tool results by `tool_name` (the function name), not by a call id. Current Ollama releases return a tool-call `id`, which the adapter uses as the harness `CallId`; when an older response omits it, the adapter uses a deterministic process-local fallback that is not sent back on the wire. If the model calls the same tool twice in one turn, the harness `CallId` distinguishes them, but the wire cannot — the serializer sends both as separate `{role: 'tool', tool_name: X}` messages in order, and the provider matches them positionally.
 - **Thinking effort metadata**: `/api/show` reports the `thinking` capability but not the efforts accepted by each model. The adapter applies Ollama's documented general `off`/`low`/`medium`/`high`/`max` contract and its explicit GPT-OSS `low`/`medium`/`high` exception; discovery cannot verify a narrower model-specific set.
 - **`maxTokens` not disclosed**: Ollama does not disclose per-model max output through `/api/show`. Discovery sets `maxTokens: undefined`; the adapter's `defaultMaxTokens` is a deployment-configured value.
 - **OpenAI-compatible endpoint**: users who want the OpenAI-compatible `/v1/chat/completions` endpoint can use `@deepseek-ai/dsh-llm-pi-ai` as a hand-declared route with `api: openai-completions` and `baseURL: https://ollama.com/v1`. This adapter does not support that protocol.

@@ -23,6 +23,7 @@ function connection(overrides: Partial<OllamaConnectionOptions> = {}): OllamaCon
     defaultContextWindow: DEFAULT_CONTEXT_WINDOW,
     maxTokens: undefined,
     streamIdleTimeoutMs: DEFAULT_STREAM_IDLE_TIMEOUT_MS,
+    webRequestTimeoutMs: 15_000,
     retryPolicy: FIXED_POLICY,
     ...overrides,
   }

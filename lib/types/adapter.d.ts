@@ -34,6 +34,8 @@ export interface OllamaConnectionOptions {
     maxTokens: number | undefined;
     /** Maximum provider idle time while one stream read is outstanding. */
     streamIdleTimeoutMs: number;
+    /** Per-attempt budget for Ollama Cloud Web Search/Fetch requests. */
+    webRequestTimeoutMs: number;
     /** Provider-owned model-request retry policy, already resolved. */
     retryPolicy: ResolvedRetryPolicy;
 }

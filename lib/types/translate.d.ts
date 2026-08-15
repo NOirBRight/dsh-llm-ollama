@@ -15,6 +15,10 @@ export interface ToolCallReplayEntry {
     callId: string;
     toolName: string;
 }
+/** Optional deterministic identity prefix for tool calls missing a provider id. */
+export interface TranslateOptions {
+    callIdPrefix?: string;
+}
 /**
  * Map the wire `done_reason` to the harness `FinishReason`. Ollama uses
  * `"stop"` for both normal completion and tool-call turns, so the presence of
@@ -39,7 +43,7 @@ export declare function mapUsage(chunk: WireChatChunk): TokenUsage;
  *   A `stop` finish with no opened blocks is a degenerate provider completion and maps to an
  *   `EMPTY_RESPONSE` error finish instead of a successful empty message.
  */
-export declare function translate(chunks: AsyncIterable<WireChatChunk>): AsyncGenerator<StreamChunk>;
+export declare function translate(chunks: AsyncIterable<WireChatChunk>, options?: TranslateOptions): AsyncGenerator<StreamChunk>;
 /** Re-export for type consumers. */
 export type { WireToolCall };
 //# sourceMappingURL=translate.d.ts.map

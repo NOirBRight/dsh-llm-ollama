@@ -38,7 +38,7 @@ Models 页面仍会列出并可选择已保存的 `ollama-cloud` 模型。当前
     fetchProvider: ollama-cloud
 ```
 
-省略 `fetchProvider` 则只把搜索切到 Ollama，抓取继续使用内置的本地 HTTP 抓取器。编辑后重启 profile 生效。两个 provider 都会在跟随重定向前拒绝请求，API key 不会被转发到重定向目标。
+省略 `fetchProvider` 则只把搜索切到 Ollama，抓取继续使用内置的本地 HTTP 抓取器。编辑后重启 profile 生效。两个 provider 都会在跟随重定向前拒绝请求，API key 不会被转发到重定向目标。默认每次请求有 15 秒的 provider 侧预算，并对一次瞬时超时或传输失败快速重试。
 
 ## 协议选择
 
@@ -60,6 +60,7 @@ Models 页面仍会列出并可选择已保存的 `ollama-cloud` 模型。当前
     baseURL: https://ollama.com/api # 默认值；Ollama Cloud 公共 API
     maxTokens: 4096            # 可选的正数单请求输出上限；省略时不发送 num_predict（不限制）
     streamIdleTimeoutMs: 300000 # 可选；正数且可作为 Node timer delay；默认五分钟
+    webRequestTimeoutMs: 15000  # 可选的正数 Search/Fetch 单次请求预算；默认 15 秒
     retryPolicy:              # 可选；省略时使用有界的 normal 默认策略
       mode: normal
       backoff:
@@ -128,7 +129,7 @@ Models 页面仍会列出并可选择已保存的 `ollama-cloud` 模型。当前
 
 ## 已知限制与延后工作
 
-- **工具名称关联**：Ollama 通过 `tool_name`（函数名称）而非 call id 关联工具结果。如果模型在同一轮调用同名工具两次，Harness `CallId` 能区分它们，但线协议不能；serializer 会按顺序发送两个独立 `{role: 'tool', tool_name: X}` 消息，由 provider 按位置匹配。适配器生成连续 `CallId`，并把 `callId → toolName` 映射保存在 `finish.replayState` 供 replay 使用。
+- **工具名称关联**：Ollama 通过 `tool_name`（函数名称）而非 call id 关联工具结果。当前 Ollama 版本会返回工具调用 `id`，适配器会把它用作 Harness `CallId`；旧响应省略该字段时，适配器使用确定性的进程内后备 ID，但不会把它发回线协议。如果模型在同一轮调用同名工具两次，Harness `CallId` 能区分它们，但线协议不能；serializer 会按顺序发送两个独立 `{role: 'tool', tool_name: X}` 消息，由 provider 按位置匹配。
 - **Thinking 等级元数据**：`/api/show` 会报告 `thinking` 能力，但不会报告每个模型接受的等级。适配器应用 Ollama 文档中的通用 `off`/`low`/`medium`/`high`/`max` 规则及明确的 GPT-OSS `low`/`medium`/`high` 例外；发现过程无法验证更窄的逐模型集合。
 - **未公开 `maxTokens`**：Ollama 不会通过 `/api/show` 公开逐模型最大输出。发现结果的 `maxTokens` 为 `undefined`；适配器的 `defaultMaxTokens` 由部署配置。
 - **OpenAI 兼容端点**：需要 OpenAI 兼容 `/v1/chat/completions` 的用户可通过 `@deepseek-ai/dsh-llm-pi-ai` 手工声明 route，使用 `api: openai-completions` 和 `baseURL: https://ollama.com/v1`。本适配器不支持该协议。

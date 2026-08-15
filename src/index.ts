@@ -36,6 +36,7 @@ import type { OllamaCatalogModel, OllamaConnectionOptions } from './adapter.ts'
 import { PUBLIC_BASE_URL } from './discovery.ts'
 import { discoverModels } from './discovery.ts'
 import {
+  DEFAULT_WEB_REQUEST_TIMEOUT_MS,
   OllamaWebFetchProvider,
   OllamaWebSearchProvider,
 } from './web.ts'
@@ -61,7 +62,12 @@ export type { OllamaAdapterOptions, OllamaCatalogModel, OllamaConnectionOptions 
 export { PUBLIC_BASE_URL, discoverModels } from './discovery.ts'
 export { extractContextWindow, extractCapabilities } from './discovery.ts'
 export type { OllamaDiscoveredModel, OllamaModelCapabilities } from './discovery.ts'
-export { OLLAMA_WEB_PROVIDER_ID, OllamaWebFetchProvider, OllamaWebSearchProvider } from './web.ts'
+export {
+  DEFAULT_WEB_REQUEST_TIMEOUT_MS,
+  OLLAMA_WEB_PROVIDER_ID,
+  OllamaWebFetchProvider,
+  OllamaWebSearchProvider,
+} from './web.ts'
 export type { OllamaWebProviderOptions } from './web.ts'
 export {
   DEFAULT_API_KEY_ENV,
@@ -114,6 +120,8 @@ export interface Config {
   defaultContextWindow?: number
   /** Maximum provider idle time while one stream read is outstanding (default five minutes). */
   streamIdleTimeoutMs?: number
+  /** Per-attempt budget for Ollama Cloud Web Search/Fetch requests (default 15 seconds). */
+  webRequestTimeoutMs?: number
   /** Provider-owned model-request retry policy; omission uses normal defaults. */
   retryPolicy?: RetryPolicyConfig
 }
@@ -136,6 +144,7 @@ export const Config: z<Config> = z.object({
   maxTokens: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER),
   defaultContextWindow: z.number().step(1).min(1).default(DEFAULT_CONTEXT_WINDOW),
   streamIdleTimeoutMs: z.number().min(Number.MIN_VALUE).max(MAX_TIMER_DELAY_MS).default(DEFAULT_STREAM_IDLE_TIMEOUT_MS),
+  webRequestTimeoutMs: z.number().step(1).min(1).max(MAX_TIMER_DELAY_MS).default(DEFAULT_WEB_REQUEST_TIMEOUT_MS),
   retryPolicy: RetryPolicySchema,
 })
 
@@ -199,6 +208,14 @@ export function resolveAdapterOptions(config: Config): ResolvedOllamaOptions {
       `llm-ollama: streamIdleTimeoutMs must be a positive finite number no greater than ${MAX_TIMER_DELAY_MS}`,
     )
   }
+  const webRequestTimeoutMs = config.webRequestTimeoutMs ?? DEFAULT_WEB_REQUEST_TIMEOUT_MS
+  if (!Number.isSafeInteger(webRequestTimeoutMs)
+    || webRequestTimeoutMs <= 0
+    || webRequestTimeoutMs > MAX_TIMER_DELAY_MS) {
+    throw new Error(
+      `llm-ollama: webRequestTimeoutMs must be a positive safe integer no greater than ${MAX_TIMER_DELAY_MS}`,
+    )
+  }
   return {
     apiKeyEnv: credentialRef(config.apiKeyEnv ?? DEFAULT_API_KEY_ENV),
     baseURL: config.baseURL ?? PUBLIC_BASE_URL,
@@ -206,6 +223,7 @@ export function resolveAdapterOptions(config: Config): ResolvedOllamaOptions {
     defaultContextWindow: config.defaultContextWindow ?? DEFAULT_CONTEXT_WINDOW,
     maxTokens: config.maxTokens,
     streamIdleTimeoutMs,
+    webRequestTimeoutMs,
     retryPolicy: resolveRetryPolicy(config.retryPolicy, 'llm-ollama: retryPolicy'),
   }
 }
@@ -316,6 +334,7 @@ export function apply(ctx: Context, config: Config): void {
     const shared: OllamaWebProviderOptions = {
       baseURL: () => options().baseURL,
       resolveApiKey: storedApiKey,
+      requestTimeoutMs: options().webRequestTimeoutMs,
     }
     const disposeSearch = web.registerSearchProvider(new OllamaWebSearchProvider(shared))
     const disposeFetch = web.registerFetchProvider(new OllamaWebFetchProvider(shared))

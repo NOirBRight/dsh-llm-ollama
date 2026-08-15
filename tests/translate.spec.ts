@@ -134,6 +134,38 @@ describe('translate: tool calls', () => {
   })
 })
 
+describe('translate: tool-call identity', () => {
+  it('uses the provider-issued tool-call id when present', async () => {
+    const chunks = await collect(translate(feed(
+      chunk({
+        message: {
+          role: 'assistant',
+          tool_calls: [{ id: 'call_provider_1', function: { name: 'get_weather', arguments: { city: 'NYC' } } }],
+        },
+      }),
+      chunk({ message: { role: 'assistant', content: '' }, done: true, done_reason: 'stop' }),
+    )))
+    const delta = chunks[1] as Extract<StreamChunk, { type: 'tool-call-delta' }>
+    expect(String(delta.id)).toBe('call_provider_1')
+    const finish = chunks[chunks.length - 1] as Extract<StreamChunk, { type: 'finish' }>
+    expect(finish.replayState).toEqual({ callIds: [{ callId: 'call_provider_1', toolName: 'get_weather' }] })
+  })
+
+  it('generates unique fallback ids across independent streams', async () => {
+    const first = await collect(translate(feed(
+      chunk({ message: { role: 'assistant', tool_calls: [{ function: { name: 'get_weather', arguments: { city: 'NYC' } } }] } }),
+      chunk({ message: { role: 'assistant', content: '' }, done: true, done_reason: 'stop' }),
+    )))
+    const second = await collect(translate(feed(
+      chunk({ message: { role: 'assistant', tool_calls: [{ function: { name: 'get_weather', arguments: { city: 'NYC' } } }] } }),
+      chunk({ message: { role: 'assistant', content: '' }, done: true, done_reason: 'stop' }),
+    )))
+    const firstDelta = first[1] as Extract<StreamChunk, { type: 'tool-call-delta' }>
+    const secondDelta = second[1] as Extract<StreamChunk, { type: 'tool-call-delta' }>
+    expect(String(firstDelta.id)).not.toBe(String(secondDelta.id))
+  })
+})
+
 describe('translate: edge cases', () => {
   it('maps a stop with no content to EMPTY_RESPONSE error', async () => {
     const chunks = await collect(translate(feed(
