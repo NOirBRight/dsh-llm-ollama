@@ -12,11 +12,13 @@ import {
   decodeOllamaDiscoveryResult,
   decodeOllamaSaveResult,
   decodeOllamaSettings,
+  decodeOllamaUsageReply,
   DEFAULT_API_KEY_ENV,
   OLLAMA_DISCOVER_ENDPOINT,
   OLLAMA_RPC_CHANNEL,
   OLLAMA_SAVE_ENDPOINT,
   OLLAMA_SETTINGS_NAMESPACE,
+  OLLAMA_USAGE_ENDPOINT,
 } from '../client-contract.ts'
 import type { OllamaDiscoveryRequest, OllamaSettingsView } from '../client-contract.ts'
 import { OllamaPluginCard } from './OllamaPluginCard.tsx'
@@ -89,6 +91,28 @@ export function apply(ctx: ClientContext): void {
     return accepted
   }
 
+  const fetchUsage: OllamaPluginCardFace['fetchUsage'] = async (request: OllamaDiscoveryRequest) => {
+    const result = await rpc.call(
+      OLLAMA_RPC_CHANNEL,
+      OLLAMA_USAGE_ENDPOINT,
+      request,
+    )
+    if (!result.ok) {
+      // A Host started before this package's usage endpoint exists answers
+      // with its unknown-endpoint error; the card asks for a restart instead
+      // of surfacing that as a read failure.
+      if (result.error.message.startsWith('unknown Ollama Cloud endpoint')) {
+        return { kind: 'needs-restart' as const }
+      }
+      throw new Error(result.error.message)
+    }
+    const reply = decodeOllamaUsageReply(result.value)
+    if (reply === undefined) throw new Error('Ollama Cloud returned an invalid usage snapshot')
+    return reply.status === 'ok'
+      ? { kind: 'ok' as const, usage: reply.usage }
+      : { kind: 'unsupported' as const }
+  }
+
   const discoverModels: OllamaPluginCardFace['discoverModels'] = async (request: OllamaDiscoveryRequest) => {
     const result = await rpc.call(
       OLLAMA_RPC_CHANNEL,
@@ -125,6 +149,7 @@ export function apply(ctx: ClientContext): void {
       describeCredential,
       saveConfiguration,
       discoverModels,
+      fetchUsage,
       beginModelPicker: (initiallyPicked, onAdopt) => { picker.begin(onAdopt, initiallyPicked) },
       completeModelPicker: candidates => { picker.complete(candidates) },
       failModelPicker: message => { picker.fail(message) },

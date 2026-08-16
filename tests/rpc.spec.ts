@@ -6,6 +6,7 @@ import {
   OLLAMA_DISCOVER_ENDPOINT,
   OLLAMA_RPC_CHANNEL,
   OLLAMA_SAVE_ENDPOINT,
+  OLLAMA_USAGE_ENDPOINT,
 } from '../src/client-contract.ts'
 import type { OllamaSettingsView } from '../src/client-contract.ts'
 import { closeMockServers, mockServer } from './mock-server.ts'
@@ -139,6 +140,63 @@ describe('Ollama rich-discovery RPC', () => {
       { op: 'set', path: ['models'], value: [{ id: 'gemma3', vision: true, tools: true }] },
     ])
     expect(settings.describe()[0]?.value.models).toEqual([{ id: 'gemma3', vision: true, tools: true }])
+
+    await fiber.dispose()
+    await ctx.fiber.dispose()
+  })
+
+  it('serves a secret-free usage snapshot over the loopback channel', async () => {
+    type Handler = (
+      endpoint: string,
+      payload: unknown,
+      signal: AbortSignal,
+    ) => Promise<{ ok: boolean; value?: unknown; error?: unknown }>
+    const ctx = new Context()
+    await ctx.plugin(LlmRuntime).await()
+    const handle = vi.fn((_channel: string, _handler: Handler, _options: { authority: 'loopback' }) =>
+      () => Promise.resolve())
+    ctx.provide('connection', { rpc: { handle } } as never)
+    const fiber = ctx.plugin({ inject: [...inject], Config, apply }, {})
+    await fiber.await()
+    const handler = handle.mock.calls[0]?.[1]
+    if (handler === undefined) throw new Error('Ollama RPC was not registered')
+
+    const server = await mockServer([{
+      kind: 'json',
+      status: 200,
+      body: JSON.stringify({
+        limits: {
+          session: { usage: 0.188, models: [{ name: 'glm-5.2', request_count: 57 }] },
+          weekly: { usage: 0.891, models: [] },
+        },
+      }),
+    }])
+    const result = await handler(
+      OLLAMA_USAGE_ENDPOINT,
+      { baseURL: server.url, apiKey: 'one-shot-key' },
+      new AbortController().signal,
+    )
+
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        status: 'ok',
+        usage: {
+          fetchedAt: expect.any(String),
+          session: { usage: 0.188, models: [{ name: 'glm-5.2', requestCount: 57 }] },
+          weekly: { usage: 0.891, models: [] },
+        },
+      },
+    })
+    expect(server.headers[0]?.authorization).toBe('Bearer one-shot-key')
+
+    const unsupported = await mockServer([{ kind: 'json', status: 404, body: '{}' }])
+    const declined = await handler(
+      OLLAMA_USAGE_ENDPOINT,
+      { baseURL: unsupported.url },
+      new AbortController().signal,
+    )
+    expect(declined).toEqual({ ok: true, value: { status: 'unsupported' } })
 
     await fiber.dispose()
     await ctx.fiber.dispose()

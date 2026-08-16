@@ -18,6 +18,8 @@ export const OLLAMA_RPC_CHANNEL = '/ollama-cloud'
 export const OLLAMA_DISCOVER_ENDPOINT = 'models/discover'
 /** Atomic settings-save endpoint inside {@link OLLAMA_RPC_CHANNEL}. */
 export const OLLAMA_SAVE_ENDPOINT = 'settings/save'
+/** Cloud usage-snapshot endpoint inside {@link OLLAMA_RPC_CHANNEL}. */
+export const OLLAMA_USAGE_ENDPOINT = 'usage/read'
 
 /** One model stored in the plugin's advisory catalog. */
 export interface OllamaCatalogModelConfig {
@@ -86,6 +88,42 @@ export interface OllamaSaveResult {
   /** New descriptor revision accepted by the Host. */
   revision: number
 }
+
+/** One model's accounted requests inside a usage window. */
+export interface OllamaUsageModelCount {
+  /** Provider-side model label ("web search" names the search capability). */
+  name: string
+  /** Requests accounted to this model in the window. */
+  requestCount: number
+}
+
+/** One metered quota window (session or weekly). */
+export interface OllamaUsageWindow {
+  /** Consumed fraction of the window; 0.891 renders as "89.1%". */
+  usage: number
+  /** Per-model request counts in the window, provider order. */
+  models: OllamaUsageModelCount[]
+}
+
+/** Secret-free cloud usage snapshot read for the configuration card. */
+export interface OllamaUsageView {
+  /** ISO-8601 time the Host read the snapshot. */
+  fetchedAt: string
+  /** Rolling session window, when the endpoint reports one. */
+  session?: OllamaUsageWindow
+  /** Rolling weekly window, when the endpoint reports one. */
+  weekly?: OllamaUsageWindow
+}
+
+/**
+ * Usage answer crossing the plugin RPC: a snapshot, or the word that the
+ * endpoint has no usage surface. "Unsupported" is a legitimate answer (a
+ * self-hosted Ollama answers 404), not a failure, so it rides the success
+ * branch instead of an error code.
+ */
+export type OllamaUsageReply =
+  | { status: 'ok', usage: OllamaUsageView }
+  | { status: 'unsupported' }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -195,6 +233,64 @@ export function decodeOllamaDiscoveryResult(value: unknown): OllamaDiscoveryResu
     models.push(decoded)
   }
   return { models }
+}
+
+/**
+ * Narrow one usage window crossing the plugin RPC.
+ * @param value - untrusted JSON value.
+ * @returns the validated window, or undefined when any field is invalid.
+ */
+function decodeOllamaUsageWindow(value: unknown): OllamaUsageWindow | undefined {
+  if (!isRecord(value)) return undefined
+  const usage = value['usage']
+  if (typeof usage !== 'number' || !Number.isFinite(usage) || usage < 0) return undefined
+  const modelsValue = value['models']
+  const models: OllamaUsageModelCount[] = []
+  if (modelsValue !== undefined) {
+    if (!Array.isArray(modelsValue)) return undefined
+    for (const entry of modelsValue) {
+      if (!isRecord(entry) || typeof entry['name'] !== 'string' || entry['name'].length === 0) return undefined
+      const requestCount = entry['requestCount']
+      if (typeof requestCount !== 'number' || !Number.isSafeInteger(requestCount) || requestCount < 0) {
+        return undefined
+      }
+      models.push({ name: entry['name'], requestCount })
+    }
+  }
+  return { usage, models }
+}
+
+/**
+ * Narrow one usage snapshot.
+ * @param value - untrusted JSON value.
+ * @returns the validated snapshot, or undefined when it is malformed.
+ */
+export function decodeOllamaUsageView(value: unknown): OllamaUsageView | undefined {
+  if (!isRecord(value)) return undefined
+  if (typeof value['fetchedAt'] !== 'string' || value['fetchedAt'].length === 0) return undefined
+  const session = value['session'] === undefined ? undefined : decodeOllamaUsageWindow(value['session'])
+  const weekly = value['weekly'] === undefined ? undefined : decodeOllamaUsageWindow(value['weekly'])
+  if (value['session'] !== undefined && session === undefined) return undefined
+  if (value['weekly'] !== undefined && weekly === undefined) return undefined
+  if (session === undefined && weekly === undefined) return undefined
+  return {
+    fetchedAt: value['fetchedAt'],
+    ...session === undefined ? {} : { session },
+    ...weekly === undefined ? {} : { weekly },
+  }
+}
+
+/**
+ * Narrow the usage reply returned by the Host usage endpoint.
+ * @param value - untrusted RPC result value.
+ * @returns the validated reply, or undefined when it is malformed.
+ */
+export function decodeOllamaUsageReply(value: unknown): OllamaUsageReply | undefined {
+  if (!isRecord(value)) return undefined
+  if (value['status'] === 'unsupported') return { status: 'unsupported' }
+  if (value['status'] !== 'ok') return undefined
+  const usage = decodeOllamaUsageView(value['usage'])
+  return usage === undefined ? undefined : { status: 'ok', usage }
 }
 
 /**

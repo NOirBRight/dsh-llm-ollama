@@ -10,8 +10,11 @@ import type {
   OllamaDiscoveryRequest,
   OllamaSaveResult,
   OllamaSettingsView,
+  OllamaUsageView,
+  OllamaUsageWindow,
 } from '../client-contract.ts'
 import type { OllamaSettingsKey } from './locales.ts'
+import { SortableList } from './SortableList.tsx'
 
 /** Credential state exposed without returning the credential value. */
 export interface OllamaCredentialState {
@@ -20,6 +23,16 @@ export interface OllamaCredentialState {
   /** Whether the writable credentials provider can replace it. */
   writable: boolean
 }
+
+/**
+ * Answer of one usage read: the snapshot, an endpoint without a usage
+ * surface, or a running Host whose plugin code predates the usage endpoint
+ * (a restart loads it; the card says so instead of showing an error).
+ */
+export type OllamaUsageRead =
+  | { kind: 'ok', usage: OllamaUsageView }
+  | { kind: 'unsupported' }
+  | { kind: 'needs-restart' }
 
 /** Dependencies injected by the browser-plugin registration. */
 export interface OllamaPluginCardFace {
@@ -35,6 +48,8 @@ export interface OllamaPluginCardFace {
   saveConfiguration: (settings: OllamaSettingsView, apiKey?: string) => Promise<OllamaSaveResult>
   /** Interrogate the draft endpoint without storing its one-shot key. */
   discoverModels: (request: OllamaDiscoveryRequest) => Promise<readonly OllamaCatalogModelConfig[]>
+  /** Read the account's cloud usage with the stored or one-shot credential. */
+  fetchUsage: (request: OllamaDiscoveryRequest) => Promise<OllamaUsageRead>
   /** Open the frame-level picker immediately with the current selected ids. */
   beginModelPicker: (initiallyPicked: ReadonlySet<string>, onAdopt: (models: readonly OllamaCatalogModelConfig[]) => void) => void
   /** Populate the open picker with discovered candidates. */
@@ -51,6 +66,8 @@ export type OllamaPluginCardProps =
   & InjectFace<OllamaPluginCardFace>
 
 interface ModelDraft {
+  /** Client-only stable identity; stripped before settings are saved. */
+  rowId: string
   id: string
   name?: string
   description?: string
@@ -69,6 +86,14 @@ interface Draft {
 type ModelPatch = {
   [Key in keyof ModelDraft]?: ModelDraft[Key] | undefined
 }
+
+type UsageState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'ready', usage: OllamaUsageView }
+  | { status: 'unsupported' }
+  | { status: 'needs-restart' }
+  | { status: 'error', message: string }
 
 const cardStyle: CSSProperties = {
   overflow: 'hidden',
@@ -120,6 +145,7 @@ const inputStyle: CSSProperties = {
   color: 'var(--dsw-alias-label-primary)',
   font: 'inherit',
 }
+const rowInputStyle: CSSProperties = { ...inputStyle, minHeight: 32, padding: '4px 10px' }
 const rowStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }
 const actionsStyle: CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10 }
 const buttonStyle: CSSProperties = {
@@ -138,20 +164,80 @@ const primaryButtonStyle: CSSProperties = {
   background: 'var(--dsw-alias-button-primary-fill)',
   color: 'var(--dsw-alias-label-primary-foreground)',
 }
-const modelStyle: CSSProperties = {
+const iconButtonStyle: CSSProperties = {
+  boxSizing: 'border-box',
+  width: 28,
+  height: 28,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  flex: 'none',
+  border: 0,
+  borderRadius: 6,
+  padding: 0,
+  background: 'transparent',
+  color: 'var(--dsw-alias-label-tertiary)',
+  font: 'inherit',
+  cursor: 'pointer',
+}
+const disclosureStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 8,
+  minWidth: 0,
+  border: 0,
+  padding: 0,
+  background: 'transparent',
+  color: 'var(--dsw-alias-label-primary)',
+  font: 'inherit',
+  textAlign: 'left',
+  cursor: 'pointer',
+}
+const modelContentStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr) auto auto',
+  alignItems: 'center',
+  gap: 6,
+  padding: '6px 8px',
+}
+const modelDetailStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   gap: 10,
-  border: '1px solid var(--dsw-alias-border-l2)',
-  borderRadius: 8,
-  padding: 12,
+  borderTop: '1px solid var(--dsw-alias-border-l2)',
+  padding: '10px 4px 4px',
 }
 const capabilitiesStyle: CSSProperties = { display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 14 }
 const statusStyle: CSSProperties = { margin: 0, fontSize: 13, color: 'var(--dsw-alias-label-secondary)' }
 const errorStyle: CSSProperties = { ...statusStyle, color: 'var(--dsw-alias-state-error-primary)' }
+const barTrackStyle: CSSProperties = {
+  boxSizing: 'border-box',
+  height: 14,
+  display: 'flex',
+  overflow: 'hidden',
+  borderRadius: 999,
+  background: 'color-mix(in srgb, var(--dsw-alias-label-primary) 14%, transparent)',
+}
+const usageListStyle: CSSProperties = {
+  margin: 0,
+  padding: 0,
+  listStyle: 'none',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 2,
+}
+
+let nextModelRow = 0
+
+/** Stable client-only row identity used by the pointer sortable preview. */
+function newModelRowId(): string {
+  nextModelRow += 1
+  return 'ollama-model-row-' + String(nextModelRow)
+}
 
 function modelDraftOf(model: OllamaCatalogModelConfig): ModelDraft {
   return {
+    rowId: newModelRowId(),
     ...model,
     contextWindow: model.contextWindow === undefined ? '' : String(model.contextWindow),
     maxTokens: model.maxTokens === undefined ? '' : String(model.maxTokens),
@@ -185,7 +271,7 @@ function sameDraft(left: Draft, right: Draft): boolean {
 }
 
 function modelSettingsOf(draft: ModelDraft): OllamaCatalogModelConfig {
-  const { contextWindow: contextText, maxTokens: maxText, ...model } = draft
+  const { rowId: _rowId, contextWindow: contextText, maxTokens: maxText, ...model } = draft
   const contextWindow = integerOf(contextText)
   const maxTokens = integerOf(maxText)
   return {
@@ -219,6 +305,12 @@ function messageOf(error: unknown, fallback: string): string {
   return error instanceof Error && error.message.length > 0 ? error.message : fallback
 }
 
+/** Expansion-state key that survives id edits and preview reorders. */
+function rowKeyOf(model: ModelDraft): string {
+  return model.rowId
+}
+
+/** One capability checkbox. */
 function Capability({ label, checked, disabled, onChange }: {
   label: string
   checked: boolean
@@ -238,6 +330,67 @@ function Capability({ label, checked, disabled, onChange }: {
   )
 }
 
+/** Disclosure chevron; rotates to point down while open. */
+function IconChevron({ open }: { open: boolean }): ReactNode {
+  return (
+    <svg
+      width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden
+      style={{ flex: 'none', transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 120ms ease' }}
+    >
+      <path d="M6 3.5L10.5 8L6 12.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+/** Removal glyph for one model row. */
+function IconTrash(): ReactNode {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path
+        d="M2.5 4h11M6.5 4V2.5h3V4M4 4l.7 9a1 1 0 001 .9h4.6a1 1 0 001-.9L12 4M6.5 6.8v4.4M9.5 6.8v4.4"
+        stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+/** One quota window: an aggregate consumed percentage and solid meter. */
+function UsageBar({ label, usedText, window: quota }: {
+  label: string
+  usedText: string
+  window: OllamaUsageWindow
+}): ReactNode {
+  const percent = Math.round(quota.usage * 1000) / 10
+  const fill = Math.min(100, Math.max(0, percent))
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
+        <span style={labelStyle}>{label}</span>
+        <span style={hintStyle}>{usedText} {percent}%</span>
+      </div>
+      <div
+        style={barTrackStyle}
+        role="progressbar"
+        aria-label={label}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(fill)}
+      >
+        <span
+          data-usage-fill="true"
+          style={{
+            width: String(fill) + '%',
+            height: '100%',
+            flex: 'none',
+            background: 'var(--dsw-alias-state-business-primary)',
+            transition: 'width 200ms ease',
+          }}
+        />
+      </div>
+    </div>
+  )
+}
+
 /** Render the single-package Ollama Cloud contribution under Plugin configuration. */
 export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
   const { t } = props
@@ -253,6 +406,9 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
   const [fetching, setFetching] = useState(false)
   const [failure, setFailure] = useState<string | undefined>(undefined)
   const [notice, setNotice] = useState<string | undefined>(undefined)
+  const [usage, setUsage] = useState<UsageState>({ status: 'idle' })
+  const [catalogOpen, setCatalogOpen] = useState(false)
+  const [expandedModels, setExpandedModels] = useState<ReadonlySet<string>>(new Set())
   const dirty = source !== undefined && draft !== undefined && (!sameDraft(source, draft) || apiKey.length > 0)
 
   useEffect(() => {
@@ -285,7 +441,7 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
           type="button"
           style={headerStyle}
           aria-expanded={open}
-          aria-label={`${t(open ? 'collapse' : 'expand')}: ${t('title')}`}
+          aria-label={t(open ? 'collapse' : 'expand') + ': ' + t('title')}
           onClick={() => { setOpen(!open) }}
         >
           <span style={{ display: 'flex', minWidth: 0, flexDirection: 'column', gap: 3 }}>
@@ -357,6 +513,36 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
     if (draft === undefined) return
     patchDraft({ models: draft.models.filter((_, at) => at !== index) })
   }
+  const toggleModel = (key: string): void => {
+    setExpandedModels((current) => {
+      const next = new Set(current)
+      if (!next.delete(key)) next.add(key)
+      return next
+    })
+  }
+
+  const loadUsage = async (): Promise<void> => {
+    setUsage({ status: 'loading' })
+    try {
+      const read = await props.fetchUsage({
+        ...draft === undefined ? {} : { baseURL: draft.baseURL.trim() },
+        ...apiKey.trim().length === 0 ? {} : { apiKey: apiKey.trim() },
+      })
+      setUsage(
+        read.kind === 'ok'
+          ? { status: 'ready', usage: read.usage }
+          : read.kind === 'needs-restart'
+            ? { status: 'needs-restart' }
+            : { status: 'unsupported' },
+      )
+    } catch (error: unknown) {
+      setUsage({ status: 'error', message: messageOf(error, t('requestFailed')) })
+    }
+  }
+  useEffect(() => {
+    if (!open || snapshot.status !== 'ready' || usage.status !== 'idle') return
+    void loadUsage()
+  }, [open, snapshot.status, usage.status])
 
   const fetchModels = async (): Promise<void> => {
     if (draft === undefined) return
@@ -372,12 +558,14 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
         const next = new Map<string, ModelDraft>()
         for (const candidate of selected) {
           const existing = currentById.get(candidate.id)
+          const discovered = modelDraftOf(candidate)
           next.set(candidate.id, existing === undefined
-            ? modelDraftOf(candidate)
-            : { ...existing, ...modelDraftOf(candidate) })
+            ? discovered
+            : { ...existing, ...discovered, rowId: existing.rowId })
         }
         return { ...current, models: [...next.values()] }
       })
+      setCatalogOpen(true)
       setFailure(undefined)
       setNotice(undefined)
     })
@@ -426,6 +614,8 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
       setApiKey('')
       setNotice(t('saved'))
       await refreshCredential()
+      // A replaced key can move the quota snapshot; re-read it.
+      setUsage({ status: 'idle' })
     } catch (error: unknown) {
       setFailure(messageOf(error, t('requestFailed')))
     } finally {
@@ -444,7 +634,7 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
         type="button"
         style={headerStyle}
         aria-expanded={open}
-        aria-label={`${t(open ? 'collapse' : 'expand')}: ${title}`}
+        aria-label={t(open ? 'collapse' : 'expand') + ': ' + title}
         onClick={() => { setOpen(!open) }}
       >
         <span style={{ display: 'flex', minWidth: 0, flexDirection: 'column', gap: 3 }}>
@@ -502,12 +692,68 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
                     </label>
                   </section>
 
+                  <section style={sectionStyle} aria-label={t('usage')}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                      <h3 style={sectionTitleStyle}>{t('usage')}</h3>
+                      <button
+                        type="button"
+                        style={buttonStyle}
+                        disabled={usage.status === 'loading' || snapshot.status !== 'ready'}
+                        onClick={() => { void loadUsage() }}
+                      >
+                        {t(usage.status === 'loading' ? 'usageLoading' : 'usageRefresh')}
+                      </button>
+                    </div>
+                    {usage.status === 'ready'
+                      ? (
+                        <>
+                          {usage.usage.session === undefined
+                            ? null
+                            : <UsageBar label={t('usageSession')} usedText={t('usageUsed')} window={usage.usage.session} />}
+                          {usage.usage.weekly === undefined
+                            ? null
+                            : <UsageBar label={t('usageWeekly')} usedText={t('usageUsed')} window={usage.usage.weekly} />}
+                          {usage.usage.weekly !== undefined && usage.usage.weekly.models.length > 0
+                            ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                <span style={labelStyle}>{t('usageModels')}</span>
+                                <ul style={usageListStyle} aria-label={t('usageModels')}>
+                                  {usage.usage.weekly.models.map(model => (
+                                    <li
+                                      key={model.name}
+                                      style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}
+                                    >
+                                      <span style={{ ...hintStyle, color: 'var(--dsw-alias-label-secondary)', overflowWrap: 'anywhere' }}>
+                                        {model.name}
+                                      </span>
+                                      <span style={{ ...hintStyle, flex: 'none' }}>{model.requestCount} {t('usageRequests')}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )
+                            : null}
+                        </>
+                      )
+                      : null}
+                    {usage.status === 'unsupported' ? <p style={hintStyle}>{t('usageUnsupported')}</p> : null}
+                    {usage.status === 'needs-restart' ? <p style={hintStyle}>{t('usageNeedsRestart')}</p> : null}
+                    {usage.status === 'error' ? <p style={errorStyle}>{usage.message}</p> : null}
+                  </section>
+
                   <section style={sectionStyle} aria-label={t('models')}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                      <div>
-                        <h3 style={sectionTitleStyle}>{t('models')}</h3>
-                        <p style={hintStyle}>{customModels ? t('customized') : t('inherited')}</p>
-                      </div>
+                      <button
+                        type="button"
+                        style={disclosureStyle}
+                        aria-expanded={catalogOpen}
+                        aria-label={t('models')}
+                        onClick={() => { setCatalogOpen(!catalogOpen) }}
+                      >
+                        <IconChevron open={catalogOpen} />
+                        <span style={sectionTitleStyle}>{t('models')}</span>
+                        <span style={hintStyle}>{customModels ? t('customized') : t('inherited')}</span>
+                      </button>
                       <button
                         type="button"
                         style={buttonStyle}
@@ -517,68 +763,112 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
                         {t(fetching ? 'fetchingModels' : 'fetchModels')}
                       </button>
                     </div>
-                    {draft.models.map((model, index) => (
-                      <div key={`${String(index)}:${model.id}`} style={modelStyle}>
-                        <div style={rowStyle}>
-                          <label style={fieldStyle}>
-                            <span style={labelStyle}>{t('modelId')}</span>
-                            <input
-                              style={inputStyle}
-                              value={model.id}
-                              disabled={disabled}
-                              onChange={(event) => { patchModel(index, { id: event.target.value }) }}
-                            />
-                          </label>
-                          <label style={fieldStyle}>
-                            <span style={labelStyle}>{t('modelName')}</span>
-                            <input
-                              style={inputStyle}
-                              value={model.name ?? ''}
-                              disabled={disabled}
-                              onChange={(event) => { patchModel(index, { name: event.target.value || undefined }) }}
-                            />
-                          </label>
-                          <label style={fieldStyle}>
-                            <span style={labelStyle}>{t('modelContext')}</span>
-                            <input
-                              style={inputStyle}
-                              inputMode="numeric"
-                              value={model.contextWindow}
-                              disabled={disabled}
-                              onChange={(event) => { patchModel(index, { contextWindow: event.target.value }) }}
-                            />
-                          </label>
-                          <label style={fieldStyle}>
-                            <span style={labelStyle}>{t('modelOutput')}</span>
-                            <input
-                              style={inputStyle}
-                              inputMode="numeric"
-                              value={model.maxTokens}
-                              disabled={disabled}
-                              onChange={(event) => { patchModel(index, { maxTokens: event.target.value }) }}
-                            />
-                          </label>
-                        </div>
-                        <div style={capabilitiesStyle}>
-                          <Capability label={t('vision')} checked={model.vision === true} disabled={disabled} onChange={(vision) => { patchModel(index, { vision }) }} />
-                          <Capability label={t('thinking')} checked={model.thinking === true} disabled={disabled} onChange={(thinking) => { patchModel(index, { thinking }) }} />
-                          <Capability label={t('tools')} checked={model.tools === true} disabled={disabled} onChange={(tools) => { patchModel(index, { tools }) }} />
-                          <button type="button" style={buttonStyle} disabled={disabled} onClick={() => { removeModel(index) }}>
-                            {t('remove')}
+                    {catalogOpen
+                      ? (
+                        <>
+                          <SortableList
+                            items={draft.models}
+                            getId={model => model.rowId}
+                            disabled={disabled}
+                            dragLabel={(model, index) => {
+                              const label = model.id.trim().length > 0 ? model.id.trim() : String(index + 1)
+                              return t('dragModel') + ': ' + label
+                            }}
+                            onReorder={(models) => { patchDraft({ models }) }}
+                            renderItem={(model, index) => {
+                              const key = rowKeyOf(model)
+                              const expanded = expandedModels.has(key)
+                              const label = model.id.trim().length > 0 ? model.id.trim() : String(index + 1)
+                              return (
+                                <div data-model-row={label} style={modelContentStyle}>
+                                  <input
+                                    style={rowInputStyle}
+                                    value={model.id}
+                                    placeholder={t('modelId')}
+                                    aria-label={t('modelId') + ' ' + String(index + 1)}
+                                    disabled={disabled}
+                                    onChange={(event) => { patchModel(index, { id: event.target.value }) }}
+                                  />
+                                  <input
+                                    style={rowInputStyle}
+                                    value={model.name ?? ''}
+                                    placeholder={t('modelName')}
+                                    aria-label={t('modelName') + ' ' + String(index + 1)}
+                                    disabled={disabled}
+                                    onChange={(event) => { patchModel(index, { name: event.target.value || undefined }) }}
+                                  />
+                                  <button
+                                    type="button"
+                                    style={iconButtonStyle}
+                                    aria-label={t('modelDetails') + ': ' + label}
+                                    aria-expanded={expanded}
+                                    title={t('modelDetails')}
+                                    onClick={() => { toggleModel(key) }}
+                                  >
+                                    <IconChevron open={expanded} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    style={iconButtonStyle}
+                                    aria-label={t('remove') + ' ' + label}
+                                    title={t('remove')}
+                                    disabled={disabled}
+                                    onClick={() => { removeModel(index) }}
+                                  >
+                                    <IconTrash />
+                                  </button>
+                                  {expanded
+                                    ? (
+                                      <div style={{ ...modelDetailStyle, gridColumn: '1 / -1' }}>
+                                        <div style={rowStyle}>
+                                          <label style={fieldStyle}>
+                                            <span style={labelStyle}>{t('modelContext')}</span>
+                                            <input
+                                              style={inputStyle}
+                                              inputMode="numeric"
+                                              value={model.contextWindow}
+                                              disabled={disabled}
+                                              onChange={(event) => { patchModel(index, { contextWindow: event.target.value }) }}
+                                            />
+                                          </label>
+                                          <label style={fieldStyle}>
+                                            <span style={labelStyle}>{t('modelOutput')}</span>
+                                            <input
+                                              style={inputStyle}
+                                              inputMode="numeric"
+                                              value={model.maxTokens}
+                                              disabled={disabled}
+                                              onChange={(event) => { patchModel(index, { maxTokens: event.target.value }) }}
+                                            />
+                                          </label>
+                                        </div>
+                                        <div style={capabilitiesStyle}>
+                                          <Capability label={t('vision')} checked={model.vision === true} disabled={disabled} onChange={(vision) => { patchModel(index, { vision }) }} />
+                                          <Capability label={t('thinking')} checked={model.thinking === true} disabled={disabled} onChange={(thinking) => { patchModel(index, { thinking }) }} />
+                                          <Capability label={t('tools')} checked={model.tools === true} disabled={disabled} onChange={(tools) => { patchModel(index, { tools }) }} />
+                                        </div>
+                                      </div>
+                                    )
+                                    : null}
+                                </div>
+                              )
+                            }}
+                          />
+                          <button
+                            type="button"
+                            style={{ ...buttonStyle, alignSelf: 'flex-start' }}
+                            disabled={disabled}
+                            onClick={() => {
+                              const model: ModelDraft = { rowId: newModelRowId(), id: '', contextWindow: '', maxTokens: '' }
+                              patchDraft({ models: [...draft.models, model] })
+                              setExpandedModels(current => new Set(current).add(model.rowId))
+                            }}
+                          >
+                            {t('addModel')}
                           </button>
-                        </div>
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      style={buttonStyle}
-                      disabled={disabled}
-                      onClick={() => {
-                        patchDraft({ models: [...draft.models, { id: '', contextWindow: '', maxTokens: '' }] })
-                      }}
-                    >
-                      {t('addModel')}
-                    </button>
+                        </>
+                      )
+                      : null}
                   </section>
                 </>
               )}

@@ -17,6 +17,8 @@ export declare const OLLAMA_RPC_CHANNEL = "/ollama-cloud";
 export declare const OLLAMA_DISCOVER_ENDPOINT = "models/discover";
 /** Atomic settings-save endpoint inside {@link OLLAMA_RPC_CHANNEL}. */
 export declare const OLLAMA_SAVE_ENDPOINT = "settings/save";
+/** Cloud usage-snapshot endpoint inside {@link OLLAMA_RPC_CHANNEL}. */
+export declare const OLLAMA_USAGE_ENDPOINT = "usage/read";
 /** One model stored in the plugin's advisory catalog. */
 export interface OllamaCatalogModelConfig {
     /** Wire model id accepted by the configured endpoint. */
@@ -79,6 +81,41 @@ export interface OllamaSaveResult {
     /** New descriptor revision accepted by the Host. */
     revision: number;
 }
+/** One model's accounted requests inside a usage window. */
+export interface OllamaUsageModelCount {
+    /** Provider-side model label ("web search" names the search capability). */
+    name: string;
+    /** Requests accounted to this model in the window. */
+    requestCount: number;
+}
+/** One metered quota window (session or weekly). */
+export interface OllamaUsageWindow {
+    /** Consumed fraction of the window; 0.891 renders as "89.1%". */
+    usage: number;
+    /** Per-model request counts in the window, provider order. */
+    models: OllamaUsageModelCount[];
+}
+/** Secret-free cloud usage snapshot read for the configuration card. */
+export interface OllamaUsageView {
+    /** ISO-8601 time the Host read the snapshot. */
+    fetchedAt: string;
+    /** Rolling session window, when the endpoint reports one. */
+    session?: OllamaUsageWindow;
+    /** Rolling weekly window, when the endpoint reports one. */
+    weekly?: OllamaUsageWindow;
+}
+/**
+ * Usage answer crossing the plugin RPC: a snapshot, or the word that the
+ * endpoint has no usage surface. "Unsupported" is a legitimate answer (a
+ * self-hosted Ollama answers 404), not a failure, so it rides the success
+ * branch instead of an error code.
+ */
+export type OllamaUsageReply = {
+    status: 'ok';
+    usage: OllamaUsageView;
+} | {
+    status: 'unsupported';
+};
 /**
  * Narrow one model crossing the settings or plugin-RPC JSON boundary.
  * @param value - untrusted JSON value.
@@ -103,6 +140,18 @@ export declare function decodeOllamaDiscoveryRequest(value: unknown): OllamaDisc
  * @returns the validated result, or undefined when any model is invalid.
  */
 export declare function decodeOllamaDiscoveryResult(value: unknown): OllamaDiscoveryResult | undefined;
+/**
+ * Narrow one usage snapshot.
+ * @param value - untrusted JSON value.
+ * @returns the validated snapshot, or undefined when it is malformed.
+ */
+export declare function decodeOllamaUsageView(value: unknown): OllamaUsageView | undefined;
+/**
+ * Narrow the usage reply returned by the Host usage endpoint.
+ * @param value - untrusted RPC result value.
+ * @returns the validated reply, or undefined when it is malformed.
+ */
+export declare function decodeOllamaUsageReply(value: unknown): OllamaUsageReply | undefined;
 /**
  * Narrow one atomic settings-save request crossing the plugin RPC.
  * @param value - untrusted RPC payload.

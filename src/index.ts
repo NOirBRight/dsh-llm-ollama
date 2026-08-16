@@ -29,6 +29,7 @@ import {
 import type { OllamaCatalogModel, OllamaConnectionOptions } from './adapter.ts'
 import { PUBLIC_BASE_URL } from './discovery.ts'
 import { discoverModels } from './discovery.ts'
+import { OLLAMA_USAGE_UNSUPPORTED, readOllamaUsage } from './usage.ts'
 import {
   DEFAULT_WEB_REQUEST_TIMEOUT_MS,
   OllamaWebFetchProvider,
@@ -45,6 +46,7 @@ import {
   OLLAMA_RPC_CHANNEL,
   OLLAMA_SAVE_ENDPOINT,
   OLLAMA_SETTINGS_NAMESPACE,
+  OLLAMA_USAGE_ENDPOINT,
 } from './client-contract.ts'
 
 export {
@@ -64,6 +66,14 @@ export {
 } from './web.ts'
 export type { OllamaWebProviderOptions } from './web.ts'
 export {
+  DEFAULT_USAGE_REQUEST_TIMEOUT_MS,
+  OLLAMA_USAGE_FAILED,
+  OLLAMA_USAGE_UNSUPPORTED,
+  parseOllamaUsage,
+  readOllamaUsage,
+} from './usage.ts'
+export type { OllamaUsageRequest } from './usage.ts'
+export {
   DEFAULT_API_KEY_ENV,
   OLLAMA_DISCOVER_ENDPOINT,
   OLLAMA_PROVIDER,
@@ -71,12 +81,14 @@ export {
   OLLAMA_RPC_CHANNEL,
   OLLAMA_SAVE_ENDPOINT,
   OLLAMA_SETTINGS_NAMESPACE,
+  OLLAMA_USAGE_ENDPOINT,
   decodeOllamaCatalogModel,
   decodeOllamaDiscoveryRequest,
   decodeOllamaDiscoveryResult,
   decodeOllamaSaveRequest,
   decodeOllamaSaveResult,
   decodeOllamaSettings,
+  decodeOllamaUsageReply,
 } from './client-contract.ts'
 export type {
   OllamaCatalogModelConfig,
@@ -85,6 +97,10 @@ export type {
   OllamaSaveRequest,
   OllamaSaveResult,
   OllamaSettingsView,
+  OllamaUsageModelCount,
+  OllamaUsageReply,
+  OllamaUsageView,
+  OllamaUsageWindow,
 } from './client-contract.ts'
 export type * from './types.ts'
 
@@ -247,6 +263,17 @@ function settingsFailure(message: string) {
   }
 }
 
+/** Fold one usage-read failure: "unsupported" is a legitimate answer, the rest are errors. */
+function usageFailure(error: unknown) {
+  if (error instanceof LlmError && error.code === OLLAMA_USAGE_UNSUPPORTED) {
+    return { ok: true as const, value: { status: 'unsupported' as const } }
+  }
+  const message = error instanceof LlmError && error.message.length > 0
+    ? error.message
+    : 'Ollama Cloud usage read failed'
+  return settingsFailure(message)
+}
+
 export function apply(ctx: Context, config: Config): void {
   let current: () => Config = () => config
   let lastRaw: Config | undefined
@@ -383,6 +410,16 @@ export function apply(ctx: Context, config: Config): void {
               ? error.message
               : 'Ollama Cloud settings save failed'
             return settingsFailure(message)
+          }
+        }
+        if (endpoint === OLLAMA_USAGE_ENDPOINT) {
+          const request = decodeOllamaDiscoveryRequest(payload)
+          if (request === undefined) return settingsFailure('invalid Ollama Cloud usage request')
+          try {
+            const usage = await readOllamaUsage({ ...request, signal }, storedApiKey)
+            return { ok: true as const, value: { status: 'ok' as const, usage } }
+          } catch (error: unknown) {
+            return usageFailure(error)
           }
         }
         return settingsFailure(`unknown Ollama Cloud endpoint: ${endpoint}`)
