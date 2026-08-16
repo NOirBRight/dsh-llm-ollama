@@ -27,6 +27,16 @@ Fetch available models 会立即打开 picker，并用未保存 endpoint 和一�
 
 模型目录默认折叠，展开后一行一个模型：左侧把手可拖动排序（顺序随目录一起保存），右侧箭头展开该行的上下文窗口、最大输出和能力开关，垃圾桶按钮删除该行。
 
+### 插件配置截图
+
+云端用量与完整的每周模型活动列表：
+
+![Ollama Cloud 连接与云端用量](docs/images/ollama-cloud-usage.png)
+
+可拖动排序的模型目录：
+
+![Ollama Cloud 可排序模型目录](docs/images/ollama-model-catalog.png)
+
 Models 页面会列出已保存的 ollama-cloud 模型并允许选择。当前 Harness 版本没有 Models 页面里的第三方编辑器 slot，因此本包在 Plugin configuration 中持有完整编辑器。
 
 ## 能力与协议分离

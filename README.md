@@ -27,6 +27,16 @@ The card's Cloud usage section mirrors ollama.com/settings: the Host reads GET <
 
 The model catalog starts collapsed and lists one row per model: a drag handle reorders rows (the order persists with the catalog), the chevron opens that row's context window, maximum output, and capability flags, and the trash button removes it.
 
+### Plugin configuration screenshots
+
+Cloud usage and the complete weekly model activity list:
+
+![Ollama Cloud connection and usage](docs/images/ollama-cloud-usage.png)
+
+Sortable model catalog:
+
+![Ollama Cloud sortable model catalog](docs/images/ollama-model-catalog.png)
+
 The Models page lists saved ollama-cloud models and can select them. Current Harness releases do not expose a third-party editor slot inside that page, so this package owns its editor under Plugin configuration.
 
 ## Capability and protocol split
