@@ -9,10 +9,11 @@
 
 import { createProvider } from '@earendil-works/pi-ai'
 import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completions.lazy'
-import type { Model, Provider, ThinkingLevelMap } from '@earendil-works/pi-ai'
+import type { Model, Provider } from '@earendil-works/pi-ai'
 import type { ResolvedPiAiProviderProfile } from '@deepseek-ai/dsh-llm-pi-ai'
 import { OLLAMA_PROVIDER } from './client-contract.ts'
 import type { OllamaCatalogModel, OllamaConnectionOptions } from './adapter.ts'
+import { ollamaThinkingLevelMap } from './reasoning.ts'
 
 /** Safe output capability used when Ollama does not disclose one. */
 export const OLLAMA_DEFAULT_MODEL_MAX_TOKENS = 32_768
@@ -27,44 +28,13 @@ export function openAICompatibleBaseURL(baseURL: string): string {
   return normalized + '/v1'
 }
 
-/** Ollama's documented GPT-OSS family accepts only low/medium/high. */
-function isGptOssModel(model: string): boolean {
-  return /(?:^|\/)gpt-oss(?::|$)/iu.test(model)
-}
-
-/** Explicitly pin every thinking level so pi-ai never guesses unsupported levels from an absent key. */
-function thinkingLevelMap(model: OllamaCatalogModel): ThinkingLevelMap | undefined {
-  if (model.thinking !== true) return undefined
-  const unsupported = null
-  if (isGptOssModel(model.id)) {
-    return {
-      off: unsupported,
-      minimal: unsupported,
-      low: 'low',
-      medium: 'medium',
-      high: 'high',
-      xhigh: unsupported,
-      max: unsupported,
-    }
-  }
-  return {
-    off: 'none',
-    minimal: unsupported,
-    low: 'low',
-    medium: 'medium',
-    high: 'high',
-    xhigh: unsupported,
-    max: 'max',
-  }
-}
-
 /** Build one pi-ai model descriptor for OpenAI Chat Completions. */
 function toPiAiModel(
   model: OllamaCatalogModel,
   connection: OllamaConnectionOptions,
   baseUrl: string,
 ): Model<'openai-completions'> {
-  const levels = thinkingLevelMap(model)
+  const levels = ollamaThinkingLevelMap(model)
   return {
     id: model.id,
     name: model.name ?? model.id,

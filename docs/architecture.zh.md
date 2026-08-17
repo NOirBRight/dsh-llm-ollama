@@ -44,8 +44,8 @@ llm-ollama 设置节保存 Ollama 原生 base URL，因为模型发现和 Web �
 
 - vision 决定 text/image 输入模态；
 - thinking 决定 reasoning 是否可用；
-- 普通 thinking model 提供 off、low、medium、high、max；
-- GPT-OSS 提供 low、medium、high；
+- 已知 Cloud 家族只暴露厂商真实档，并按模型设置 defaultEffort；
+- 未知 thinking model 仍提供 off、low、medium、high、max，且不设插件默认；
 - 发现到的 context length 决定 pi-ai 模型容量；
 - 模型级或 route 级 maxTokens 成为请求默认；
 - 不在已保存目录中的模型会被拒绝。

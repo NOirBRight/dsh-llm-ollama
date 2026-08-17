@@ -13,6 +13,7 @@ import type { AttachmentStore } from '@deepseek-ai/dsh-attachment';
 import { discoverModels } from './discovery.ts';
 import type { OllamaCatalogModelConfig } from './client-contract.ts';
 import type { WireError } from './types.ts';
+export { isGptOssModel } from './reasoning.ts';
 /** One optional model entry advertised by the adapter. */
 export type OllamaCatalogModel = OllamaCatalogModelConfig;
 /**
@@ -54,12 +55,6 @@ export interface OllamaAdapterOptions {
 export declare const DEFAULT_STREAM_IDLE_TIMEOUT_MS = 300000;
 /** Default combined request/response context capacity. */
 export declare const DEFAULT_CONTEXT_WINDOW = 262144;
-/**
- * Test whether Ollama documents the model family as low/medium/high-only.
- * @param model - Ollama wire model id.
- * @returns true for GPT-OSS ids, including registry-prefixed ids.
- */
-export declare function isGptOssModel(model: string): boolean;
 /**
  * Map an HTTP status to a stable LlmError code for source-compatible callers.
  * @param status - status of a non-2xx provider response.

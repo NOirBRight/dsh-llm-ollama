@@ -108,7 +108,7 @@ Fallback context window 是 262,144 tokens。正常情况下发现过程应提�
 
 ### 模型能力
 
-vision 决定 text/image 输入模态。thinking 启用可选择的 reasoning effort。普通 thinking model 提供 off、low、medium、high、max；GPT-OSS 提供 low、medium、high。tools 记录发现元数据；实际请求会携带当前 DSH tool definitions。
+vision 决定 text/image 输入模态。thinking 启用可选择的 reasoning effort。已知的 Ollama Cloud 家族只暴露厂商真实档，并在会话未选择时使用插件 `defaultEffort`（GLM-5.2 和 Kimi K3 默认 max；DeepSeek V4 和 MiniMax M3 默认 high；GPT-OSS 默认 medium；Nemotron Super/Nano 默认 low）。未知 thinking model 仍提供 off、low、medium、high、max，且不设插件默认。tools 记录发现元数据；实际请求会携带当前 DSH tool definitions。
 
 Ollama 的 OpenAI Chat Completions profile 被显式固定：发送 max_tokens、reasoning_effort 和 streaming usage，保留 system role，不发送 store、max_completion_tokens 或 prompt_cache 字段。
 

@@ -119,12 +119,38 @@ describe('OllamaAdapter metadata', () => {
     expect(info.reasoning?.defaultEffort).toBeUndefined()
   })
 
-  it('limits GPT-OSS thinking efforts', async () => {
+  it('limits GPT-OSS thinking efforts and defaults to medium', async () => {
     const a = adapter({
       options: () => connection({ models: [{ id: 'registry.example/gpt-oss:20b', thinking: true }] }),
     })
     const info = await a.resolveModel('ollama-cloud', 'registry.example/gpt-oss:20b')
     expect(info.reasoning?.efforts.map(e => e.id)).toEqual(['low', 'medium', 'high'])
+    expect(info.reasoning?.defaultEffort).toBe('medium')
+  })
+
+  it('exposes vendor-real Cloud family levels and their plugin defaults', async () => {
+    const a = adapter({
+      options: () => connection({
+        models: [
+          { id: 'glm-5.2', thinking: true },
+          { id: 'deepseek-v4-flash:0731', thinking: true },
+          { id: 'kimi-k2.7-code', thinking: true },
+          { id: 'minimax-m3', thinking: true },
+        ],
+      }),
+    })
+    await expect(a.resolveModel('ollama-cloud', 'glm-5.2')).resolves.toMatchObject({
+      reasoning: { efforts: [{ id: 'off' }, { id: 'high' }, { id: 'max' }], defaultEffort: 'max' },
+    })
+    await expect(a.resolveModel('ollama-cloud', 'deepseek-v4-flash:0731')).resolves.toMatchObject({
+      reasoning: { efforts: [{ id: 'off' }, { id: 'low' }, { id: 'high' }, { id: 'max' }], defaultEffort: 'high' },
+    })
+    await expect(a.resolveModel('ollama-cloud', 'kimi-k2.7-code')).resolves.toMatchObject({
+      reasoning: { efforts: [{ id: 'high' }], defaultEffort: 'high' },
+    })
+    await expect(a.resolveModel('ollama-cloud', 'minimax-m3')).resolves.toMatchObject({
+      reasoning: { efforts: [{ id: 'off' }, { id: 'high' }], defaultEffort: 'high' },
+    })
   })
 
   it('rejects an unconfigured model instead of passing it through', async () => {

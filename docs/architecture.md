@@ -44,8 +44,8 @@ The saved catalog is converted into pi-ai model descriptors for chat:
 
 - vision controls text/image input modalities;
 - thinking controls reasoning availability;
-- ordinary thinking models expose off, low, medium, high, and max;
-- GPT-OSS exposes low, medium, and high;
+- known Cloud families expose only vendor-real levels and pin a per-model defaultEffort;
+- unknown thinking models keep off, low, medium, high, and max with no plugin default;
 - discovered context length sizes the pi-ai model;
 - a configured model or route maxTokens becomes a request default;
 - models absent from the saved catalog are rejected.

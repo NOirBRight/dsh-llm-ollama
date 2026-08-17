@@ -92,6 +92,7 @@ describe('llm-ollama real composition', () => {
     // resolveModel exposes reasoning efforts for the thinking model.
     const info = await ctx.llm.resolveModelInfo('ollama-cloud', 'gpt-oss:20b')
     expect(info.reasoning?.efforts.map(e => e.id)).toEqual(['low', 'medium', 'high'])
+    expect(info.reasoning?.defaultEffort).toBe('medium')
     // A request streams through the mock server with the bearer token.
     const result = await assemble(ctx, { model: 'gpt-oss:20b', messages: [] })
     expect(result.finish).toEqual({ kind: 'stop' })

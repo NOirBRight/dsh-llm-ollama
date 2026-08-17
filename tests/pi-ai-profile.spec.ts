@@ -104,6 +104,31 @@ describe('createOllamaPiAiProfile', () => {
     expect(profile.configuredMaxTokens.get('registry.example/gpt-oss:20b')).toBe(8192)
   })
 
+  it('narrows Cloud family thinking maps to vendor-real levels', () => {
+    const profile = createOllamaPiAiProfile(connection({
+      models: [{ id: 'glm-5.2', thinking: true }, { id: 'kimi-k3', thinking: true }],
+    }))
+    const models = Object.fromEntries(profile.piProvider.getModels().map(model => [model.id, model]))
+    expect(models['glm-5.2']?.thinkingLevelMap).toEqual({
+      off: 'none',
+      minimal: null,
+      low: null,
+      medium: null,
+      high: 'high',
+      xhigh: null,
+      max: 'max',
+    })
+    expect(models['kimi-k3']?.thinkingLevelMap).toEqual({
+      off: null,
+      minimal: null,
+      low: 'low',
+      medium: null,
+      high: 'high',
+      xhigh: null,
+      max: 'max',
+    })
+  })
+
   it('uses route defaults without turning capability maxTokens into a request default', () => {
     const profile = createOllamaPiAiProfile(connection({
       models: [{ id: 'plain', vision: false, thinking: false }],

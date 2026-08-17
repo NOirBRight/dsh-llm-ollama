@@ -28,7 +28,10 @@ import {
 } from './client-contract.ts'
 import type { OllamaCatalogModelConfig } from './client-contract.ts'
 import { createOllamaPiAiProfile } from './pi-ai-profile.ts'
+import { applyOllamaReasoningMetadata } from './reasoning.ts'
 import type { WireError } from './types.ts'
+
+export { isGptOssModel } from './reasoning.ts'
 
 /** One optional model entry advertised by the adapter. */
 export type OllamaCatalogModel = OllamaCatalogModelConfig
@@ -74,15 +77,6 @@ export interface OllamaAdapterOptions {
 export const DEFAULT_STREAM_IDLE_TIMEOUT_MS = OLLAMA_DEFAULT_STREAM_IDLE_TIMEOUT_MS
 /** Default combined request/response context capacity. */
 export const DEFAULT_CONTEXT_WINDOW = OLLAMA_DEFAULT_CONTEXT_WINDOW
-
-/**
- * Test whether Ollama documents the model family as low/medium/high-only.
- * @param model - Ollama wire model id.
- * @returns true for GPT-OSS ids, including registry-prefixed ids.
- */
-export function isGptOssModel(model: string): boolean {
-  return /(?:^|\/)gpt-oss(?::|$)/iu.test(model)
-}
 
 /**
  * Map an HTTP status to a stable LlmError code for source-compatible callers.
@@ -136,12 +130,13 @@ export class OllamaAdapter extends LlmAdapter {
     return this.current().listModels(provider)
   }
 
-  override resolveModel(
+  override async resolveModel(
     provider: string,
     model: string,
     signal?: AbortSignal,
   ): Promise<LlmResolvedModelInfo> {
-    return this.current().resolveModel(provider, model, signal)
+    const info = await this.current().resolveModel(provider, model, signal)
+    return applyOllamaReasoningMetadata(info, model)
   }
 
   override stream(options: GenerateOptions): AsyncIterable<StreamChunk> {

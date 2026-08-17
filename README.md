@@ -108,7 +108,7 @@ The fallback context window is 262,144 tokens. Discovery should normally provide
 
 ### Model capabilities
 
-vision controls text/image input modalities. thinking enables selectable reasoning efforts. General thinking models expose off, low, medium, high, and max. GPT-OSS exposes low, medium, and high. tools records discovery metadata; the actual request carries the current DSH tool definitions.
+vision controls text/image input modalities. thinking enables selectable reasoning efforts. Known Ollama Cloud families expose only vendor-real levels and pin a plugin `defaultEffort` used when the session has not picked one (GLM-5.2 and Kimi K3 default to max; DeepSeek V4 and MiniMax M3 to high; GPT-OSS to medium; Nemotron Super/Nano to low). Unknown thinking models keep off, low, medium, high, and max with no plugin default. tools records discovery metadata; the actual request carries the current DSH tool definitions.
 
 The OpenAI Chat Completions profile is pinned for Ollama: it sends max_tokens, reasoning_effort, and streaming usage, preserves system-role messages, and does not send store, max_completion_tokens, or prompt_cache fields.
 
