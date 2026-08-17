@@ -25,7 +25,7 @@ Fetch available models opens the picker immediately and calls the package's loop
 
 The card's Cloud usage section mirrors ollama.com/settings: the Host reads GET <baseURL>/usage with the stored (or one-shot) key and renders the session and weekly windows as consumed-percentage meters plus the week's per-model request counts. The credential never crosses to the browser. A self-hosted endpoint without the usage surface shows an unsupported note instead of an error.
 
-The model catalog starts collapsed and lists one row per model: a drag handle reorders rows (the order persists with the catalog), the chevron opens that row's context window, maximum output, and capability flags, and the trash button removes it.
+The model catalog starts collapsed and lists one row per model: a drag handle reorders rows (the order persists with the catalog), the chevron opens that row's context window, Default thinking, and capability flags, and the trash button removes it.
 
 ### Plugin configuration screenshots
 
@@ -81,7 +81,6 @@ Omit fetchProvider to keep the built-in HTTP fetcher while moving only search. B
   config:
     apiKeyEnv: OLLAMA_API_KEY
     baseURL: https://ollama.com/api
-    maxTokens: 4096
     defaultContextWindow: 262144
     streamIdleTimeoutMs: 300000
     webRequestTimeoutMs: 15000
@@ -102,7 +101,7 @@ Omit fetchProvider to keep the built-in HTTP fetcher while moving only search. B
         vision: true
 ~~~
 
-The provider route remains ollama-cloud and the settings namespace remains llm-ollama. Only configured catalog models are accepted for chat. Entry maxTokens wins over the route value; without either value, the adapter does not install a request default. Ollama does not publish per-model output limits, so discovery leaves maxTokens unset.
+The provider route remains ollama-cloud and the settings namespace remains llm-ollama. Only configured catalog models are accepted for chat. The adapter does not install a request-level maxTokens default; output is not capped from the catalog. Per-row `contextWindow` is the DSH compaction budget.
 
 The fallback context window is 262,144 tokens. Discovery should normally provide an exact model value; the fallback also leaves room for pi-ai's context-safety reserve when metadata is unavailable.
 

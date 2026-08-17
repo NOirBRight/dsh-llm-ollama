@@ -106,17 +106,17 @@ describe('OllamaAdapter metadata', () => {
     ])
   })
 
-  it('resolves context, request defaults, and thinking efforts', async () => {
+  it('resolves context and thinking efforts without a request maxTokens cap', async () => {
     const a = adapter({
       options: () => connection({
-        models: [{ id: 'qwen3', contextWindow: 131_072, maxTokens: 4096, thinking: true }],
+        models: [{ id: 'qwen3', contextWindow: 131_072, maxTokens: 4096, thinking: true, defaultEffort: 'low' }],
       }),
     })
     const info = await a.resolveModel('ollama-cloud', 'qwen3')
     expect(info.context).toEqual({ contextWindow: 131_072 })
-    expect(info.defaultMaxTokens).toBe(4096)
+    expect(info.defaultMaxTokens).toBeUndefined()
     expect(info.reasoning?.efforts.map(e => e.id)).toEqual(['off', 'low', 'medium', 'high', 'max'])
-    expect(info.reasoning?.defaultEffort).toBeUndefined()
+    expect(info.reasoning?.defaultEffort).toBe('low')
   })
 
   it('limits GPT-OSS thinking efforts and defaults to medium', async () => {

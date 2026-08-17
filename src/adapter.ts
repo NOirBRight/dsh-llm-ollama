@@ -136,7 +136,8 @@ export class OllamaAdapter extends LlmAdapter {
     signal?: AbortSignal,
   ): Promise<LlmResolvedModelInfo> {
     const info = await this.current().resolveModel(provider, model, signal)
-    return applyOllamaReasoningMetadata(info, model)
+    const catalog = this.config.options().models.find(entry => entry.id === model)
+    return applyOllamaReasoningMetadata(info, model, catalog?.defaultEffort)
   }
 
   override stream(options: GenerateOptions): AsyncIterable<StreamChunk> {

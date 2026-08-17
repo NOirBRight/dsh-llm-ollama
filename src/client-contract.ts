@@ -37,7 +37,9 @@ export interface OllamaCatalogModelConfig {
   vision?: boolean
   /** Whether the model supports native thinking; this does not identify accepted efforts. */
   thinking?: boolean
-  /** Whether the model supports tool calls. */
+  /** Chat-picker default when the conversation has not chosen a level. */
+  defaultEffort?: string
+  /** Legacy capability flag. Ignored at runtime; still decoded. */
   tools?: boolean
 }
 
@@ -146,12 +148,16 @@ export function decodeOllamaCatalogModel(value: unknown): OllamaCatalogModelConf
   const maxTokens = value['maxTokens']
   const vision = value['vision']
   const thinking = value['thinking']
+  const defaultEffort = value['defaultEffort']
   const tools = value['tools']
   if (name !== undefined && typeof name !== 'string') return undefined
   if (description !== undefined && typeof description !== 'string') return undefined
   if (!optionalPositiveInteger(contextWindow) || !optionalPositiveInteger(maxTokens)) return undefined
   if (vision !== undefined && typeof vision !== 'boolean') return undefined
   if (thinking !== undefined && typeof thinking !== 'boolean') return undefined
+  if (defaultEffort !== undefined && (typeof defaultEffort !== 'string' || defaultEffort.length === 0)) {
+    return undefined
+  }
   if (tools !== undefined && typeof tools !== 'boolean') return undefined
   return {
     id: value['id'],
@@ -161,6 +167,7 @@ export function decodeOllamaCatalogModel(value: unknown): OllamaCatalogModelConf
     ...maxTokens === undefined ? {} : { maxTokens },
     ...vision === undefined ? {} : { vision },
     ...thinking === undefined ? {} : { thinking },
+    ...defaultEffort === undefined ? {} : { defaultEffort },
     ...tools === undefined ? {} : { tools },
   }
 }

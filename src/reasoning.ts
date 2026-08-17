@@ -9,8 +9,7 @@
  * @module dsh-llm-ollama/reasoning
  */
 
-import { ReasoningEffortId } from '@deepseek-ai/dsh-llm'
-import type { LlmResolvedModelInfo } from '@deepseek-ai/dsh-llm'
+import type { LlmResolvedModelInfo, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import type { ModelThinkingLevel, ThinkingLevelMap } from '@earendil-works/pi-ai'
 import type { OllamaCatalogModelConfig } from './client-contract.ts'
 
@@ -151,19 +150,40 @@ export function ollamaDefaultEffort(model: string): ModelThinkingLevel | undefin
   return policyFor(model).defaultEffort
 }
 
+/** Stable order for the Default thinking dropdown. */
+export const OLLAMA_EFFORT_ORDER = ['off', 'low', 'medium', 'high', 'xhigh', 'max'] as const
+/** Short labels for advertised Ollama reasoning levels. */
+export const OLLAMA_EFFORT_LABELS: Readonly<Record<string, string>> = Object.freeze({
+  off: 'Off',
+  low: 'Low',
+  medium: 'Medium',
+  high: 'High',
+  xhigh: 'Extra high',
+  max: 'Max',
+})
+
+/** Advertised thinking levels for one catalog row. */
+export function effortsForOllamaModel(model: OllamaCatalogModelConfig): readonly string[] {
+  const map = ollamaThinkingLevelMap(model)
+  if (map === undefined) return []
+  return OLLAMA_EFFORT_ORDER.filter(effort => map[effort] !== null)
+}
+
 /**
- * Attach the family default to a resolved model when that level is offered.
+ * Attach the family or row default to a resolved model when that level is offered.
  * @param info - descriptor from the delegated pi-ai adapter.
  * @param model - Ollama wire model id.
+ * @param override - optional saved row default.
  */
 export function applyOllamaReasoningMetadata(
   info: LlmResolvedModelInfo,
   model: string,
+  override?: string,
 ): LlmResolvedModelInfo {
   if (info.reasoning === undefined) return info
-  const preferred = ollamaDefaultEffort(model)
+  const preferred = override ?? ollamaDefaultEffort(model)
   if (preferred === undefined) return info
-  const defaultEffort = ReasoningEffortId(preferred)
+  const defaultEffort = preferred as ReasoningEffortId
   if (!info.reasoning.efforts.some(effort => effort.id === defaultEffort)) return info
   return {
     ...info,

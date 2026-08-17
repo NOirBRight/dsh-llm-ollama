@@ -40,10 +40,17 @@ export declare function ollamaThinkingLevelMap(model: OllamaCatalogModelConfig):
  * @returns a supported selector id, or undefined for unknown families.
  */
 export declare function ollamaDefaultEffort(model: string): ModelThinkingLevel | undefined;
+/** Stable order for the Default thinking dropdown. */
+export declare const OLLAMA_EFFORT_ORDER: readonly ["off", "low", "medium", "high", "xhigh", "max"];
+/** Short labels for advertised Ollama reasoning levels. */
+export declare const OLLAMA_EFFORT_LABELS: Readonly<Record<string, string>>;
+/** Advertised thinking levels for one catalog row. */
+export declare function effortsForOllamaModel(model: OllamaCatalogModelConfig): readonly string[];
 /**
- * Attach the family default to a resolved model when that level is offered.
+ * Attach the family or row default to a resolved model when that level is offered.
  * @param info - descriptor from the delegated pi-ai adapter.
  * @param model - Ollama wire model id.
+ * @param override - optional saved row default.
  */
-export declare function applyOllamaReasoningMetadata(info: LlmResolvedModelInfo, model: string): LlmResolvedModelInfo;
+export declare function applyOllamaReasoningMetadata(info: LlmResolvedModelInfo, model: string, override?: string): LlmResolvedModelInfo;
 //# sourceMappingURL=reasoning.d.ts.map

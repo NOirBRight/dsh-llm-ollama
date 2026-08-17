@@ -122,8 +122,10 @@ describe('OllamaPluginCard', () => {
     }) })
     fireEvent.click(await screen.findByRole('button', { name: `${en.modelDetails}: gemma3` }))
     await waitFor(() => { expect(screen.getByLabelText<HTMLInputElement>(en.vision).checked).toBe(true) })
-    expect(screen.getByLabelText<HTMLInputElement>(en.tools).checked).toBe(true)
+    expect(screen.queryByLabelText(en.tools)).toBeNull()
+    expect(screen.queryByLabelText(en.modelOutput)).toBeNull()
     expect(screen.getByLabelText<HTMLInputElement>(en.thinking).checked).toBe(false)
+    expect(screen.getByLabelText(en.modelContext)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: en.save }))
 
     await waitFor(() => { expect(saveConfiguration).toHaveBeenCalledTimes(1) })
@@ -135,7 +137,6 @@ describe('OllamaPluginCard', () => {
           contextWindow: 131_072,
           vision: true,
           thinking: false,
-          tools: true,
         }],
       }),
       'ollama-secret',

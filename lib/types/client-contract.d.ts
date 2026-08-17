@@ -35,7 +35,9 @@ export interface OllamaCatalogModelConfig {
     vision?: boolean;
     /** Whether the model supports native thinking; this does not identify accepted efforts. */
     thinking?: boolean;
-    /** Whether the model supports tool calls. */
+    /** Chat-picker default when the conversation has not chosen a level. */
+    defaultEffort?: string;
+    /** Legacy capability flag. Ignored at runtime; still decoded. */
     tools?: boolean;
 }
 /** Settings fields presented by the package's Web configuration card. */

@@ -144,6 +144,7 @@ const catalogModel: z<OllamaCatalogModel> = z.object({
   maxTokens: z.number().step(1).min(1),
   vision: z.boolean(),
   thinking: z.boolean(),
+  defaultEffort: z.string(),
   tools: z.boolean(),
 })
 
@@ -191,6 +192,7 @@ function resolveModels(models: readonly OllamaCatalogModel[] | undefined): Ollam
       ...model.maxTokens === undefined ? {} : { maxTokens: model.maxTokens },
       ...model.vision === undefined ? {} : { vision: model.vision },
       ...model.thinking === undefined ? {} : { thinking: model.thinking },
+      ...model.defaultEffort === undefined ? {} : { defaultEffort: model.defaultEffort },
       ...model.tools === undefined ? {} : { tools: model.tools },
     }
   })

@@ -2,6 +2,24 @@ import type { UserConfig } from 'tsdown'
 
 const PACKAGE_ID = 'dsh-llm-ollama'
 
+/** Specifiers the web module table can answer. Everything else must inline or fail the purity gate. */
+const CLIENT_EXTERNALS = [
+  'react',
+  'react/jsx-runtime',
+  'react-dom',
+  '@deepseek-ai/cordis',
+  '@deepseek-ai/dsh-api-remotes/client',
+  '@deepseek-ai/dsh-client-connection/client',
+  '@deepseek-ai/dsh-client-locale/client',
+  '@deepseek-ai/dsh-client-runtime/client',
+  '@deepseek-ai/dsh-client-ui-settings/client',
+  '@deepseek-ai/dsh-client-ui-settings-plugins/client',
+  '@deepseek-ai/dsh-client-ui-slots',
+] as const
+
+const isClientExternal = (id: string): boolean =>
+  (CLIENT_EXTERNALS as readonly string[]).includes(id)
+
 const host: UserConfig = {
   name: PACKAGE_ID,
   entry: ['lib/types/index.js', 'lib/types/invariant.js'],
@@ -38,20 +56,20 @@ const client: UserConfig = {
   dts: false,
   clean: false,
   deps: {
-    neverBundle: [
-      'react',
-      'react/jsx-runtime',
-      'react-dom',
-      '@deepseek-ai/cordis',
-      '@deepseek-ai/dsh-api-remotes/client',
-      '@deepseek-ai/dsh-client-connection/client',
-      '@deepseek-ai/dsh-client-locale/client',
-      '@deepseek-ai/dsh-client-runtime/client',
-      '@deepseek-ai/dsh-client-ui-settings/client',
-      '@deepseek-ai/dsh-client-ui-settings-plugins/client',
-      '@deepseek-ai/dsh-client-ui-slots',
-    ],
+    neverBundle: [...CLIENT_EXTERNALS],
+    alwaysBundle: (id: string) => !isClientExternal(id),
   },
+  plugins: [{
+    name: 'dsh-client-bundle-purity',
+    resolveId(source: string) {
+      if (!source.startsWith('@deepseek-ai/')) return null
+      if (isClientExternal(source)) return null
+      throw new Error(
+        `client bundle purity: "${source}" is not a web module-table entry — `
+        + 'type-only imports are erased; a value import becomes require() the table cannot answer',
+      )
+    },
+  }],
   define: {
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV ?? 'production'),
   },

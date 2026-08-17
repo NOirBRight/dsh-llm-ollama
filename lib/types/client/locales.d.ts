@@ -46,6 +46,7 @@ export declare const en: {
     readonly vision: "Vision";
     readonly thinking: "Reasoning";
     readonly tools: "Tools";
+    readonly defaultEffort: "Default thinking";
     readonly remove: "Remove";
     readonly inherited: "Using the composed catalog";
     readonly customized: "Custom catalog";

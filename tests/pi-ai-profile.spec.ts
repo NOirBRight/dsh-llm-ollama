@@ -82,10 +82,10 @@ describe('createOllamaPiAiProfile', () => {
       xhigh: null,
       max: 'max',
     })
-    expect(profile.configuredMaxTokens.get('qwen3')).toBe(4096)
+    expect(profile.configuredMaxTokens.size).toBe(0)
   })
 
-  it('limits GPT-OSS thinking levels and applies route maxTokens', () => {
+  it('limits GPT-OSS thinking levels without applying a request maxTokens cap', () => {
     const profile = createOllamaPiAiProfile(connection({
       models: [{ id: 'registry.example/gpt-oss:20b', thinking: true }],
       maxTokens: 8192,
@@ -101,7 +101,7 @@ describe('createOllamaPiAiProfile', () => {
       xhigh: null,
       max: null,
     })
-    expect(profile.configuredMaxTokens.get('registry.example/gpt-oss:20b')).toBe(8192)
+    expect(profile.configuredMaxTokens.size).toBe(0)
   })
 
   it('narrows Cloud family thinking maps to vendor-real levels', () => {

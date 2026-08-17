@@ -78,10 +78,6 @@ export function createOllamaPiAiProfile(
   const baseURL = openAICompatibleBaseURL(connection.baseURL)
   const models = connection.models.map(model => toPiAiModel(model, connection, baseURL))
   const configuredMaxTokens = new Map<string, number>()
-  for (const model of connection.models) {
-    const value = model.maxTokens ?? connection.maxTokens
-    if (value !== undefined) configuredMaxTokens.set(model.id, value)
-  }
   const piProvider = createProvider({
     id: OLLAMA_PROVIDER,
     name: 'Ollama Cloud',

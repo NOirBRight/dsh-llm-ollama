@@ -13,6 +13,11 @@ import type {
   OllamaUsageView,
   OllamaUsageWindow,
 } from '../client-contract.ts'
+import {
+  OLLAMA_EFFORT_LABELS,
+  effortsForOllamaModel,
+  ollamaDefaultEffort,
+} from '../reasoning.ts'
 import type { OllamaSettingsKey } from './locales.ts'
 import { SortableList } from './SortableList.tsx'
 
@@ -72,9 +77,9 @@ interface ModelDraft {
   name?: string
   description?: string
   contextWindow: string
-  maxTokens: string
   vision?: boolean
   thinking?: boolean
+  defaultEffort?: string
   tools?: boolean
 }
 
@@ -240,7 +245,7 @@ function modelDraftOf(model: OllamaCatalogModelConfig): ModelDraft {
     rowId: newModelRowId(),
     ...model,
     contextWindow: model.contextWindow === undefined ? '' : String(model.contextWindow),
-    maxTokens: model.maxTokens === undefined ? '' : String(model.maxTokens),
+    ...model.defaultEffort === undefined ? {} : { defaultEffort: model.defaultEffort },
   }
 }
 
@@ -271,14 +276,12 @@ function sameDraft(left: Draft, right: Draft): boolean {
 }
 
 function modelSettingsOf(draft: ModelDraft): OllamaCatalogModelConfig {
-  const { rowId: _rowId, contextWindow: contextText, maxTokens: maxText, ...model } = draft
+  const { rowId: _rowId, contextWindow: contextText, tools: _tools, ...model } = draft
   const contextWindow = integerOf(contextText)
-  const maxTokens = integerOf(maxText)
   return {
     ...model,
     id: model.id.trim(),
     ...contextWindow === undefined ? {} : { contextWindow },
-    ...maxTokens === undefined ? {} : { maxTokens },
   }
 }
 
@@ -296,7 +299,7 @@ function modelFailure(models: readonly ModelDraft[]): boolean {
     const id = model.id.trim()
     if (id.length === 0 || ids.has(id)) return true
     ids.add(id)
-    if (Number.isNaN(integerOf(model.contextWindow)) || Number.isNaN(integerOf(model.maxTokens))) return true
+    if (Number.isNaN(integerOf(model.contextWindow))) return true
   }
   return false
 }
@@ -492,7 +495,6 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
           else next.description = patch.description
         }
         if (patch.contextWindow !== undefined) next.contextWindow = patch.contextWindow
-        if (patch.maxTokens !== undefined) next.maxTokens = patch.maxTokens
         if ('vision' in patch) {
           if (patch.vision === undefined) delete next.vision
           else next.vision = patch.vision
@@ -500,10 +502,11 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
         if ('thinking' in patch) {
           if (patch.thinking === undefined) delete next.thinking
           else next.thinking = patch.thinking
+          if (patch.thinking !== true) delete next.defaultEffort
         }
-        if ('tools' in patch) {
-          if (patch.tools === undefined) delete next.tools
-          else next.tools = patch.tools
+        if ('defaultEffort' in patch) {
+          if (patch.defaultEffort === undefined) delete next.defaultEffort
+          else next.defaultEffort = patch.defaultEffort
         }
         return next
       }),
@@ -828,24 +831,38 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
                                               inputMode="numeric"
                                               value={model.contextWindow}
                                               disabled={disabled}
+                                              aria-label={t('modelContext')}
                                               onChange={(event) => { patchModel(index, { contextWindow: event.target.value }) }}
-                                            />
-                                          </label>
-                                          <label style={fieldStyle}>
-                                            <span style={labelStyle}>{t('modelOutput')}</span>
-                                            <input
-                                              style={inputStyle}
-                                              inputMode="numeric"
-                                              value={model.maxTokens}
-                                              disabled={disabled}
-                                              onChange={(event) => { patchModel(index, { maxTokens: event.target.value }) }}
                                             />
                                           </label>
                                         </div>
                                         <div style={capabilitiesStyle}>
                                           <Capability label={t('vision')} checked={model.vision === true} disabled={disabled} onChange={(vision) => { patchModel(index, { vision }) }} />
                                           <Capability label={t('thinking')} checked={model.thinking === true} disabled={disabled} onChange={(thinking) => { patchModel(index, { thinking }) }} />
-                                          <Capability label={t('tools')} checked={model.tools === true} disabled={disabled} onChange={(tools) => { patchModel(index, { tools }) }} />
+                                          {(() => {
+                                            const efforts = effortsForOllamaModel(modelSettingsOf(model))
+                                            if (efforts.length === 0) return null
+                                            const suggested = ollamaDefaultEffort(model.id.trim()) ?? efforts[0]
+                                            return (
+                                              <label style={{ ...labelStyle, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                                                {t('defaultEffort')}
+                                                <select
+                                                  style={inputStyle}
+                                                  value={model.defaultEffort ?? suggested ?? ''}
+                                                  disabled={disabled}
+                                                  aria-label={t('defaultEffort')}
+                                                  onChange={(event) => {
+                                                    const effort = efforts.find(entry => entry === event.target.value)
+                                                    patchModel(index, { defaultEffort: effort })
+                                                  }}
+                                                >
+                                                  {efforts.map(effort => (
+                                                    <option key={effort} value={effort}>{OLLAMA_EFFORT_LABELS[effort] ?? effort}</option>
+                                                  ))}
+                                                </select>
+                                              </label>
+                                            )
+                                          })()}
                                         </div>
                                       </div>
                                     )
@@ -859,7 +876,7 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
                             style={{ ...buttonStyle, alignSelf: 'flex-start' }}
                             disabled={disabled}
                             onClick={() => {
-                              const model: ModelDraft = { rowId: newModelRowId(), id: '', contextWindow: '', maxTokens: '' }
+                              const model: ModelDraft = { rowId: newModelRowId(), id: '', contextWindow: '' }
                               patchDraft({ models: [...draft.models, model] })
                               setExpandedModels(current => new Set(current).add(model.rowId))
                             }}
