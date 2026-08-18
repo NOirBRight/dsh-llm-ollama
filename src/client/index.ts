@@ -21,6 +21,7 @@ import {
   OLLAMA_USAGE_ENDPOINT,
 } from '../client-contract.ts'
 import type { OllamaDiscoveryRequest, OllamaSettingsView } from '../client-contract.ts'
+import { ensureProviderSection } from './provider-section.ts'
 import { OllamaPluginCard } from './OllamaPluginCard.tsx'
 import type { OllamaPluginCardFace } from './OllamaPluginCard.tsx'
 import { OllamaModelPicker, OllamaModelPickerController } from './OllamaModelPicker.tsx'
@@ -138,10 +139,10 @@ export function apply(ctx: ClientContext): void {
     }),
   }, OllamaModelPicker))
 
-  ctx.slots.inject('settings.plugin.item', () => ctx.slots.register({
-    name: 'settings.plugin.item',
-    id: 'ollama-cloud',
-    order: 40,
+  ensureProviderSection(ctx)
+  ctx.slots.inject('settings.provider.item', () => ctx.slots.register({
+    name: 'settings.provider.item',
+    key: OLLAMA_SETTINGS_NAMESPACE,
     locale: localeNamespace,
     inject: (): OllamaPluginCardFace => ({
       t,

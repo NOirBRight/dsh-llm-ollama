@@ -296,7 +296,7 @@ describe('OllamaPluginCard', () => {
 
     fireEvent.click(screen.getByRole('button', { name: `${en.expand}: ${en.title}` }))
 
-    await waitFor(() => { expect(screen.getByText('could not reach https://ollama.com/api/usage')).toBeTruthy() })
+    await waitFor(() => { expect(screen.getByText(en.usageUnreachable)).toBeTruthy() })
     fireEvent.click(screen.getByRole('button', { name: en.usageRefresh }))
     await waitFor(() => { expect(screen.getByText(`${en.usageUsed} 10%`)).toBeTruthy() })
     expect(fetchUsage).toHaveBeenCalledTimes(2)

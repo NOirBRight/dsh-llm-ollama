@@ -92,9 +92,10 @@ describe('Ollama client plugin registration', () => {
     const fiber = ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
 
-    const entries = slots.entries('settings.plugin.item')
+    expect(slots.entries('settings.section').map(e => e.options.id)).toEqual(['providers'])
+    const entries = slots.entries('settings.provider.item')
     expect(entries).toHaveLength(1)
-    expect(entries[0]?.options).toMatchObject({ id: 'ollama-cloud', order: 40 })
+    expect(entries[0]?.options).toMatchObject({ key: 'llm-ollama' })
     const face = (entries[0] as { inject?: () => unknown }).inject?.() as { hooks: Record<string, unknown> }
     expect(Object.keys(face.hooks)).toEqual(['ollamaSettings'])
     const overlays = slots.entries('shell.overlay')
@@ -103,7 +104,8 @@ describe('Ollama client plugin registration', () => {
 
     await fiber.dispose()
 
-    expect(slots.entries('settings.plugin.item')).toHaveLength(0)
+    expect(slots.entries('settings.provider.item')).toHaveLength(0)
+    expect(slots.entries('settings.section')).toHaveLength(0)
     expect(slots.entries('shell.overlay')).toHaveLength(0)
   })
 })

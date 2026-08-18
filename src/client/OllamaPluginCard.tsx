@@ -19,6 +19,9 @@ import {
   ollamaDefaultEffort,
 } from '../reasoning.ts'
 import type { OllamaSettingsKey } from './locales.ts'
+import { BrandMark } from './BrandMark.tsx'
+import { ProviderCardHeader, UsageHeader, UsageSkeleton, UsageUpdatedAt, formatProviderSummary, formatUsageClock, providerHeaderStyle } from './provider-chrome.tsx'
+import type {} from './provider-section.ts'
 import { SortableList } from './SortableList.tsx'
 
 /** Credential state exposed without returning the credential value. */
@@ -67,7 +70,7 @@ export interface OllamaPluginCardFace {
 
 /** Props delivered by the Plugin configuration item slot. */
 export type OllamaPluginCardProps =
-  PropsRuntime<'settings.plugin.item'>
+  PropsRuntime<'settings.provider.item'>
   & InjectFace<OllamaPluginCardFace>
 
 interface ModelDraft {
@@ -106,21 +109,7 @@ const cardStyle: CSSProperties = {
   borderRadius: 10,
   background: 'var(--dsw-alias-bg-module-platform)',
 }
-const headerStyle: CSSProperties = {
-  boxSizing: 'border-box',
-  width: '100%',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: 16,
-  border: 0,
-  padding: '13px 14px',
-  background: 'transparent',
-  color: 'var(--dsw-alias-label-primary)',
-  font: 'inherit',
-  textAlign: 'left',
-  cursor: 'pointer',
-}
+const headerStyle = providerHeaderStyle
 const bodyStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
@@ -304,6 +293,13 @@ function modelFailure(models: readonly ModelDraft[]): boolean {
   return false
 }
 
+function usageErrorOf(error: unknown, t: (key: OllamaSettingsKey) => string): string {
+  const raw = messageOf(error, t('requestFailed'))
+  return /failed to fetch|could not reach|network|enotfound|econnreset|econnrefused|etimedout/i.test(raw)
+    ? t('usageUnreachable')
+    : raw
+}
+
 function messageOf(error: unknown, fallback: string): string {
   return error instanceof Error && error.message.length > 0 ? error.message : fallback
 }
@@ -410,6 +406,8 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
   const [failure, setFailure] = useState<string | undefined>(undefined)
   const [notice, setNotice] = useState<string | undefined>(undefined)
   const [usage, setUsage] = useState<UsageState>({ status: 'idle' })
+  const [lastUsage, setLastUsage] = useState<OllamaUsageView | undefined>(undefined)
+  const [usageUpdatedAt, setUsageUpdatedAt] = useState<Date | undefined>(undefined)
   const [catalogOpen, setCatalogOpen] = useState(false)
   const [expandedModels, setExpandedModels] = useState<ReadonlySet<string>>(new Set())
   const dirty = source !== undefined && draft !== undefined && (!sameDraft(source, draft) || apiKey.length > 0)
@@ -432,9 +430,9 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
     }
   }
   useEffect(() => {
-    if (!open || snapshot.status !== 'ready') return
+    if (snapshot.status !== 'ready') return
     void refreshCredential()
-  }, [open, snapshot.status, snapshot.value?.apiKeyEnv])
+  }, [snapshot.status, snapshot.value?.apiKeyEnv])
   useEffect(() => () => { props.closeModelPicker() }, [props.closeModelPicker])
 
   if (snapshot.status === 'unavailable') {
@@ -447,13 +445,12 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
           aria-label={t(open ? 'collapse' : 'expand') + ': ' + t('title')}
           onClick={() => { setOpen(!open) }}
         >
-          <span style={{ display: 'flex', minWidth: 0, flexDirection: 'column', gap: 3 }}>
-            <span style={{ fontSize: 14, lineHeight: '20px', fontWeight: 600 }}>{t('title')}</span>
-            <span style={{ fontSize: 13, lineHeight: '18px', color: 'var(--dsw-alias-label-tertiary)' }}>
-              {t('description')}
-            </span>
-          </span>
-          <span aria-hidden="true" style={{ fontSize: 18, transform: open ? 'rotate(180deg)' : 'none' }}>⌄</span>
+          <ProviderCardHeader
+            title={t('title')}
+            mark={<BrandMark />}
+            summary={formatProviderSummary(t('summaryOff'), t('summaryModels').replace('{count}', '0'))}
+            open={open}
+          />
         </button>
         {open
           ? (
@@ -531,6 +528,10 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
         ...draft === undefined ? {} : { baseURL: draft.baseURL.trim() },
         ...apiKey.trim().length === 0 ? {} : { apiKey: apiKey.trim() },
       })
+      if (read.kind === 'ok') {
+        setLastUsage(read.usage)
+        setUsageUpdatedAt(new Date())
+      }
       setUsage(
         read.kind === 'ok'
           ? { status: 'ready', usage: read.usage }
@@ -539,13 +540,14 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
             : { status: 'unsupported' },
       )
     } catch (error: unknown) {
-      setUsage({ status: 'error', message: messageOf(error, t('requestFailed')) })
+      setUsage({ status: 'error', message: usageErrorOf(error, t) })
     }
   }
   useEffect(() => {
-    if (!open || snapshot.status !== 'ready' || usage.status !== 'idle') return
+    if (!open || snapshot.status !== 'ready') return
+    setUsage({ status: 'loading' })
     void loadUsage()
-  }, [open, snapshot.status, usage.status])
+  }, [open, snapshot.status])
 
   const fetchModels = async (): Promise<void> => {
     if (draft === undefined) return
@@ -631,6 +633,11 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
   else if (draft !== undefined && modelFailure(draft.models)) validation = t('invalidModel')
   else if (keyInvalid) validation = t('invalidApiKey')
 
+  const headerSummary = formatProviderSummary(
+    credential?.configured === true ? t('summaryOn') : t('summaryOff'),
+    t('summaryModels').replace('{count}', String(draft?.models.length ?? 0)),
+  )
+
   return (
     <li style={cardStyle}>
       <button
@@ -640,20 +647,19 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
         aria-label={t(open ? 'collapse' : 'expand') + ': ' + title}
         onClick={() => { setOpen(!open) }}
       >
-        <span style={{ display: 'flex', minWidth: 0, flexDirection: 'column', gap: 3 }}>
-          <span style={{ fontSize: 14, lineHeight: '20px', fontWeight: 600 }}>{title}</span>
-          <span style={{ fontSize: 13, lineHeight: '18px', color: 'var(--dsw-alias-label-tertiary)' }}>
-            {t('description')}
-          </span>
-        </span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-          {dirty ? <span style={hintStyle}>{t('unsaved')}</span> : null}
-          <span aria-hidden="true" style={{ fontSize: 18, transform: open ? 'rotate(180deg)' : 'none' }}>⌄</span>
-        </span>
+        <ProviderCardHeader
+          title={title}
+          mark={<BrandMark />}
+          summary={headerSummary}
+          open={open}
+          unsaved={dirty}
+          unsavedLabel={t('unsaved')}
+        />
       </button>
       {open
         ? (
           <div style={bodyStyle}>
+            <p style={hintStyle}>{t('description')}</p>
             {snapshot.status === 'loading' ? <p style={statusStyle}>{t('loading')}</p> : null}
             {snapshot.status === 'ready' && !snapshot.writable ? <p style={statusStyle}>{t('readOnly')}</p> : null}
             {draft === undefined
@@ -696,32 +702,38 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
                   </section>
 
                   <section style={sectionStyle} aria-label={t('usage')}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                      <h3 style={sectionTitleStyle}>{t('usage')}</h3>
-                      <button
-                        type="button"
-                        style={buttonStyle}
-                        disabled={usage.status === 'loading' || snapshot.status !== 'ready'}
-                        onClick={() => { void loadUsage() }}
-                      >
-                        {t(usage.status === 'loading' ? 'usageLoading' : 'usageRefresh')}
-                      </button>
-                    </div>
-                    {usage.status === 'ready'
-                      ? (
+                    <UsageHeader
+                      title={t('usage')}
+                      spinning={usage.status === 'loading' || usage.status === 'idle'}
+                      disabled={usage.status === 'loading' || snapshot.status !== 'ready'}
+                      refreshLabel={t('usageRefresh')}
+                      busyLabel={t('usageLoading')}
+                      {...usage.status === 'error' ? { error: t('usageRefreshFailed') } : {}}
+                      onRefresh={() => { void loadUsage() }}
+                    />
+                    {(() => {
+                      if (usage.status === 'loading' || usage.status === 'idle') {
+                        const known = lastUsage === undefined
+                          ? 2
+                          : Number(lastUsage.session !== undefined) + Number(lastUsage.weekly !== undefined)
+                        return <UsageSkeleton rows={known > 0 ? known : 2} />
+                      }
+                      const bars = usage.status === 'ready' ? usage.usage : lastUsage
+                      if (bars !== undefined) {
+                        return (
                         <>
-                          {usage.usage.session === undefined
+                          {bars.session === undefined
                             ? null
-                            : <UsageBar label={t('usageSession')} usedText={t('usageUsed')} window={usage.usage.session} />}
-                          {usage.usage.weekly === undefined
+                            : <UsageBar label={t('usageSession')} usedText={t('usageUsed')} window={bars.session} />}
+                          {bars.weekly === undefined
                             ? null
-                            : <UsageBar label={t('usageWeekly')} usedText={t('usageUsed')} window={usage.usage.weekly} />}
-                          {usage.usage.weekly !== undefined && usage.usage.weekly.models.length > 0
+                            : <UsageBar label={t('usageWeekly')} usedText={t('usageUsed')} window={bars.weekly} />}
+                          {bars.weekly !== undefined && bars.weekly.models.length > 0
                             ? (
                               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                                 <span style={labelStyle}>{t('usageModels')}</span>
                                 <ul style={usageListStyle} aria-label={t('usageModels')}>
-                                  {usage.usage.weekly.models.map(model => (
+                                  {bars.weekly.models.map(model => (
                                     <li
                                       key={model.name}
                                       style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}
@@ -738,10 +750,16 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
                             : null}
                         </>
                       )
-                      : null}
-                    {usage.status === 'unsupported' ? <p style={hintStyle}>{t('usageUnsupported')}</p> : null}
-                    {usage.status === 'needs-restart' ? <p style={hintStyle}>{t('usageNeedsRestart')}</p> : null}
-                    {usage.status === 'error' ? <p style={errorStyle}>{usage.message}</p> : null}
+                      }
+                      if (usage.status === 'unsupported') return <p style={hintStyle}>{t('usageUnsupported')}</p>
+                      if (usage.status === 'needs-restart') return <p style={hintStyle}>{t('usageNeedsRestart')}</p>
+                      if (usage.status === 'error') return <p style={errorStyle}>{usage.message}</p>
+                      return <UsageSkeleton rows={2} />
+                    })()}
+                    <UsageUpdatedAt
+                      at={usageUpdatedAt}
+                      label={usageUpdatedAt === undefined ? '' : t('usageUpdatedAt').replace('{time}', formatUsageClock(usageUpdatedAt))}
+                    />
                   </section>
 
                   <section style={sectionStyle} aria-label={t('models')}>

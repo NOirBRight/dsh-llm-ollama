@@ -26,7 +26,13 @@ export declare const en: {
     readonly usageRequests: "requests";
     readonly usageUnsupported: "This endpoint does not report cloud usage.";
     readonly usageNeedsRestart: "Usage appears after the running host reloads this plugin (restart dsh).";
+    readonly usageUnreachable: "Could not reach Ollama Cloud usage. Check the network and API URL.";
+    readonly usageRefreshFailed: "Refresh failed";
+    readonly usageUpdatedAt: "Updated {time}";
     readonly models: "Model catalog";
+    readonly summaryModels: "{count} models";
+    readonly summaryOn: "Configured";
+    readonly summaryOff: "Not configured";
     readonly modelDetails: "Details";
     readonly dragModel: "Drag to reorder";
     readonly fetchModels: "Fetch available models";
