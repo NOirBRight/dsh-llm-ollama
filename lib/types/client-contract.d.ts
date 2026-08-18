@@ -96,6 +96,8 @@ export interface OllamaUsageWindow {
     usage: number;
     /** Per-model request counts in the window, provider order. */
     models: OllamaUsageModelCount[];
+    /** ISO-8601 instant when this window resets, when the endpoint reports one. */
+    resetsAt?: string;
 }
 /** Secret-free cloud usage snapshot read for the configuration card. */
 export interface OllamaUsageView {

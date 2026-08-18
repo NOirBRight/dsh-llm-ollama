@@ -1,7 +1,7 @@
 {
   "name": "dsh-llm-ollama",
   "description": "Ollama Cloud models, OpenAI-compatible chat, and Web Search/Fetch for DeepSeek Harness",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "publishConfig": {
     "access": "public"
   },
@@ -41,7 +41,7 @@
     "README.zh.md"
   ],
   "scripts": {
-    "bundle": "tsdown",
+    "bundle": "tsc -p tsconfig.json && tsdown",
     "build": "tsc -p tsconfig.json && tsdown",
     "test": "vitest run",
     "pack:check": "node scripts/check-pack.mjs",

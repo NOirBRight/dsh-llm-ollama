@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.1
+
+- Show official reset time under Cloud usage bars when the endpoint reports one; otherwise show the documented 5-hour session / 7-day weekly period
+- Rename Settings nav/title from Providers to LLM Providers / LLM 供应商
+
 ## 0.6.0
 
 - Move the settings card from Plugins to Settings → Providers

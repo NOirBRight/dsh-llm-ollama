@@ -23,6 +23,7 @@ const cloudReply = JSON.stringify({
     },
     weekly: {
       usage: 0.891,
+      resets_at: '2026-08-20T11:35:00Z',
       models: [
         { name: 'glm-5.2', request_count: 4133 },
         { name: 'web search', request_count: 264 },
@@ -43,6 +44,7 @@ describe('readOllamaUsage', () => {
       { name: 'glm-5.2', requestCount: 57 },
     ])
     expect(usage.weekly?.usage).toBe(0.891)
+    expect(usage.weekly?.resetsAt).toBe('2026-08-20T11:35:00.000Z')
     expect(usage.weekly?.models).toEqual([
       { name: 'glm-5.2', requestCount: 4133 },
       { name: 'web search', requestCount: 264 },
@@ -103,10 +105,12 @@ describe('readOllamaUsage', () => {
 
 describe('parseOllamaUsage', () => {
   it('keeps only well-formed per-model rows', () => {
+    const now = Date.parse('2026-08-19T10:35:00.000Z')
     const usage = parseOllamaUsage({
       limits: {
         weekly: {
           usage: 0.5,
+          reset_after_seconds: 3600,
           models: [
             { name: 'glm-5.2', request_count: 10 },
             { name: '', request_count: 3 },
@@ -115,9 +119,10 @@ describe('parseOllamaUsage', () => {
           ],
         },
       },
-    }, 'https://ollama.com/api/usage')
+    }, 'https://ollama.com/api/usage', now)
 
     expect(usage.weekly?.models).toEqual([{ name: 'glm-5.2', requestCount: 10 }])
+    expect(usage.weekly?.resetsAt).toBe('2026-08-19T11:35:00.000Z')
     expect(usage.session).toBeUndefined()
   })
 

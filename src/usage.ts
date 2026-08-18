@@ -73,7 +73,30 @@ function usableProbeKey(raw: string): string {
  * dropped; per-model entries keep only well-formed rows so one odd entry
  * cannot sink the whole panel.
  */
-function parseWindow(value: unknown): OllamaUsageWindow | undefined {
+function isoInstant(value: unknown): string | undefined {
+  if (typeof value === 'string' && value.length > 0) {
+    const parsed = Date.parse(value)
+    return Number.isFinite(parsed) ? new Date(parsed).toISOString() : undefined
+  }
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+    const ms = value < 1e12 ? value * 1000 : value
+    const date = new Date(ms)
+    return Number.isNaN(date.getTime()) ? undefined : date.toISOString()
+  }
+}
+
+function parseResetAt(record: Record<string, unknown>, now: number): string | undefined {
+  const direct = isoInstant(
+    record['resets_at'] ?? record['reset_at'] ?? record['reset'] ?? record['resetsAt'],
+  )
+  if (direct !== undefined) return direct
+  const after = record['reset_after_seconds'] ?? record['resetAfterSeconds']
+  if (typeof after === 'number' && Number.isFinite(after) && after >= 0) {
+    return new Date(now + after * 1000).toISOString()
+  }
+}
+
+function parseWindow(value: unknown, now: number): OllamaUsageWindow | undefined {
   if (!isRecord(value)) return undefined
   const usage = value['usage']
   if (typeof usage !== 'number' || !Number.isFinite(usage) || usage < 0) return undefined
@@ -86,7 +109,12 @@ function parseWindow(value: unknown): OllamaUsageWindow | undefined {
       models.push({ name: entry['name'], requestCount })
     }
   }
-  return { usage, models }
+  const resetsAt = parseResetAt(value, now)
+  return {
+    usage,
+    models,
+    ...resetsAt === undefined ? {} : { resetsAt },
+  }
 }
 
 /**
@@ -95,10 +123,10 @@ function parseWindow(value: unknown): OllamaUsageWindow | undefined {
  * @param url - endpoint read, for error messages.
  * @returns session and weekly windows with per-model request counts.
  */
-export function parseOllamaUsage(value: unknown, url: string): OllamaUsageView {
+export function parseOllamaUsage(value: unknown, url: string, now = Date.now()): OllamaUsageView {
   const limits = isRecord(value) ? (value as WireUsageResponse).limits : undefined
-  const session = isRecord(limits) ? parseWindow((limits as Record<string, unknown>)['session']) : undefined
-  const weekly = isRecord(limits) ? parseWindow((limits as Record<string, unknown>)['weekly']) : undefined
+  const session = isRecord(limits) ? parseWindow((limits as Record<string, unknown>)['session'], now) : undefined
+  const weekly = isRecord(limits) ? parseWindow((limits as Record<string, unknown>)['weekly'], now) : undefined
   if (session === undefined && weekly === undefined) {
     throw new LlmError(`${url} returned a malformed usage response`, OLLAMA_USAGE_FAILED)
   }

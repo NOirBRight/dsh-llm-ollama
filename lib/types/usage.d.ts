@@ -34,7 +34,7 @@ export interface OllamaUsageRequest {
  * @param url - endpoint read, for error messages.
  * @returns session and weekly windows with per-model request counts.
  */
-export declare function parseOllamaUsage(value: unknown, url: string): OllamaUsageView;
+export declare function parseOllamaUsage(value: unknown, url: string, now?: number): OllamaUsageView;
 /**
  * Read the account's current cloud usage without issuing a model request.
  * The draft's one-shot key wins; otherwise the route's stored credential is

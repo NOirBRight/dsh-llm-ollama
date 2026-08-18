@@ -105,6 +105,8 @@ export interface OllamaUsageWindow {
   usage: number
   /** Per-model request counts in the window, provider order. */
   models: OllamaUsageModelCount[]
+  /** ISO-8601 instant when this window resets, when the endpoint reports one. */
+  resetsAt?: string
 }
 
 /** Secret-free cloud usage snapshot read for the configuration card. */
@@ -264,7 +266,13 @@ function decodeOllamaUsageWindow(value: unknown): OllamaUsageWindow | undefined 
       models.push({ name: entry['name'], requestCount })
     }
   }
-  return { usage, models }
+  const resetsAt = value['resetsAt']
+  if (resetsAt !== undefined && (typeof resetsAt !== 'string' || resetsAt.length === 0)) return undefined
+  return {
+    usage,
+    models,
+    ...resetsAt === undefined ? {} : { resetsAt },
+  }
 }
 
 /**

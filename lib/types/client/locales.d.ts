@@ -29,6 +29,10 @@ export declare const en: {
     readonly usageUnreachable: "Could not reach Ollama Cloud usage. Check the network and API URL.";
     readonly usageRefreshFailed: "Refresh failed";
     readonly usageUpdatedAt: "Updated {time}";
+    readonly usageResetAt: "Resets {time}";
+    readonly usageResetAtDays: "Usage limits reset on {date} ({count} days left)";
+    readonly usageResetEveryHours: "Resets every {count} hours";
+    readonly usageResetEveryDays: "Resets every {count} days";
     readonly models: "Model catalog";
     readonly summaryModels: "{count} models";
     readonly summaryOn: "Configured";

@@ -20,7 +20,7 @@ import {
 } from '../reasoning.ts'
 import type { OllamaSettingsKey } from './locales.ts'
 import { BrandMark } from './BrandMark.tsx'
-import { ProviderCardHeader, UsageHeader, UsageSkeleton, UsageUpdatedAt, formatProviderSummary, formatUsageClock, providerHeaderStyle } from './provider-chrome.tsx'
+import { ProviderCardHeader, UsageHeader, UsageResetAt, UsageSkeleton, UsageUpdatedAt, formatProviderSummary, formatUsageClock, providerHeaderStyle, resetLabelOf } from './provider-chrome.tsx'
 import type {} from './provider-section.ts'
 import { SortableList } from './SortableList.tsx'
 
@@ -353,11 +353,18 @@ function IconTrash(): ReactNode {
   )
 }
 
+function usageResetCopy(t: OllamaPluginCardFace['t']): { at: string, atDays: string } {
+  return { at: t('usageResetAt'), atDays: t('usageResetAtDays') }
+}
+
 /** One quota window: an aggregate consumed percentage and solid meter. */
-function UsageBar({ label, usedText, window: quota }: {
+
+function UsageBar({ label, usedText, window: quota, t, fallbackReset }: {
   label: string
   usedText: string
   window: OllamaUsageWindow
+  t: OllamaPluginCardFace['t']
+  fallbackReset?: string
 }): ReactNode {
   const percent = Math.round(quota.usage * 1000) / 10
   const fill = Math.min(100, Math.max(0, percent))
@@ -386,6 +393,7 @@ function UsageBar({ label, usedText, window: quota }: {
           }}
         />
       </div>
+      <UsageResetAt label={resetLabelOf(quota.resetsAt, usageResetCopy(t)) ?? fallbackReset} />
     </div>
   )
 }
@@ -724,10 +732,26 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
                         <>
                           {bars.session === undefined
                             ? null
-                            : <UsageBar label={t('usageSession')} usedText={t('usageUsed')} window={bars.session} />}
+                            : (
+                              <UsageBar
+                                label={t('usageSession')}
+                                usedText={t('usageUsed')}
+                                window={bars.session}
+                                t={t}
+                                fallbackReset={t('usageResetEveryHours').replace('{count}', '5')}
+                              />
+                            )}
                           {bars.weekly === undefined
                             ? null
-                            : <UsageBar label={t('usageWeekly')} usedText={t('usageUsed')} window={bars.weekly} />}
+                            : (
+                              <UsageBar
+                                label={t('usageWeekly')}
+                                usedText={t('usageUsed')}
+                                window={bars.weekly}
+                                t={t}
+                                fallbackReset={t('usageResetEveryDays').replace('{count}', '7')}
+                              />
+                            )}
                           {bars.weekly !== undefined && bars.weekly.models.length > 0
                             ? (
                               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

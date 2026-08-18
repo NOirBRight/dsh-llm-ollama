@@ -4,14 +4,14 @@
 
 DeepSeek Harness 的 Ollama Cloud 集成。聊天通过共享的 pi-ai adapter 使用 Ollama 的 OpenAI-compatible Chat Completions；模型发现和 Web Search/Fetch 继续使用 Ollama 原生 API，因为这些独立能力不属于聊天协议。
 
-包根入口公开 Cordis plugin contract 和 OllamaAdapter。同一 artifact 还导出 ./client，在 Settings → Providers 中提供 Ollama Cloud 卡片。协议与能力分离决策记录在 [ADR 0001](docs/adr/0001-separate-chat-protocol-from-ollama-capabilities.zh.md)。
+包根入口公开 Cordis plugin contract 和 OllamaAdapter。同一 artifact 还导出 ./client，在 Settings → LLM Providers 中提供 Ollama Cloud 卡片。协议与能力分离决策记录在 [ADR 0001](docs/adr/0001-separate-chat-protocol-from-ollama-capabilities.zh.md)。
 
 ## 安装
 
 要求 DeepSeek Harness 0.1.0-rc.6 或更高版本。直接从 GitHub 安装：
 
 ~~~sh
-dsh plugin --profile web add github:NOirBRight/dsh-llm-ollama
+dsh plugin --profile web add github:NOirBRight/dsh-llm-ollama#v0.6.1
 dsh web
 ~~~
 
@@ -19,7 +19,7 @@ dsh web
 
 ## Web 配置
 
-打开 Settings → Providers → Ollama Cloud。卡片通过 Harness credentials API 把 API key 存到 OLLAMA_API_KEY；Host 不会返回已保存的明文。它会用一次带 revision 防护的 llm-ollama mutation 同时保存原生 base URL 和模型目录。
+打开 Settings → LLM Providers → Ollama Cloud。卡片通过 Harness credentials API 把 API key 存到 OLLAMA_API_KEY；Host 不会返回已保存的明文。它会用一次带 revision 防护的 llm-ollama mutation 同时保存原生 base URL 和模型目录。
 
 Fetch available models 会立即打开 picker，并用未保存 endpoint 和一次性 key 调用包的 loopback-only RPC。Host 读取 /api/tags、按原生 id 去重，并最多并发六个 /api/show 请求 enrich 模型。原生元数据会提供 /v1/models 不提供的 context window 及 vision、thinking、tools 标志。Picker 从当前草稿选择初始化，保留 current-only 模型，并在应用时替换草稿目录。
 
