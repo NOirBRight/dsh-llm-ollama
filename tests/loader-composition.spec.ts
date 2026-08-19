@@ -43,6 +43,9 @@ async function loadComposition(options: { baseURL: string, web?: boolean }): Pro
     "  name: 'dsh-llm-ollama'",
     '  config:',
     `    baseURL: ${JSON.stringify(options.baseURL)}`,
+    '    retryPolicy:',
+    '      mode: normal',
+    '      maxRetries: 8',
     '    models:',
     '      - id: gpt-oss:20b',
     '        name: GPT-OSS 20B',
@@ -84,6 +87,7 @@ describe('llm-ollama real composition', () => {
 
     // The route is registered and live.
     expect(ctx.llm.listProviders().map(p => p.id)).toEqual(['ollama-cloud'])
+    expect(ctx.llm.providerRetryPolicy('ollama-cloud')).toMatchObject({ mode: 'normal', maxRetries: 8 })
     // The configurable-provider directory includes it.
     expect(ctx.llm.listConfigurableProviders().map(p => p.provider)).toEqual(['ollama-cloud'])
     // The catalog exposes the configured model.

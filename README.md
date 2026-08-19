@@ -11,7 +11,7 @@ The package root exposes the Cordis plugin contract and OllamaAdapter. The same 
 DeepSeek Harness 0.1.0-rc.6 or later is required. Install directly from GitHub:
 
 ~~~sh
-dsh plugin --profile web add github:NOirBRight/dsh-llm-ollama#v0.6.3
+dsh plugin --profile web add github:NOirBRight/dsh-llm-ollama#v0.6.4
 dsh web
 ~~~
 

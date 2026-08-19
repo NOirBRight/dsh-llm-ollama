@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.4
+
+- Verify the eight-retry policy through resolved configuration and real Loader composition while preserving quota and unknown failures
+
 ## 0.6.3
 
 - Classify documented status-less Ollama generation, reachability, and overload failures as retryable `SERVER` errors

@@ -10,6 +10,7 @@ import {
   OllamaAdapter,
 } from '../src/adapter.ts'
 import type { OllamaAdapterOptions, OllamaConnectionOptions } from '../src/adapter.ts'
+import { resolveAdapterOptions } from '../src/index.ts'
 import { closeMockServers, mockServer } from './mock-server.ts'
 
 afterEach(async () => { await closeMockServers() })
@@ -91,6 +92,15 @@ function toolEvents(callId: string): string[] {
   ]
 }
 
+describe('Ollama retry policy', () => {
+  it('resolves the host default and an explicit eight-retry policy', () => {
+    expect(resolveAdapterOptions({}).retryPolicy).toMatchObject({ mode: 'normal', maxRetries: 2 })
+    expect(resolveAdapterOptions({
+      retryPolicy: { mode: 'normal', maxRetries: 8 },
+    }).retryPolicy).toMatchObject({ mode: 'normal', maxRetries: 8 })
+  })
+})
+
 describe('classifyOllamaTransientError', () => {
   it.each([
     'the model failed to generate a response',
@@ -109,17 +119,18 @@ describe('classifyOllamaTransientError', () => {
     })
   })
 
-  it.each(['model does not exist', 'unknown provider failure'])(
-    'leaves permanent or unknown %s unchanged',
-    (message) => {
-      const chunk: StreamChunk = {
-        type: 'finish',
-        reason: { kind: 'error', failure: { code: 'PI_AI_ERROR', message } },
-      }
+  it.each([
+    ['PI_AI_ERROR', 'model does not exist'],
+    ['PI_AI_ERROR', 'unknown provider failure'],
+    ['QUOTA', 'You have exceeded your current quota'],
+  ])('leaves permanent or unknown %s failure unchanged', (code, message) => {
+    const chunk: StreamChunk = {
+      type: 'finish',
+      reason: { kind: 'error', failure: { code, message } },
+    }
 
-      expect(classifyOllamaTransientError(chunk)).toBe(chunk)
-    },
-  )
+    expect(classifyOllamaTransientError(chunk)).toBe(chunk)
+  })
 })
 
 describe('OllamaAdapter metadata', () => {
