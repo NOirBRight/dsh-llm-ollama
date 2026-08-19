@@ -6,3 +6,7 @@
 - insert:
     - id: llm-ollama
       name: 'dsh-llm-ollama'
+      config:
+        retryPolicy:
+          mode: normal
+          maxRetries: 8

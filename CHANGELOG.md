@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.2
+
+- Retry model requests up to eight times by default; provider configuration can override the budget
+
 ## 0.6.1
 
 - Show official reset time under Cloud usage bars when the endpoint reports one; otherwise show the documented 5-hour session / 7-day weekly period

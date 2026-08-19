@@ -11,7 +11,7 @@ The package root exposes the Cordis plugin contract and OllamaAdapter. The same 
 DeepSeek Harness 0.1.0-rc.6 or later is required. Install directly from GitHub:
 
 ~~~sh
-dsh plugin --profile web add github:NOirBRight/dsh-llm-ollama#v0.6.1
+dsh plugin --profile web add github:NOirBRight/dsh-llm-ollama#v0.6.2
 dsh web
 ~~~
 
@@ -86,6 +86,7 @@ Omit fetchProvider to keep the built-in HTTP fetcher while moving only search. B
     webRequestTimeoutMs: 15000
     retryPolicy:
       mode: normal
+      maxRetries: 8
       backoff:
         initialDelayMs: 500
         maxDelayMs: 10000
@@ -100,6 +101,8 @@ Omit fetchProvider to keep the built-in HTTP fetcher while moving only search. B
         contextWindow: 4096
         vision: true
 ~~~
+
+The bundle retries eligible model-request failures up to eight times by default. Authentication, invalid-request, and unsupported-content failures remain non-retryable.
 
 The provider route remains ollama-cloud and the settings namespace remains llm-ollama. Only configured catalog models are accepted for chat. The adapter does not install a request-level maxTokens default; output is not capped from the catalog. Per-row `contextWindow` is the DSH compaction budget.
 

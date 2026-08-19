@@ -13,7 +13,7 @@ import { closeMockServers, mockServer } from './mock-server.ts'
 
 afterEach(async () => { await closeMockServers() })
 
-const FIXED_POLICY = resolveRetryPolicy(undefined, 'test')
+const FIXED_POLICY = resolveRetryPolicy({ mode: 'normal', maxRetries: 8 }, 'test')
 const MODEL_ID = 'gpt-oss:20b'
 
 function connection(overrides: Partial<OllamaConnectionOptions> = {}): OllamaConnectionOptions {
@@ -95,6 +95,7 @@ describe('OllamaAdapter metadata', () => {
     const a = adapter({})
     expect(a.providerInfo('ollama-cloud')).toEqual({ id: 'ollama-cloud', name: 'Ollama Cloud' })
     expect(a.providerRetryPolicy('ollama-cloud')).toBe(FIXED_POLICY)
+    expect(a.providerRetryPolicy('ollama-cloud')).toMatchObject({ mode: 'normal', maxRetries: 8 })
   })
 
   it('lists configured models with mapped modalities', async () => {
