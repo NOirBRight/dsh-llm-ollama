@@ -93,6 +93,27 @@ export function httpErrorCode(status: number, error?: WireError): string {
   return 'HTTP_' + status
 }
 
+/**
+ * Classify documented transient Ollama failures that can arrive without an HTTP status.
+ * @param chunk - One delegated DSH stream chunk.
+ * @returns The original chunk, or a copy with a retryable server code.
+ */
+export function classifyOllamaTransientError(chunk: StreamChunk): StreamChunk {
+  if (chunk.type !== 'finish' || chunk.reason.kind !== 'error' || chunk.reason.failure.code !== 'PI_AI_ERROR') {
+    return chunk
+  }
+  if (!/model failed to generate a response|error was encountered while running the model|cloud model cannot be reached|server is overloaded/iu.test(chunk.reason.failure.message)) {
+    return chunk
+  }
+  return {
+    ...chunk,
+    reason: {
+      ...chunk.reason,
+      failure: { ...chunk.reason.failure, code: 'SERVER' },
+    },
+  }
+}
+
 /** The Ollama Cloud chat adapter backed by pi-ai OpenAI Chat Completions. */
 export class OllamaAdapter extends LlmAdapter {
   private snapshot: { options: OllamaConnectionOptions, adapter: PiAiAdapter } | undefined
@@ -140,8 +161,10 @@ export class OllamaAdapter extends LlmAdapter {
     return applyOllamaReasoningMetadata(info, model, catalog?.defaultEffort)
   }
 
-  override stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
-    return this.current().stream(options)
+  override async * stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
+    for await (const chunk of this.current().stream(options)) {
+      yield classifyOllamaTransientError(chunk)
+    }
   }
 }
 

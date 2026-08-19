@@ -5,6 +5,7 @@ import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import {
   DEFAULT_CONTEXT_WINDOW,
   DEFAULT_STREAM_IDLE_TIMEOUT_MS,
+  classifyOllamaTransientError,
   httpErrorCode,
   OllamaAdapter,
 } from '../src/adapter.ts'
@@ -89,6 +90,37 @@ function toolEvents(callId: string): string[] {
     '[DONE]',
   ]
 }
+
+describe('classifyOllamaTransientError', () => {
+  it.each([
+    'the model failed to generate a response',
+    'an error was encountered while running the model',
+    'cloud model cannot be reached',
+    'server is overloaded',
+  ])('classifies %s as SERVER', (message) => {
+    const chunk: StreamChunk = {
+      type: 'finish',
+      reason: { kind: 'error', failure: { code: 'PI_AI_ERROR', message } },
+    }
+
+    expect(classifyOllamaTransientError(chunk)).toMatchObject({
+      type: 'finish',
+      reason: { kind: 'error', failure: { code: 'SERVER', message } },
+    })
+  })
+
+  it.each(['model does not exist', 'unknown provider failure'])(
+    'leaves permanent or unknown %s unchanged',
+    (message) => {
+      const chunk: StreamChunk = {
+        type: 'finish',
+        reason: { kind: 'error', failure: { code: 'PI_AI_ERROR', message } },
+      }
+
+      expect(classifyOllamaTransientError(chunk)).toBe(chunk)
+    },
+  )
+})
 
 describe('OllamaAdapter metadata', () => {
   it('returns the Ollama Cloud display name and retry policy', () => {

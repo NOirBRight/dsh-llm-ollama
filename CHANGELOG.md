@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.3
+
+- Classify documented status-less Ollama generation, reachability, and overload failures as retryable `SERVER` errors
+
 ## 0.6.2
 
 - Retry model requests up to eight times by default; provider configuration can override the budget

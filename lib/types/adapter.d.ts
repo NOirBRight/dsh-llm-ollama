@@ -62,6 +62,12 @@ export declare const DEFAULT_CONTEXT_WINDOW = 262144;
  * @returns the normalized harness error code.
  */
 export declare function httpErrorCode(status: number, error?: WireError): string;
+/**
+ * Classify documented transient Ollama failures that can arrive without an HTTP status.
+ * @param chunk - One delegated DSH stream chunk.
+ * @returns The original chunk, or a copy with a retryable server code.
+ */
+export declare function classifyOllamaTransientError(chunk: StreamChunk): StreamChunk;
 /** The Ollama Cloud chat adapter backed by pi-ai OpenAI Chat Completions. */
 export declare class OllamaAdapter extends LlmAdapter {
     private readonly config;

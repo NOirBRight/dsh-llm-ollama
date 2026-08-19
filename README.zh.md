@@ -11,7 +11,7 @@ DeepSeek Harness 的 Ollama Cloud 集成。聊天通过共享的 pi-ai adapter �
 要求 DeepSeek Harness 0.1.0-rc.6 或更高版本。直接从 GitHub 安装：
 
 ~~~sh
-dsh plugin --profile web add github:NOirBRight/dsh-llm-ollama#v0.6.2
+dsh plugin --profile web add github:NOirBRight/dsh-llm-ollama#v0.6.3
 dsh web
 ~~~
 
@@ -103,7 +103,7 @@ Host plugin 会把两个 Web provider 注册为 ollama-cloud。注册本身不�
         vision: true
 ~~~
 
-bundle 默认对符合条件的模型请求失败最多重试八次。鉴权、无效请求和不支持内容失败仍不可重试。
+bundle 默认对符合条件的模型请求失败最多重试八次。官方无状态码的生成、可达性和过载失败归类为 `SERVER`；鉴权、无效请求和不支持内容失败仍不可重试。
 
 Provider route 继续是 ollama-cloud，设置命名空间继续是 llm-ollama。只有配置目录中的模型可以聊天。模型 entry 的 maxTokens 优先于 route 值；两者都不存在时，adapter 不设置请求默认。Ollama 不公开逐模型输出限制，因此发现结果不会填写 maxTokens。
 
