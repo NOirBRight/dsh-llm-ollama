@@ -18,6 +18,9 @@ import { ollamaThinkingLevelMap } from './reasoning.ts'
 /** Safe output capability used when Ollama does not disclose one. */
 export const OLLAMA_DEFAULT_MODEL_MAX_TOKENS = 32_768
 
+/** Mirrors the RC1 official 20MiB request image bound; rc8 hosts ignore this extra field at runtime. */
+const DEFAULT_MAX_REQUEST_IMAGE_BYTES = 20 * 1024 * 1024
+
 const NO_COST = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
 
 /** Map the user-facing native Ollama base URL to the OpenAI-compatible chat base. */
@@ -86,17 +89,19 @@ export function createOllamaPiAiProfile(
     models,
     api: openAICompletionsApi(),
   })
-  return {
+  const profile = {
     provider: OLLAMA_PROVIDER,
     displayName: 'Ollama Cloud',
     apiKeyEnv: connection.apiKeyEnv,
     baseURL,
     defaultContextWindow: connection.defaultContextWindow,
     defaultMaxTokens: OLLAMA_DEFAULT_MODEL_MAX_TOKENS,
-    defaultInput: ['text'],
+    defaultInput: ['text' as const],
     streamIdleTimeoutMs: connection.streamIdleTimeoutMs,
+    maxRequestImageBytes: DEFAULT_MAX_REQUEST_IMAGE_BYTES,
     retryPolicy: connection.retryPolicy,
     piProvider,
     configuredMaxTokens,
   }
+  return profile
 }

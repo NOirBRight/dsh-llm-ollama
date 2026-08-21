@@ -28,6 +28,7 @@ import {
 } from './client-contract.ts'
 import type { OllamaCatalogModelConfig } from './client-contract.ts'
 import { createOllamaPiAiProfile } from './pi-ai-profile.ts'
+import { createOllamaPiAiAuth } from './pi-ai-auth.ts'
 import { applyOllamaReasoningMetadata } from './reasoning.ts'
 import type { WireError } from './types.ts'
 
@@ -116,6 +117,7 @@ export function classifyOllamaTransientError(chunk: StreamChunk): StreamChunk {
 
 /** The Ollama Cloud chat adapter backed by pi-ai OpenAI Chat Completions. */
 export class OllamaAdapter extends LlmAdapter {
+  private readonly auth = createOllamaPiAiAuth()
   private snapshot: { options: OllamaConnectionOptions, adapter: PiAiAdapter } | undefined
 
   constructor(private readonly config: OllamaAdapterOptions) {
@@ -128,13 +130,15 @@ export class OllamaAdapter extends LlmAdapter {
     if (this.snapshot?.options === options) return this.snapshot.adapter
     const profile = createOllamaPiAiProfile(options)
     const profiles = new Map<string, ResolvedPiAiProviderProfile>([[OLLAMA_PROVIDER, profile]])
-    const adapter = new PiAiAdapter({
+    const adapterOptions = {
       profiles: () => profiles,
       resolveApiKey: () => this.config.resolveApiKey(options),
+      auth: this.auth,
       ...this.config.resolveAttachments === undefined
         ? {}
         : { resolveAttachments: this.config.resolveAttachments },
-    })
+    }
+    const adapter = new PiAiAdapter(adapterOptions)
     this.snapshot = { options, adapter }
     return adapter
   }

@@ -71,6 +71,7 @@ export declare function classifyOllamaTransientError(chunk: StreamChunk): Stream
 /** The Ollama Cloud chat adapter backed by pi-ai OpenAI Chat Completions. */
 export declare class OllamaAdapter extends LlmAdapter {
     private readonly config;
+    private readonly auth;
     private snapshot;
     constructor(config: OllamaAdapterOptions);
     /** Rebuild the delegated adapter only when the plugin publishes a new options snapshot. */

@@ -107,6 +107,9 @@ export type * from './types.ts'
 export const name = 'llm-ollama'
 export const inject = ['llm']
 
+/** Preserve Ollama's historical normal retry count across host-line default changes. */
+const DEFAULT_MAX_RETRIES = 2
+
 const NS = settingsNamespace(OLLAMA_SETTINGS_NAMESPACE)
 
 /**
@@ -236,7 +239,10 @@ export function resolveAdapterOptions(config: Config): ResolvedOllamaOptions {
     maxTokens: config.maxTokens,
     streamIdleTimeoutMs,
     webRequestTimeoutMs,
-    retryPolicy: resolveRetryPolicy(config.retryPolicy, 'llm-ollama: retryPolicy'),
+    retryPolicy: resolveRetryPolicy(
+      config.retryPolicy ?? { mode: 'normal', maxRetries: DEFAULT_MAX_RETRIES },
+      'llm-ollama: retryPolicy',
+    ),
   }
 }
 
