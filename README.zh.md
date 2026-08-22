@@ -11,7 +11,7 @@ DeepSeek Harness 的 Ollama Cloud 集成。聊天通过共享的 pi-ai adapter �
 要求 DeepSeek Harness 0.1.0-rc.6 或更高版本。直接从 GitHub 安装：
 
 ~~~sh
-dsh plugin --profile web add github:NOirBRight/dsh-llm-ollama#v0.6.4
+dsh plugin --profile web add github:NOirBRight/dsh-llm-ollama#v0.6.6
 dsh web
 ~~~
 

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.6
+
+- Own `prepareCall` so dsh 0.1.1-rc.2 Host can snapshot provider options before streaming
+- Widen Host peer ranges to `>=0.1.0-rc.6 <0.1.1 || >=0.1.1-rc.1 <1.0.0`
+
+## 0.6.5
+
+- dsh RC1 compatibility
+
 ## 0.6.4
 
 - Verify the eight-retry policy through resolved configuration and real Loader composition while preserving quota and unknown failures

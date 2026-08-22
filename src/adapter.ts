@@ -170,6 +170,28 @@ export class OllamaAdapter extends LlmAdapter {
       yield classifyOllamaTransientError(chunk)
     }
   }
+
+  /** Own the method so rc.2 Host can call it even when this class extends an older LlmAdapter. */
+  async prepareCall(provider: string, model: string, signal?: AbortSignal) {
+    const delegate = this.current()
+    const inner = typeof (delegate as { prepareCall?: unknown }).prepareCall === 'function'
+      ? await (delegate as unknown as { prepareCall: (provider: string, model: string, signal?: AbortSignal) => Promise<{
+        model: LlmResolvedModelInfo
+        stream: (options: GenerateOptions) => AsyncIterable<StreamChunk>
+      }> }).prepareCall(provider, model, signal)
+      : {
+        model: await this.resolveModel(provider, model, signal),
+        stream: (options: GenerateOptions) => delegate.stream(options),
+      }
+    return {
+      model: inner.model,
+      stream: async function* (options: GenerateOptions) {
+        for await (const chunk of inner.stream(options) as AsyncIterable<StreamChunk>) {
+          yield classifyOllamaTransientError(chunk)
+        }
+      },
+    }
+  }
 }
 
 /** Re-export the discovery function for the plugin entry. */
