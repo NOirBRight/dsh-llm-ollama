@@ -99,6 +99,9 @@ export function createOllamaPiAiProfile(
     defaultInput: ['text' as const],
     streamIdleTimeoutMs: connection.streamIdleTimeoutMs,
     maxRequestImageBytes: DEFAULT_MAX_REQUEST_IMAGE_BYTES,
+    /** Required by the rc.2 resolved-profile contract for deterministic request images. */
+    requestImagePixelBudget: 2048 * 2048,
+    requestImageMaxBytes: 1024 * 1024,
     retryPolicy: connection.retryPolicy,
     piProvider,
     configuredMaxTokens,

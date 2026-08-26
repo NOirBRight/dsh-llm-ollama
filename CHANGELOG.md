@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.7
+
+- Preserve ordinary chat image attachments on DSH 0.1.1-rc.2 by declaring its resolved request-image budgets
+- Add a regression test for the rc.2 image-budget contract
+
 ## 0.6.6
 
 - Own `prepareCall` so dsh 0.1.1-rc.2 Host can snapshot provider options before streaming
