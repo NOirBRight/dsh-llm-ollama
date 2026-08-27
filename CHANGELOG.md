@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.8
+
+- Render Command Code and other new keyed providers in the shared LLM Providers section instead of a fixed four-plugin list.
+
 ## 0.6.7
 
 - Preserve ordinary chat image attachments on DSH 0.1.1-rc.2 by declaring its resolved request-image budgets
