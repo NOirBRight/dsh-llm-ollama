@@ -23,6 +23,18 @@ import { BrandMark } from './BrandMark.tsx'
 import { ProviderCardHeader, UsageHeader, UsageResetAt, UsageSkeleton, UsageUpdatedAt, formatProviderSummary, formatUsageClock, providerHeaderStyle, resetLabelOf } from './provider-chrome.tsx'
 import type {} from './provider-section.ts'
 import { SortableList } from './SortableList.tsx'
+import {
+  CapabilitiesRow,
+  CatalogRow,
+  ModelDetail,
+  fieldStyle,
+  hintStyle,
+  inputStyle,
+  labelStyle,
+  modelContentStyle,
+  rowInputStyle,
+  selectStyle,
+} from './model-catalog-ui.tsx'
 
 /** Credential state exposed without returning the credential value. */
 export interface OllamaCredentialState {
@@ -52,8 +64,10 @@ export interface OllamaPluginCardFace {
   }
   /** Read value-free credential status for the section's reference. */
   describeCredential: () => Promise<OllamaCredentialState>
-  /** Atomically store changed settings and return the accepted Host snapshot. */
-  saveConfiguration: (settings: OllamaSettingsView, apiKey?: string) => Promise<OllamaSaveResult>
+  /** Store changed settings and return the accepted Host snapshot. */
+  saveConfiguration: (settings: OllamaSettingsView) => Promise<OllamaSaveResult>
+  /** Store a new key separately; this is intentionally not atomic with settings. */
+  saveCredential: (apiKey: string) => Promise<void>
   /** Interrogate the draft endpoint without storing its one-shot key. */
   discoverModels: (request: OllamaDiscoveryRequest) => Promise<readonly OllamaCatalogModelConfig[]>
   /** Read the account's cloud usage with the stored or one-shot credential. */
@@ -125,22 +139,7 @@ const sectionTitleStyle: CSSProperties = {
   fontWeight: 600,
   color: 'var(--dsw-alias-label-primary)',
 }
-const fieldStyle: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 6 }
-const labelStyle: CSSProperties = { fontSize: 13, color: 'var(--dsw-alias-label-secondary)' }
-const hintStyle: CSSProperties = { margin: 0, fontSize: 12, color: 'var(--dsw-alias-label-tertiary)' }
-const inputStyle: CSSProperties = {
-  boxSizing: 'border-box',
-  width: '100%',
-  minHeight: 36,
-  border: '1px solid var(--dsw-alias-border-l2)',
-  borderRadius: 8,
-  padding: '7px 10px',
-  background: 'var(--dsw-alias-bg-layer-1)',
-  color: 'var(--dsw-alias-label-primary)',
-  font: 'inherit',
-}
-const rowInputStyle: CSSProperties = { ...inputStyle, minHeight: 32, padding: '4px 10px' }
-const rowStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }
+// fieldStyle, labelStyle, hintStyle, inputStyle, rowInputStyle, rowStyle, selectStyle now from model-catalog-ui.tsx
 const actionsStyle: CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10 }
 const buttonStyle: CSSProperties = {
   minHeight: 34,
@@ -187,21 +186,7 @@ const disclosureStyle: CSSProperties = {
   textAlign: 'left',
   cursor: 'pointer',
 }
-const modelContentStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr) auto auto',
-  alignItems: 'center',
-  gap: 6,
-  padding: '6px 8px',
-}
-const modelDetailStyle: CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 10,
-  borderTop: '1px solid var(--dsw-alias-border-l2)',
-  padding: '10px 4px 4px',
-}
-const capabilitiesStyle: CSSProperties = { display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 14 }
+// modelContentStyle, modelDetailStyle, capabilitiesStyle now from model-catalog-ui.tsx
 const statusStyle: CSSProperties = { margin: 0, fontSize: 13, color: 'var(--dsw-alias-label-secondary)' }
 const errorStyle: CSSProperties = { ...statusStyle, color: 'var(--dsw-alias-state-error-primary)' }
 const barTrackStyle: CSSProperties = {
@@ -619,7 +604,8 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
     setNotice(undefined)
     try {
       const settings = settingsOf(draft, snapshot.value)
-      const accepted = await props.saveConfiguration(settings, apiKey.trim().length === 0 ? undefined : apiKey.trim())
+      const accepted = await props.saveConfiguration(settings)
+      if (apiKey.trim().length > 0) await props.saveCredential(apiKey.trim())
       const next = draftOf(accepted.settings)
       setSource(next)
       setDraft(next)
@@ -864,8 +850,8 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
                                   </button>
                                   {expanded
                                     ? (
-                                      <div style={{ ...modelDetailStyle, gridColumn: '1 / -1' }}>
-                                        <div style={rowStyle}>
+                                      <ModelDetail gridColumn="1 / -1">
+                                        <CatalogRow>
                                           <label style={fieldStyle}>
                                             <span style={labelStyle}>{t('modelContext')}</span>
                                             <input
@@ -877,8 +863,8 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
                                               onChange={(event) => { patchModel(index, { contextWindow: event.target.value }) }}
                                             />
                                           </label>
-                                        </div>
-                                        <div style={capabilitiesStyle}>
+                                        </CatalogRow>
+                                        <CapabilitiesRow>
                                           <Capability label={t('vision')} checked={model.vision === true} disabled={disabled} onChange={(vision) => { patchModel(index, { vision }) }} />
                                           <Capability label={t('thinking')} checked={model.thinking === true} disabled={disabled} onChange={(thinking) => { patchModel(index, { thinking }) }} />
                                           {(() => {
@@ -889,7 +875,7 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
                                               <label style={{ ...labelStyle, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                                                 {t('defaultEffort')}
                                                 <select
-                                                  style={inputStyle}
+                                                  style={selectStyle}
                                                   value={model.defaultEffort ?? suggested ?? ''}
                                                   disabled={disabled}
                                                   aria-label={t('defaultEffort')}
@@ -905,8 +891,8 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
                                               </label>
                                             )
                                           })()}
-                                        </div>
-                                      </div>
+                                        </CapabilitiesRow>
+                                      </ModelDetail>
                                     )
                                     : null}
                                 </div>
