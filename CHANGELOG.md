@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.9
+
+- Unify model catalog to opencode baseline (Context first row, Vision/Reasoning/Default thinking second row, 32/36px)
+
 ## 0.6.7
 
 - Preserve ordinary chat image attachments on DSH 0.1.1-rc.2 by declaring its resolved request-image budgets

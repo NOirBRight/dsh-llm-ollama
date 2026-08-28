@@ -37,15 +37,20 @@ import {
 } from './web.ts'
 import type { OllamaWebProviderOptions } from './web.ts'
 import {
+  decodeOllamaCredentialRef,
+  decodeOllamaCredentialSetRequest,
   decodeOllamaDiscoveryRequest,
   decodeOllamaSaveRequest,
   decodeOllamaSettings,
+  OLLAMA_CREDENTIAL_SET_ENDPOINT,
+  OLLAMA_CREDENTIAL_STATUS_ENDPOINT,
   DEFAULT_API_KEY_ENV,
   OLLAMA_DISCOVER_ENDPOINT,
   OLLAMA_PROVIDER,
   OLLAMA_RPC_CHANNEL,
   OLLAMA_SAVE_ENDPOINT,
   OLLAMA_SETTINGS_NAMESPACE,
+  OLLAMA_SETTINGS_READ_ENDPOINT,
   OLLAMA_USAGE_ENDPOINT,
 } from './client-contract.ts'
 
@@ -75,27 +80,37 @@ export {
 export type { OllamaUsageRequest } from './usage.ts'
 export {
   DEFAULT_API_KEY_ENV,
+  OLLAMA_CREDENTIAL_SET_ENDPOINT,
+  OLLAMA_CREDENTIAL_STATUS_ENDPOINT,
   OLLAMA_DISCOVER_ENDPOINT,
   OLLAMA_PROVIDER,
   OLLAMA_PUBLIC_BASE_URL,
   OLLAMA_RPC_CHANNEL,
   OLLAMA_SAVE_ENDPOINT,
   OLLAMA_SETTINGS_NAMESPACE,
+  OLLAMA_SETTINGS_READ_ENDPOINT,
   OLLAMA_USAGE_ENDPOINT,
   decodeOllamaCatalogModel,
+  decodeOllamaCredentialRef,
+  decodeOllamaCredentialSetRequest,
+  decodeOllamaCredentialStatus,
   decodeOllamaDiscoveryRequest,
   decodeOllamaDiscoveryResult,
   decodeOllamaSaveRequest,
   decodeOllamaSaveResult,
   decodeOllamaSettings,
+  decodeOllamaSettingsReadResult,
   decodeOllamaUsageReply,
 } from './client-contract.ts'
 export type {
   OllamaCatalogModelConfig,
+  OllamaCredentialSetRequest,
+  OllamaCredentialStatus,
   OllamaDiscoveryRequest,
   OllamaDiscoveryResult,
   OllamaSaveRequest,
   OllamaSaveResult,
+  OllamaSettingsReadResult,
   OllamaSettingsView,
   OllamaUsageModelCount,
   OllamaUsageReply,
@@ -137,6 +152,8 @@ export interface Config {
   webRequestTimeoutMs?: number
   /** Provider-owned model-request retry policy; omission uses normal defaults. */
   retryPolicy?: RetryPolicyConfig
+  /** Permit trusted non-loopback clients to manage this provider remotely. */
+  remoteManagement?: boolean
 }
 
 const catalogModel: z<OllamaCatalogModel> = z.object({
@@ -160,6 +177,7 @@ export const Config: z<Config> = z.object({
   streamIdleTimeoutMs: z.number().min(Number.MIN_VALUE).max(MAX_TIMER_DELAY_MS).default(DEFAULT_STREAM_IDLE_TIMEOUT_MS),
   webRequestTimeoutMs: z.number().step(1).min(1).max(MAX_TIMER_DELAY_MS).default(DEFAULT_WEB_REQUEST_TIMEOUT_MS),
   retryPolicy: RetryPolicySchema,
+  remoteManagement: z.boolean().default(false),
 })
 
 /** One resolution's complete request facts. */
@@ -370,12 +388,46 @@ export function apply(ctx: Context, config: Config): void {
     return () => { disposeSearch(); disposeFetch() }
   }, 'llm-ollama: web providers')
 
-  // The package channel preserves Ollama's provider-specific discovery flags
-  // and keeps multi-field editor saves atomic behind Connection's loopback fence.
+  // The package channel owns provider management, discovery, usage, and
+  // revision-fenced settings writes. Its authority is deployment-configured.
   ctx.inject(['connection'], (connectionCtx) => {
     connectionCtx.connection.rpc.handle(
       OLLAMA_RPC_CHANNEL,
       async (endpoint, payload, signal) => {
+        if (endpoint === OLLAMA_SETTINGS_READ_ENDPOINT) {
+          const settings = ctx.get('settings')
+          const credentials = ctx.get('credentials')
+          const descriptor = settings?.describe().find(item => item.ns === NS)
+          const decoded = decodeOllamaSettings(descriptor?.value)
+          if (descriptor === undefined || decoded === undefined || credentials === undefined) return settingsFailure('Ollama Cloud settings are unavailable')
+          const info = await credentials.describe(credentialRef(decoded.apiKeyEnv))
+          return { ok: true as const, value: { settings: decoded, revision: descriptor.revision, credential: { configured: info.configured, writable: info.writable } } }
+        }
+        if (endpoint === OLLAMA_CREDENTIAL_STATUS_ENDPOINT) {
+          const ref = decodeOllamaCredentialRef(payload)
+          const credentials = ctx.get('credentials')
+          const settings = ctx.get('settings')
+          const descriptor = settings?.describe().find(item => item.ns === NS)
+          const decoded = decodeOllamaSettings(descriptor?.value)
+          if (ref === undefined || credentials === undefined || decoded === undefined || ref !== decoded.apiKeyEnv) return settingsFailure('invalid Ollama Cloud credential request')
+          const info = await credentials.describe(credentialRef(ref))
+          return { ok: true as const, value: { configured: info.configured, writable: info.writable } }
+        }
+        if (endpoint === OLLAMA_CREDENTIAL_SET_ENDPOINT) {
+          const request = decodeOllamaCredentialSetRequest(payload)
+          const credentials = ctx.get('credentials')
+          const settings = ctx.get('settings')
+          const descriptor = settings?.describe().find(item => item.ns === NS)
+          const decoded = decodeOllamaSettings(descriptor?.value)
+          if (request === undefined || credentials === undefined || decoded === undefined || request.ref !== decoded.apiKeyEnv) return settingsFailure('invalid Ollama Cloud credential request')
+          try {
+            await credentials.set(credentialRef(request.ref), assertUsableApiKey(request.value, 'llm-ollama', request.ref))
+            const info = await credentials.describe(credentialRef(request.ref))
+            return { ok: true as const, value: { configured: info.configured, writable: info.writable } }
+          } catch (error: unknown) {
+            return settingsFailure(error instanceof Error ? error.message : 'Ollama Cloud credential save failed')
+          }
+        }
         if (endpoint === OLLAMA_DISCOVER_ENDPOINT) {
           const request = decodeOllamaDiscoveryRequest(payload)
           if (request === undefined) return discoveryFailure('invalid Ollama Cloud discovery request')
@@ -432,7 +484,7 @@ export function apply(ctx: Context, config: Config): void {
         }
         return settingsFailure(`unknown Ollama Cloud endpoint: ${endpoint}`)
       },
-      { authority: 'loopback' },
+      { authority: config.remoteManagement === true ? 'trusted-host' : 'loopback' },
     )
   })
 

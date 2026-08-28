@@ -39,6 +39,7 @@ function props(overrides: Partial<OllamaPluginCardProps> = {}): OllamaPluginCard
     useOllamaSettings: selector => selector(current),
     describeCredential: vi.fn(() => Promise.resolve({ configured: false, writable: true })),
     saveConfiguration: vi.fn(next => Promise.resolve({ settings: next, revision: 2 })),
+    saveCredential: vi.fn(() => Promise.resolve()),
     discoverModels: vi.fn(() => Promise.resolve([])),
     fetchUsage: vi.fn(() => Promise.resolve({ kind: 'unsupported' as const })),
     beginModelPicker: vi.fn((_picked, onAdopt) => { adopt = onAdopt }),
@@ -139,7 +140,6 @@ describe('OllamaPluginCard', () => {
           thinking: false,
         }],
       }),
-      'ollama-secret',
     )
   })
 
@@ -184,7 +184,7 @@ describe('OllamaPluginCard', () => {
     await waitFor(() => { expect(saveConfiguration).toHaveBeenCalledTimes(1) })
     expect(saveConfiguration).toHaveBeenCalledWith(expect.objectContaining({
       models: [{ id: 'new', name: 'New', contextWindow: 16384 }],
-    }), undefined)
+    }))
   })
   it('treats a base-URL-only user layer as an inherited model catalog', () => {
     const current = snapshot({ user: { baseURL: 'https://example.test/api' } })
@@ -350,6 +350,6 @@ describe('OllamaPluginCard', () => {
     await waitFor(() => { expect(saveConfiguration).toHaveBeenCalledTimes(1) })
     expect(saveConfiguration).toHaveBeenCalledWith(expect.objectContaining({
       models: [{ id: 'bravo' }, { id: 'charlie' }, { id: 'alpha' }],
-    }), undefined)
+    }))
   })
 })

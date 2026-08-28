@@ -9,9 +9,12 @@
 
 import { createProvider } from '@earendil-works/pi-ai'
 import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completions.lazy'
-import type { Model, Provider } from '@earendil-works/pi-ai'
+import type { Api, AssistantMessageEventStream, Context as PiContext, Model, Provider, StreamOptions } from '@earendil-works/pi-ai'
 import type { ResolvedPiAiProviderProfile } from '@deepseek-ai/dsh-llm-pi-ai'
-import { OLLAMA_PROVIDER } from './client-contract.ts'
+import {
+  OLLAMA_PROVIDER,
+  parseOllamaPickerId,
+} from './client-contract.ts'
 import type { OllamaCatalogModel, OllamaConnectionOptions } from './adapter.ts'
 import { ollamaThinkingLevelMap } from './reasoning.ts'
 
@@ -37,6 +40,7 @@ function toPiAiModel(
   connection: OllamaConnectionOptions,
   baseUrl: string,
 ): Model<'openai-completions'> {
+  const parsed = parseOllamaPickerId(model.id)
   const levels = ollamaThinkingLevelMap(model)
   return {
     id: model.id,
@@ -48,7 +52,7 @@ function toPiAiModel(
     ...levels === undefined ? {} : { thinkingLevelMap: levels },
     input: model.vision === true ? ['text', 'image'] : ['text'],
     cost: NO_COST,
-    contextWindow: model.contextWindow ?? connection.defaultContextWindow,
+    contextWindow: model.contextWindow ?? parsed.contextTokens ?? connection.defaultContextWindow,
     maxTokens: model.maxTokens ?? OLLAMA_DEFAULT_MODEL_MAX_TOKENS,
     compat: {
       supportsStore: false,
@@ -61,7 +65,24 @@ function toPiAiModel(
   }
 }
 
-/** Harness-authenticated provider auth; the actual key is supplied per request by PiAiAdapter. */
+function withOllamaWire(
+  streamFn: (model: Model<Api>, context: PiContext, options?: StreamOptions) => AssistantMessageEventStream,
+): (model: Model<Api>, context: PiContext, options?: StreamOptions) => AssistantMessageEventStream {
+  return (model, context, options) => {
+    const parsed = parseOllamaPickerId(model.id)
+    const next = parsed.wireId === model.id ? model : { ...model, id: parsed.wireId }
+    return streamFn(next, context, options)
+  }
+}
+
+function ollamaCompletionsApi() {
+  const base = openAICompletionsApi()
+  return {
+    stream: withOllamaWire(base.stream),
+    streamSimple: withOllamaWire(base.streamSimple),
+  }
+}
+
 function ollamaAuth(): Provider['auth'] {
   return {
     apiKey: {
@@ -87,7 +108,7 @@ export function createOllamaPiAiProfile(
     baseUrl: baseURL,
     auth: ollamaAuth(),
     models,
-    api: openAICompletionsApi(),
+    api: ollamaCompletionsApi(),
   })
   const profile = {
     provider: OLLAMA_PROVIDER,

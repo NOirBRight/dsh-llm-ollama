@@ -19,7 +19,9 @@ The repository tracks release-ready lib artifacts, so GitHub installation needs 
 
 ## Web configuration
 
-Open Settings → LLM Providers → Ollama Cloud. The card stores the API key through the Harness credentials API under OLLAMA_API_KEY; the Host never returns the stored literal. It saves the native base URL and model catalog together as one revision-fenced llm-ollama settings mutation.
+Open Settings → LLM Providers → Ollama Cloud. The card manages settings and credentials through the provider RPC. The Host never returns the stored literal, and settings revision fencing does not pretend that credential storage and settings save are one atomic transaction.
+
+For external-auth or non-loopback deployments, set `remoteManagement: true` in the provider config and restart the Host. Start the deployment with a trusted host (for example `dsh web --trusted-host <origin>`); keep it `false` unless you explicitly need remote management. When disabled, configure the key from a loopback browser or export `OLLAMA_API_KEY` in the launching environment. Changes to `remoteManagement` require a Host restart.
 
 Fetch available models opens the picker immediately and calls the package's loopback-only RPC with the unsaved endpoint and one-shot key. The Host reads /api/tags, deduplicates native ids, and enriches up to six models concurrently through /api/show. The native metadata supplies context windows plus vision, thinking, and tools flags that /v1/models does not expose. The picker starts from the current draft selection, preserves current-only models, and replaces the draft catalog when applied.
 
@@ -105,6 +107,8 @@ Omit fetchProvider to keep the built-in HTTP fetcher while moving only search. B
 The bundle retries eligible model-request failures up to eight times by default. Documented status-less generation, reachability, and overload failures are classified as `SERVER`; authentication, invalid-request, and unsupported-content failures remain non-retryable.
 
 The provider route remains ollama-cloud and the settings namespace remains llm-ollama. Only configured catalog models are accepted for chat. The adapter does not install a request-level maxTokens default; output is not capped from the catalog. Per-row `contextWindow` is the DSH compaction budget.
+
+Picker ids may use a generic context suffix `-<n>k` or `-<n>m` (for example `qwen3-272k` or `qwen3-1m`). The plugin peels that suffix before talking to Ollama and, when the row has no explicit `contextWindow`, uses `n×1000` / `n×1,000,000` as the DSH compaction budget. Product names such as `kimi-k3-max` are not treated as a context tier. The composer picker groups sibling rows that share a base id. `-fast` is recognized as a Fast sibling for grouping; Ollama Cloud has no Fast API field, so the wire id is still the peeled base.
 
 The fallback context window is 262,144 tokens. Discovery should normally provide an exact model value; the fallback also leaves room for pi-ai's context-safety reserve when metadata is unavailable.
 

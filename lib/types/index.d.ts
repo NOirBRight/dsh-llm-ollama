@@ -22,8 +22,8 @@ export { DEFAULT_WEB_REQUEST_TIMEOUT_MS, OLLAMA_WEB_PROVIDER_ID, OllamaWebFetchP
 export type { OllamaWebProviderOptions } from './web.ts';
 export { DEFAULT_USAGE_REQUEST_TIMEOUT_MS, OLLAMA_USAGE_FAILED, OLLAMA_USAGE_UNSUPPORTED, parseOllamaUsage, readOllamaUsage, } from './usage.ts';
 export type { OllamaUsageRequest } from './usage.ts';
-export { DEFAULT_API_KEY_ENV, OLLAMA_DISCOVER_ENDPOINT, OLLAMA_PROVIDER, OLLAMA_PUBLIC_BASE_URL, OLLAMA_RPC_CHANNEL, OLLAMA_SAVE_ENDPOINT, OLLAMA_SETTINGS_NAMESPACE, OLLAMA_USAGE_ENDPOINT, decodeOllamaCatalogModel, decodeOllamaDiscoveryRequest, decodeOllamaDiscoveryResult, decodeOllamaSaveRequest, decodeOllamaSaveResult, decodeOllamaSettings, decodeOllamaUsageReply, } from './client-contract.ts';
-export type { OllamaCatalogModelConfig, OllamaDiscoveryRequest, OllamaDiscoveryResult, OllamaSaveRequest, OllamaSaveResult, OllamaSettingsView, OllamaUsageModelCount, OllamaUsageReply, OllamaUsageView, OllamaUsageWindow, } from './client-contract.ts';
+export { DEFAULT_API_KEY_ENV, OLLAMA_CREDENTIAL_SET_ENDPOINT, OLLAMA_CREDENTIAL_STATUS_ENDPOINT, OLLAMA_DISCOVER_ENDPOINT, OLLAMA_PROVIDER, OLLAMA_PUBLIC_BASE_URL, OLLAMA_RPC_CHANNEL, OLLAMA_SAVE_ENDPOINT, OLLAMA_SETTINGS_NAMESPACE, OLLAMA_SETTINGS_READ_ENDPOINT, OLLAMA_USAGE_ENDPOINT, decodeOllamaCatalogModel, decodeOllamaCredentialRef, decodeOllamaCredentialSetRequest, decodeOllamaCredentialStatus, decodeOllamaDiscoveryRequest, decodeOllamaDiscoveryResult, decodeOllamaSaveRequest, decodeOllamaSaveResult, decodeOllamaSettings, decodeOllamaSettingsReadResult, decodeOllamaUsageReply, } from './client-contract.ts';
+export type { OllamaCatalogModelConfig, OllamaCredentialSetRequest, OllamaCredentialStatus, OllamaDiscoveryRequest, OllamaDiscoveryResult, OllamaSaveRequest, OllamaSaveResult, OllamaSettingsReadResult, OllamaSettingsView, OllamaUsageModelCount, OllamaUsageReply, OllamaUsageView, OllamaUsageWindow, } from './client-contract.ts';
 export type * from './types.ts';
 export declare const name = "llm-ollama";
 export declare const inject: string[];
@@ -52,6 +52,8 @@ export interface Config {
     webRequestTimeoutMs?: number;
     /** Provider-owned model-request retry policy; omission uses normal defaults. */
     retryPolicy?: RetryPolicyConfig;
+    /** Permit trusted non-loopback clients to manage this provider remotely. */
+    remoteManagement?: boolean;
 }
 export declare const Config: z<Config>;
 /** One resolution's complete request facts. */

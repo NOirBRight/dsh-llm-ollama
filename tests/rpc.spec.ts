@@ -201,4 +201,16 @@ describe('Ollama rich-discovery RPC', () => {
     await fiber.dispose()
     await ctx.fiber.dispose()
   })
+
+  it('uses trusted-host authority only when remoteManagement is enabled', async () => {
+    const ctx = new Context()
+    await ctx.plugin(LlmRuntime).await()
+    const handle = vi.fn((_channel: string, _handler: unknown, _options: unknown) => () => Promise.resolve())
+    ctx.provide('connection', { rpc: { handle } } as never)
+    const fiber = ctx.plugin({ inject: [...inject], Config, apply }, { remoteManagement: true })
+    await fiber.await()
+    expect(handle).toHaveBeenCalledWith(OLLAMA_RPC_CHANNEL, expect.any(Function), { authority: 'trusted-host' })
+    await fiber.dispose()
+    await ctx.fiber.dispose()
+  })
 })

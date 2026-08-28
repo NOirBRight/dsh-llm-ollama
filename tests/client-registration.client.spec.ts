@@ -84,7 +84,7 @@ async function bench() {
 
 describe('Ollama client plugin registration', () => {
   it('declares only the client services it consumes', () => {
-    expect(inject).toEqual(['slots', 'locale', 'connection', 'remote', 'settingsScope'])
+    expect(inject).toEqual(['slots', 'locale', 'connection'])
   })
 
   it('registers the card and frame picker, then removes both with the plugin fiber', async () => {

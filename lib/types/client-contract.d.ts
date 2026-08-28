@@ -19,6 +19,25 @@ export declare const OLLAMA_DISCOVER_ENDPOINT = "models/discover";
 export declare const OLLAMA_SAVE_ENDPOINT = "settings/save";
 /** Cloud usage-snapshot endpoint inside {@link OLLAMA_RPC_CHANNEL}. */
 export declare const OLLAMA_USAGE_ENDPOINT = "usage/read";
+/** Provider-owned settings snapshot endpoint; includes redacted credential status. */
+export declare const OLLAMA_SETTINGS_READ_ENDPOINT = "settings/read";
+/** Provider-owned credential write endpoint; accepts a new key but never returns it. */
+export declare const OLLAMA_CREDENTIAL_STATUS_ENDPOINT = "credential/status";
+/** Provider-owned credential write endpoint; accepts a new key but never returns it. */
+export declare const OLLAMA_CREDENTIAL_SET_ENDPOINT = "credential/set";
+export interface OllamaCredentialStatus {
+    configured: boolean;
+    writable: boolean;
+}
+export interface OllamaSettingsReadResult {
+    settings: OllamaSettingsView;
+    revision: number;
+    credential: OllamaCredentialStatus;
+}
+export interface OllamaCredentialSetRequest {
+    ref: string;
+    value: string;
+}
 /** One model stored in the plugin's advisory catalog. */
 export interface OllamaCatalogModelConfig {
     /** Wire model id accepted by the configured endpoint. */
@@ -40,6 +59,12 @@ export interface OllamaCatalogModelConfig {
     /** Legacy capability flag. Ignored at runtime; still decoded. */
     tools?: boolean;
 }
+/** Peel Fast then a trailing `-<n>k` / `-<n>m` context tier. Product names like `-max` stay. */
+export declare function parseOllamaPickerId(id: string): {
+    wireId: string;
+    fast: boolean;
+    contextTokens?: number;
+};
 /** Settings fields presented by the package's Web configuration card. */
 export interface OllamaSettingsView {
     /** Credential reference resolved by the Host. */
@@ -168,4 +193,8 @@ export declare function decodeOllamaSaveRequest(value: unknown): OllamaSaveReque
  * @returns the validated result, or undefined when it is malformed.
  */
 export declare function decodeOllamaSaveResult(value: unknown): OllamaSaveResult | undefined;
+export declare function decodeOllamaSettingsReadResult(value: unknown): OllamaSettingsReadResult | undefined;
+export declare function decodeOllamaCredentialRef(value: unknown): string | undefined;
+export declare function decodeOllamaCredentialSetRequest(value: unknown): OllamaCredentialSetRequest | undefined;
+export declare function decodeOllamaCredentialStatus(value: unknown): OllamaCredentialStatus | undefined;
 //# sourceMappingURL=client-contract.d.ts.map

@@ -34,8 +34,10 @@ export interface OllamaPluginCardFace {
     };
     /** Read value-free credential status for the section's reference. */
     describeCredential: () => Promise<OllamaCredentialState>;
-    /** Atomically store changed settings and return the accepted Host snapshot. */
-    saveConfiguration: (settings: OllamaSettingsView, apiKey?: string) => Promise<OllamaSaveResult>;
+    /** Store changed settings and return the accepted Host snapshot. */
+    saveConfiguration: (settings: OllamaSettingsView) => Promise<OllamaSaveResult>;
+    /** Store a new key separately; this is intentionally not atomic with settings. */
+    saveCredential: (apiKey: string) => Promise<void>;
     /** Interrogate the draft endpoint without storing its one-shot key. */
     discoverModels: (request: OllamaDiscoveryRequest) => Promise<readonly OllamaCatalogModelConfig[]>;
     /** Read the account's cloud usage with the stored or one-shot credential. */

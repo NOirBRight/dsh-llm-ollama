@@ -145,6 +145,25 @@ describe('createOllamaPiAiProfile', () => {
     expect(profile.configuredMaxTokens.size).toBe(0)
   })
 
+  it('derives contextWindow from -<n>k picker ids and keeps the catalog id', () => {
+    const profile = createOllamaPiAiProfile(connection({
+      models: [{ id: 'qwen3-272k', thinking: false }],
+    }))
+    expect(profile.piProvider.getModels()[0]).toMatchObject({
+      id: 'qwen3-272k',
+      contextWindow: 272_000,
+    })
+  })
+
+  it('does not treat product names like -max as a context tier', () => {
+    const profile = createOllamaPiAiProfile(connection({
+      models: [{ id: 'kimi-k3-max', thinking: true, contextWindow: 262_144 }],
+    }))
+    expect(profile.piProvider.getModels()[0]).toMatchObject({
+      id: 'kimi-k3-max',
+      contextWindow: 262_144,
+    })
+  })
   it('declares the rc.2 request-image budgets', () => {
     const profile = createOllamaPiAiProfile(connection())
 

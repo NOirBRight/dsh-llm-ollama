@@ -2,6 +2,7 @@
 
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
+import type { SettingsScope, SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings-plugins/client'
@@ -9,15 +10,19 @@ import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
 import {
+  decodeOllamaCredentialStatus,
   decodeOllamaDiscoveryResult,
+  decodeOllamaSettingsReadResult,
   decodeOllamaSaveResult,
-  decodeOllamaSettings,
   decodeOllamaUsageReply,
   DEFAULT_API_KEY_ENV,
+  OLLAMA_CREDENTIAL_SET_ENDPOINT,
+  OLLAMA_CREDENTIAL_STATUS_ENDPOINT,
   OLLAMA_DISCOVER_ENDPOINT,
   OLLAMA_RPC_CHANNEL,
   OLLAMA_SAVE_ENDPOINT,
   OLLAMA_SETTINGS_NAMESPACE,
+  OLLAMA_SETTINGS_READ_ENDPOINT,
   OLLAMA_USAGE_ENDPOINT,
 } from '../client-contract.ts'
 import type { OllamaDiscoveryRequest, OllamaSettingsView } from '../client-contract.ts'
@@ -39,7 +44,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 /** Stable browser-plugin name. */
 export const name = 'dsh-llm-ollama-client'
 /** Client services required by the Plugin configuration contribution. */
-export const inject = ['slots', 'locale', 'connection', 'remote', 'settingsScope']
+export const inject = ['slots', 'locale', 'connection']
 
 /** Register localized Ollama Cloud configuration under Plugin configuration. */
 export function apply(ctx: ClientContext): void {
@@ -49,27 +54,38 @@ export function apply(ctx: ClientContext): void {
     'dsh-llm-ollama: Plugin configuration copy',
   )
   const t = ctx.locale.bind(localeNamespace) as OllamaPluginCardFace['t']
-  const scope = ctx.settingsScope.bind<OllamaSettingsView>({
-    namespace: OLLAMA_SETTINGS_NAMESPACE,
-    decode: decodeOllamaSettings,
-  })
   const picker = new OllamaModelPickerController()
   // This dual-runtime package compiles Host and Client Context augmentations in
   // one project; the browser entry receives the client handle at runtime.
-  const { api, rpc } = ctx.get('connection') as unknown as ConnectionHandle
+  const { rpc } = ctx.get('connection') as unknown as ConnectionHandle
+  let currentSnapshot: SettingsScopeSnapshot<OllamaSettingsView> = { status: 'loading', value: undefined, base: undefined, user: undefined, revision: undefined, writable: false, mode: 'host' }
+  const listeners = new Set<() => void>()
+  const publish = (next: SettingsScopeSnapshot<OllamaSettingsView>): void => { currentSnapshot = next; for (const listener of listeners) listener() }
+  const readManagement = async (): Promise<void> => {
+    const result = await rpc.call(OLLAMA_RPC_CHANNEL, OLLAMA_SETTINGS_READ_ENDPOINT, {})
+    if (!result.ok) { publish({ ...currentSnapshot, status: 'unavailable' }); throw new Error(result.error.message) }
+    const decoded = decodeOllamaSettingsReadResult(result.value)
+    if (decoded === undefined) { publish({ ...currentSnapshot, status: 'unavailable' }); throw new Error(t('requestFailed')) }
+    publish({ status: 'ready', value: decoded.settings, base: undefined, user: undefined, revision: decoded.revision, writable: true, mode: 'host' })
+  }
+  const scope: SettingsScope<OllamaSettingsView> = {
+    getSnapshot: () => currentSnapshot,
+    subscribe: listener => { listeners.add(listener); return () => { listeners.delete(listener) } },
+    set: async () => { throw new Error('settings are managed by the provider RPC') },
+    unset: async () => { throw new Error('settings are managed by the provider RPC') },
+  }
+  void readManagement().catch(() => {})
 
   const describeCredential: OllamaPluginCardFace['describeCredential'] = async () => {
     const ref = scope.getSnapshot().value?.apiKeyEnv ?? DEFAULT_API_KEY_ENV
-    const response = await api.credentials.describe({ refs: [ref] })
-    if (!response.result.ok) throw new Error(response.result.error.message)
-    const credential = response.result.value.credentials[ref]
-    return {
-      configured: credential?.configured ?? false,
-      writable: credential?.writable ?? true,
-    }
+    const result = await rpc.call(OLLAMA_RPC_CHANNEL, OLLAMA_CREDENTIAL_STATUS_ENDPOINT, { ref })
+    if (!result.ok) throw new Error(result.error.message)
+    const status = decodeOllamaCredentialStatus(result.value)
+    if (status === undefined) throw new Error(t('requestFailed'))
+    return status
   }
 
-  const saveConfiguration: OllamaPluginCardFace['saveConfiguration'] = async (settings, apiKey) => {
+  const saveConfiguration: OllamaPluginCardFace['saveConfiguration'] = async (settings) => {
     const snapshot = scope.getSnapshot()
     if (snapshot.revision === undefined) throw new Error(t('requestFailed'))
     const saved = await rpc.call(
@@ -84,12 +100,16 @@ export function apply(ctx: ClientContext): void {
     if (!saved.ok) throw new Error(saved.error.message)
     const accepted = decodeOllamaSaveResult(saved.value)
     if (accepted === undefined) throw new Error(t('requestFailed'))
-    if (apiKey !== undefined) {
-      const ref = accepted.settings.apiKeyEnv
-      const response = await api.credentials.set({ ref, value: apiKey })
-      if (!response.result.ok) throw new Error(response.result.error.message)
-    }
+    publish({ ...currentSnapshot, status: 'ready', value: accepted.settings, revision: accepted.revision })
     return accepted
+  }
+
+  const saveCredential: OllamaPluginCardFace['saveCredential'] = async (apiKey) => {
+    const ref = scope.getSnapshot().value?.apiKeyEnv ?? DEFAULT_API_KEY_ENV
+    const result = await rpc.call(OLLAMA_RPC_CHANNEL, OLLAMA_CREDENTIAL_SET_ENDPOINT, { ref, value: apiKey })
+    if (!result.ok) throw new Error(result.error.message)
+    const status = decodeOllamaCredentialStatus(result.value)
+    if (status === undefined) throw new Error(t('requestFailed'))
   }
 
   const fetchUsage: OllamaPluginCardFace['fetchUsage'] = async (request: OllamaDiscoveryRequest) => {
@@ -149,6 +169,7 @@ export function apply(ctx: ClientContext): void {
       hooks: { ollamaSettings: scope },
       describeCredential,
       saveConfiguration,
+      saveCredential,
       discoverModels,
       fetchUsage,
       beginModelPicker: (initiallyPicked, onAdopt) => { picker.begin(onAdopt, initiallyPicked) },

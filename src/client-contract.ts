@@ -20,6 +20,28 @@ export const OLLAMA_DISCOVER_ENDPOINT = 'models/discover'
 export const OLLAMA_SAVE_ENDPOINT = 'settings/save'
 /** Cloud usage-snapshot endpoint inside {@link OLLAMA_RPC_CHANNEL}. */
 export const OLLAMA_USAGE_ENDPOINT = 'usage/read'
+/** Provider-owned settings snapshot endpoint; includes redacted credential status. */
+export const OLLAMA_SETTINGS_READ_ENDPOINT = 'settings/read'
+/** Provider-owned credential write endpoint; accepts a new key but never returns it. */
+export const OLLAMA_CREDENTIAL_STATUS_ENDPOINT = 'credential/status'
+/** Provider-owned credential write endpoint; accepts a new key but never returns it. */
+export const OLLAMA_CREDENTIAL_SET_ENDPOINT = 'credential/set'
+
+export interface OllamaCredentialStatus {
+  configured: boolean
+  writable: boolean
+}
+
+export interface OllamaSettingsReadResult {
+  settings: OllamaSettingsView
+  revision: number
+  credential: OllamaCredentialStatus
+}
+
+export interface OllamaCredentialSetRequest {
+  ref: string
+  value: string
+}
 
 /** One model stored in the plugin's advisory catalog. */
 export interface OllamaCatalogModelConfig {
@@ -41,6 +63,25 @@ export interface OllamaCatalogModelConfig {
   defaultEffort?: string
   /** Legacy capability flag. Ignored at runtime; still decoded. */
   tools?: boolean
+}
+
+/** Peel Fast then a trailing `-<n>k` / `-<n>m` context tier. Product names like `-max` stay. */
+export function parseOllamaPickerId(id: string): { wireId: string, fast: boolean, contextTokens?: number } {
+  let rest = id
+  let fast = false
+  if (rest.endsWith('-fast') && rest.length > 5) {
+    rest = rest.slice(0, -5)
+    fast = true
+  }
+  const match = /-(\d+)(k|m)$/iu.exec(rest)
+  if (match === null || match.index === 0) return { wireId: rest, fast }
+  const n = Number(match[1])
+  const unit = match[2]!.toLowerCase()
+  return {
+    wireId: rest.slice(0, match.index),
+    fast,
+    contextTokens: unit === 'm' ? n * 1_000_000 : n * 1_000,
+  }
 }
 
 /** Settings fields presented by the package's Web configuration card. */
@@ -338,4 +379,30 @@ export function decodeOllamaSaveResult(value: unknown): OllamaSaveResult | undef
   const settings = decodeOllamaSettings(value['settings'])
   if (revision < 0 || settings === undefined) return undefined
   return { settings, revision }
+}
+
+export function decodeOllamaSettingsReadResult(value: unknown): OllamaSettingsReadResult | undefined {
+  if (!isRecord(value) || !Number.isSafeInteger(value['revision'])) return undefined
+  const settings = decodeOllamaSettings(value['settings'])
+  const credential = value['credential']
+  if (settings === undefined || !isRecord(credential)
+    || typeof credential['configured'] !== 'boolean' || typeof credential['writable'] !== 'boolean') return undefined
+  const revision = value['revision'] as number
+  return revision < 0 ? undefined : { settings, revision, credential: { configured: credential['configured'], writable: credential['writable'] } }
+}
+
+export function decodeOllamaCredentialRef(value: unknown): string | undefined {
+  if (!isRecord(value) || typeof value['ref'] !== 'string' || value['ref'].length === 0) return undefined
+  return value['ref']
+}
+
+export function decodeOllamaCredentialSetRequest(value: unknown): OllamaCredentialSetRequest | undefined {
+  if (!isRecord(value) || typeof value['ref'] !== 'string' || value['ref'].length === 0
+    || typeof value['value'] !== 'string' || value['value'].length === 0) return undefined
+  return { ref: value['ref'], value: value['value'] }
+}
+
+export function decodeOllamaCredentialStatus(value: unknown): OllamaCredentialStatus | undefined {
+  if (!isRecord(value) || typeof value['configured'] !== 'boolean' || typeof value['writable'] !== 'boolean') return undefined
+  return { configured: value['configured'], writable: value['writable'] }
 }

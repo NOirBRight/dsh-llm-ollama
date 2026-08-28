@@ -19,7 +19,9 @@ dsh web
 
 ## Web 配置
 
-打开 Settings → LLM Providers → Ollama Cloud。卡片通过 Harness credentials API 把 API key 存到 OLLAMA_API_KEY；Host 不会返回已保存的明文。它会用一次带 revision 防护的 llm-ollama mutation 同时保存原生 base URL 和模型目录。
+打开 Settings → LLM Providers → Ollama Cloud。卡片通过 provider RPC 管理设置和凭据。Host 不会返回已保存的明文；设置的 revision 防护不会把凭据存储和设置保存伪装成一个原子事务。
+
+在 external-auth 或非 loopback 部署中，请在 provider 配置中设置 `remoteManagement: true` 并重启 Host；用可信主机启动（例如 `dsh web --trusted-host <origin>`）。除非确实需要远程管理，否则保持 `false`。禁用时请从 loopback 浏览器配置 key，或在启动环境导出 `OLLAMA_API_KEY`。修改 `remoteManagement` 后必须重启 Host。
 
 Fetch available models 会立即打开 picker，并用未保存 endpoint 和一次性 key 调用包的 loopback-only RPC。Host 读取 /api/tags、按原生 id 去重，并最多并发六个 /api/show 请求 enrich 模型。原生元数据会提供 /v1/models 不提供的 context window 及 vision、thinking、tools 标志。Picker 从当前草稿选择初始化，保留 current-only 模型，并在应用时替换草稿目录。
 
@@ -106,6 +108,8 @@ Host plugin 会把两个 Web provider 注册为 ollama-cloud。注册本身不�
 bundle 默认对符合条件的模型请求失败最多重试八次。官方无状态码的生成、可达性和过载失败归类为 `SERVER`；鉴权、无效请求和不支持内容失败仍不可重试。
 
 Provider route 继续是 ollama-cloud，设置命名空间继续是 llm-ollama。只有配置目录中的模型可以聊天。模型 entry 的 maxTokens 优先于 route 值；两者都不存在时，adapter 不设置请求默认。Ollama 不公开逐模型输出限制，因此发现结果不会填写 maxTokens。
+
+选择器 id 可以用通用上下文后缀 `-<n>k` 或 `-<n>m`（例如 `qwen3-272k` 或 `qwen3-1m`）。插件在发给 Ollama 前剥掉该后缀；行上没有显式 `contextWindow` 时，用 `n×1000` / `n×1,000,000` 作为 DSH 压缩预算。`kimi-k3-max` 这类产品名不算档位。Composer picker 按剥后缀后的 base 把兄弟行收成一个家族。`-fast` 会当成 Fast 兄弟用于分组；Ollama Cloud 没有 Fast API 字段，所以 wire id 仍是剥完后的 base。
 
 Fallback context window 是 262,144 tokens。正常情况下发现过程应提供精确模型值；元数据缺失时，该 fallback 也为 pi-ai 的上下文安全余量留出空间。
 
