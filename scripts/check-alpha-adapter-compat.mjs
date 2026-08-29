@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 /** Verify the built adapter provides the method called directly by an alpha1 Host. */
-const module = await import(new URL('../lib/index.js', import.meta.url).href)
-const Adapter = module.OllamaAdapter
+const adapterModule = await import(new URL('../lib/index.js', import.meta.url).href)
+const Adapter = adapterModule.OllamaAdapter
 if (typeof Adapter !== 'function') throw new Error('OllamaAdapter is not exported from lib/index.js')
 if (!Object.hasOwn(Adapter.prototype, 'imageRequestPricing')) {
   throw new Error('OllamaAdapter must own imageRequestPricing')
