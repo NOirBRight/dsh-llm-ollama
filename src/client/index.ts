@@ -1,8 +1,8 @@
 /** Browser half: Ollama Cloud setup inside Plugin configuration. */
 
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { ClientContext } from './shim.js'
 import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
-import type { SettingsScope, SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-runtime/client'
+import type { SettingsScope, SettingsScopeSnapshot } from './shim.js'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings-plugins/client'
@@ -47,6 +47,7 @@ export const name = 'dsh-llm-ollama-client'
 export const inject = ['slots', 'locale', 'connection']
 
 /** Register localized Ollama Cloud configuration under Plugin configuration. */
+
 export function apply(ctx: ClientContext): void {
   const localeNamespace = 'settings.ollama-cloud'
   ctx.effect(
