@@ -1,6 +1,11 @@
 # Changelog
 
+## 0.6.13
+
+- Fix sandbox escalation-schema leak for Ollama: narrow tool `sandbox_permissions` enum to strictly-wider modes scanned from `system` and context-injection `messages`; danger-full-access removes `sandbox_permissions`+justification, read-only keeps both, workspace-write keeps only danger-full-access, original schema unmutated; applied to direct `stream` and `prepareCall` stream
+
 ## 0.6.12
+
 
 - Remove stale RC-only client test dependencies from the alpha1 compatibility gate
 - Keep the frozen-install CI and quota-free provider suite release-blocking

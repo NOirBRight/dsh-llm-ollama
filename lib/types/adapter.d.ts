@@ -68,6 +68,13 @@ export declare function httpErrorCode(status: number, error?: WireError): string
  * @returns The original chunk, or a copy with a retryable server code.
  */
 export declare function classifyOllamaTransientError(chunk: StreamChunk): StreamChunk;
+/**
+ * Remove sandbox escalation choices that cannot be strictly wider than the
+ * current DSH policy. Core still validates every retained request; this only
+ * prevents the model from selecting an impossible optional enum value.
+ * Scans both options.system and context-injection text inside options.messages.
+ */
+export declare function narrowOllamaEscalationSchemas(options: GenerateOptions): GenerateOptions;
 /** The Ollama Cloud chat adapter backed by pi-ai OpenAI Chat Completions. */
 export declare class OllamaAdapter extends LlmAdapter {
     private readonly config;

@@ -7,6 +7,7 @@ import {
   DEFAULT_STREAM_IDLE_TIMEOUT_MS,
   classifyOllamaTransientError,
   httpErrorCode,
+  narrowOllamaEscalationSchemas,
   OllamaAdapter,
 } from '../src/adapter.ts'
 import type { OllamaAdapterOptions, OllamaConnectionOptions } from '../src/adapter.ts'
@@ -91,6 +92,219 @@ function toolEvents(callId: string): string[] {
     '[DONE]',
   ]
 }
+
+
+describe('narrowOllamaEscalationSchemas', () => {
+  const options = (mode: string) => ({
+    provider: 'ollama-cloud',
+    model: MODEL_ID,
+    messages: [] as Message[],
+    system: 'Current DSH file policy: ' + mode + '.',
+    tools: [{
+      name: 'write',
+      description: 'write',
+      parameters: {
+        type: 'object',
+        properties: {
+          file_path: { type: 'string' },
+          sandbox_permissions: { type: 'string', enum: ['workspace-write', 'danger-full-access'] },
+          justification: { type: 'string' },
+        },
+        required: ['file_path', 'sandbox_permissions', 'justification'],
+      },
+    }],
+  })
+
+  it('reads the current mode from a DSH context-injection message', () => {
+    const request = options('unknown') as unknown as GenerateOptions
+    ;(request as any).system = 'You are a coding agent.'
+    ;(request as any).messages = [{
+      role: 'user',
+      content: [{ type: 'text', text: 'Current DSH file policy: workspace-write. Writes are confined.' }],
+    }] as unknown as Message[]
+    const narrowed = narrowOllamaEscalationSchemas(request)
+    expect((narrowed.tools?.[0]?.parameters as any).properties.sandbox_permissions.enum).toEqual(['danger-full-access'])
+  })
+
+  it('reads the current mode from the last context-injection message', () => {
+    const request = {
+      provider: 'ollama-cloud',
+      model: MODEL_ID,
+      messages: [
+        { role: 'user', content: [{ type: 'text', text: 'Current DSH file policy: read-only. No writes.' }], source: { kind: 'user' } } as unknown as Message,
+        { role: 'user', content: [{ type: 'text', text: 'Current DSH file policy: danger-full-access. Full access.' }], source: { kind: 'user' } } as unknown as Message,
+      ],
+      system: 'you are helpful',
+      tools: [{
+        name: 'write',
+        description: 'write',
+        parameters: {
+          type: 'object',
+          properties: {
+            sandbox_permissions: { type: 'string', enum: ['workspace-write', 'danger-full-access'] },
+            justification: { type: 'string' },
+          },
+          required: ['sandbox_permissions', 'justification'],
+        },
+      }],
+    } as unknown as GenerateOptions
+    const narrowed = narrowOllamaEscalationSchemas(request)
+    const params = narrowed.tools?.[0]?.parameters as any
+    expect(params.properties.sandbox_permissions).toBeUndefined()
+    expect(params.properties.justification).toBeUndefined()
+  })
+
+  it('offers only strictly wider modes to a workspace-write session', () => {
+    const original = options('workspace-write') as unknown as GenerateOptions
+    const narrowed = narrowOllamaEscalationSchemas(original)
+    expect((narrowed.tools?.[0]?.parameters as any).properties.sandbox_permissions.enum).toEqual(['danger-full-access'])
+    expect((narrowed.tools?.[0]?.parameters as any).properties.justification).toBeDefined()
+    expect((original.tools![0]!.parameters as any).properties.sandbox_permissions.enum).toEqual(['workspace-write', 'danger-full-access'])
+  })
+
+  it('removes impossible escalation fields from a danger-full-access session', () => {
+    const narrowed = narrowOllamaEscalationSchemas(options('danger-full-access') as unknown as GenerateOptions)
+    const parameters = narrowed.tools?.[0]?.parameters as any
+    expect(parameters.properties.sandbox_permissions).toBeUndefined()
+    expect(parameters.properties.justification).toBeUndefined()
+    expect(parameters.required).toEqual(['file_path'])
+  })
+
+  it('keeps both wider modes available to a read-only session', () => {
+    const narrowed = narrowOllamaEscalationSchemas(options('read-only') as unknown as GenerateOptions)
+    expect((narrowed.tools?.[0]?.parameters as any).properties.sandbox_permissions.enum)
+      .toEqual(['workspace-write', 'danger-full-access'])
+  })
+
+
+  it('prefers newest message over stale system policy (workspace-write system + danger message removes)', () => {
+    const request = {
+      provider: 'ollama-cloud',
+      model: MODEL_ID,
+      messages: [
+        { role: 'user', content: [{ type: 'text', text: 'Current DSH file policy: danger-full-access. Full access.' }], source: { kind: 'user' } } as unknown as Message,
+      ],
+      system: 'Current DSH file policy: workspace-write.',
+      tools: [{
+        name: 'write',
+        description: 'write',
+        parameters: {
+          type: 'object',
+          properties: {
+            file_path: { type: 'string' },
+            sandbox_permissions: { type: 'string', enum: ['workspace-write', 'danger-full-access'] },
+            justification: { type: 'string' },
+          },
+          required: ['file_path', 'sandbox_permissions', 'justification'],
+        },
+      }],
+    } as unknown as GenerateOptions
+    const narrowed = narrowOllamaEscalationSchemas(request)
+    const params = narrowed.tools?.[0]?.parameters as any
+    expect(params.properties.sandbox_permissions).toBeUndefined()
+    expect(params.properties.justification).toBeUndefined()
+    expect(params.required).toEqual(['file_path'])
+  })
+
+  it('does not mutate the original tool schema', () => {
+    const original = options('workspace-write') as unknown as GenerateOptions
+    const before = JSON.stringify(original.tools![0]!.parameters)
+    narrowOllamaEscalationSchemas(original)
+    expect(JSON.stringify(original.tools![0]!.parameters)).toBe(before)
+  })
+
+  it('leaves tools unchanged when no policy is present', () => {
+    const request = {
+      provider: 'ollama-cloud',
+      model: MODEL_ID,
+      messages: [] as Message[],
+      system: 'You are helpful',
+      tools: [{
+        name: 'write',
+        description: 'write',
+        parameters: {
+          type: 'object',
+          properties: {
+            sandbox_permissions: { type: 'string', enum: ['workspace-write', 'danger-full-access'] },
+          },
+        },
+      }],
+    } as unknown as GenerateOptions
+    const narrowed = narrowOllamaEscalationSchemas(request)
+    expect(narrowed).toBe(request)
+  })
+})
+
+
+describe('OllamaAdapter escalation narrowing via stream', () => {
+  const toolWithEscalation = {
+    name: 'write',
+    description: 'write',
+    parameters: {
+      type: 'object',
+      properties: {
+        file_path: { type: 'string' },
+        sandbox_permissions: { type: 'string', enum: ['workspace-write', 'danger-full-access'] },
+        justification: { type: 'string' },
+      },
+      required: ['file_path', 'sandbox_permissions', 'justification'],
+    },
+  }
+
+  it('filters workspace-write to danger via system on direct stream', async () => {
+    const server = await mockServer([{ kind: 'sse', events: textEvents }])
+    const a = adapter({ options: () => connection({ baseURL: server.url }) })
+    await collect(a.stream(request({
+      system: 'Current DSH file policy: workspace-write.',
+      tools: [toolWithEscalation as any],
+    })))
+    const payload = server.requests[0] as any
+    expect(payload.tools?.[0]?.function?.parameters?.properties?.sandbox_permissions?.enum).toEqual(['danger-full-access'])
+    expect(payload.tools?.[0]?.function?.parameters?.properties?.justification).toBeDefined()
+    // original tool untouched - we pass a fresh object each time so check clone
+    expect((toolWithEscalation.parameters.properties as any).sandbox_permissions.enum).toEqual(['workspace-write', 'danger-full-access'])
+  })
+
+  it('removes escalation via messages injection on direct stream (danger)', async () => {
+    const server = await mockServer([{ kind: 'sse', events: textEvents }])
+    const a = adapter({ options: () => connection({ baseURL: server.url }) })
+    await collect(a.stream(request({
+      system: 'You are helpful',
+      messages: [
+        createUserMessage({ content: [{ type: 'text', text: 'Current DSH file policy: danger-full-access. Full access.' }], source: { kind: 'user' } }),
+      ],
+      tools: [toolWithEscalation as any],
+    })))
+    const payload = server.requests[0] as any
+    expect(payload.tools?.[0]?.function?.parameters?.properties?.sandbox_permissions).toBeUndefined()
+    expect(payload.tools?.[0]?.function?.parameters?.properties?.justification).toBeUndefined()
+    expect(payload.tools?.[0]?.function?.parameters?.required).toEqual(['file_path'])
+  })
+
+  it('filters via prepareCall stream', async () => {
+    const server = await mockServer([{ kind: 'sse', events: textEvents }])
+    const a = adapter({ options: () => connection({ baseURL: server.url }) })
+    const call = await a.prepareCall('ollama-cloud', MODEL_ID)
+    await collect(call.stream(request({
+      system: 'Current DSH file policy: workspace-write.',
+      tools: [toolWithEscalation as any],
+    })))
+    const payload = server.requests[0] as any
+    expect(payload.tools?.[0]?.function?.parameters?.properties?.sandbox_permissions?.enum).toEqual(['danger-full-access'])
+  })
+
+  it('keeps both modes for read-only via prepareCall', async () => {
+    const server = await mockServer([{ kind: 'sse', events: textEvents }])
+    const a = adapter({ options: () => connection({ baseURL: server.url }) })
+    const call = await a.prepareCall('ollama-cloud', MODEL_ID)
+    await collect(call.stream(request({
+      system: 'Current DSH file policy: read-only.',
+      tools: [toolWithEscalation as any],
+    })))
+    const payload = server.requests[0] as any
+    expect(payload.tools?.[0]?.function?.parameters?.properties?.sandbox_permissions?.enum).toEqual(['workspace-write', 'danger-full-access'])
+  })
+})
 
 describe('Ollama retry policy', () => {
   it('resolves the host default and an explicit eight-retry policy', () => {
