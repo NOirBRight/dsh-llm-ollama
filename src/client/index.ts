@@ -21,12 +21,13 @@ import {
   OLLAMA_DISCOVER_ENDPOINT,
   OLLAMA_RPC_CHANNEL,
   OLLAMA_SAVE_ENDPOINT,
+  OLLAMA_PROVIDER,
   OLLAMA_SETTINGS_NAMESPACE,
   OLLAMA_SETTINGS_READ_ENDPOINT,
   OLLAMA_USAGE_ENDPOINT,
 } from '../client-contract.ts'
 import type { OllamaDiscoveryRequest, OllamaSettingsView } from '../client-contract.ts'
-import { ensureProviderSection } from './provider-section.ts'
+import { ensureProviderSection } from 'dsh-llm-providers-ui/client'
 import { OllamaPluginCard } from './OllamaPluginCard.tsx'
 import type { OllamaPluginCardFace } from './OllamaPluginCard.tsx'
 import { OllamaModelPicker, OllamaModelPickerController } from './OllamaModelPicker.tsx'
@@ -164,6 +165,7 @@ export function apply(ctx: ClientContext): void {
   ctx.slots.inject('settings.provider.item', () => ctx.slots.register({
     name: 'settings.provider.item',
     key: OLLAMA_SETTINGS_NAMESPACE,
+    provider: OLLAMA_PROVIDER,
     locale: localeNamespace,
     inject: (): OllamaPluginCardFace => ({
       t,

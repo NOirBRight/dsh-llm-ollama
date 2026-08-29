@@ -21,8 +21,8 @@ import {
 import type { OllamaSettingsKey } from './locales.ts'
 import { BrandMark } from './BrandMark.tsx'
 import { ProviderCardHeader, UsageHeader, UsageResetAt, UsageSkeleton, UsageUpdatedAt, formatProviderSummary, formatUsageClock, providerHeaderStyle, resetLabelOf } from './provider-chrome.tsx'
-import type {} from './provider-section.ts'
-import { SortableList } from './SortableList.tsx'
+import type {} from 'dsh-llm-providers-ui/client'
+import { SortableList } from 'dsh-llm-providers-ui/client'
 import {
   CapabilitiesRow,
   CatalogRow,
