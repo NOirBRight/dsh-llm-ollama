@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.12
+
+- Remove stale RC-only client test dependencies from the alpha1 compatibility gate
+- Keep the frozen-install CI and quota-free provider suite release-blocking
+
 ## 0.6.11
 
 - Support the DSH 0.1.2-alpha.1 Host image-pricing call while retaining neutral heuristic pricing
