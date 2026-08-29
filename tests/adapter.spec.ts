@@ -201,6 +201,12 @@ describe('OllamaAdapter metadata', () => {
     const a = adapter({ options: () => connection({ models: [] }) })
     await expect(a.resolveModel('ollama-cloud', 'unknown-model')).rejects.toThrow(/no configured model|UNKNOWN_MODEL/)
   })
+
+  it('exposes neutral image pricing (alpha Host calls adapter method directly)', () => {
+    expect(Object.hasOwn(OllamaAdapter.prototype, 'imageRequestPricing')).toBe(true)
+    const a = adapter({})
+    expect(a.imageRequestPricing('ollama-cloud', 'gpt-oss:20b')).toBeUndefined()
+  })
 })
 
 describe('OllamaAdapter.stream', () => {
