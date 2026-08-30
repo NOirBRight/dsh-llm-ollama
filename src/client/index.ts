@@ -21,7 +21,6 @@ import {
   OLLAMA_DISCOVER_ENDPOINT,
   OLLAMA_RPC_CHANNEL,
   OLLAMA_SAVE_ENDPOINT,
-  OLLAMA_PROVIDER,
   OLLAMA_SETTINGS_NAMESPACE,
   OLLAMA_SETTINGS_READ_ENDPOINT,
   OLLAMA_USAGE_ENDPOINT,
@@ -35,6 +34,12 @@ import type { OllamaModelPickerFace } from './OllamaModelPicker.tsx'
 import { en, zh } from './locales.ts'
 import type { OllamaSettingsKey } from './locales.ts'
 
+
+declare module '@deepseek-ai/dsh-client-ui-slots' {
+  interface SlotMap {
+    'settings.provider.item': { kind: 'keyed'; scope: 'root' }
+  }
+}
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
     /** Ollama Cloud Plugin configuration copy. */
@@ -165,7 +170,6 @@ export function apply(ctx: ClientContext): void {
   ctx.slots.inject('settings.provider.item', () => ctx.slots.register({
     name: 'settings.provider.item',
     key: OLLAMA_SETTINGS_NAMESPACE,
-    provider: OLLAMA_PROVIDER,
     locale: localeNamespace,
     inject: (): OllamaPluginCardFace => ({
       t,

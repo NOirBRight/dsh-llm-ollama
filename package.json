@@ -1,7 +1,7 @@
 {
   "name": "dsh-llm-ollama",
   "description": "Ollama Cloud models, OpenAI-compatible chat, and Web Search/Fetch for DeepSeek Harness",
-  "version": "0.6.13",
+  "version": "0.6.14",
   "publishConfig": {
     "access": "public"
   },
@@ -54,7 +54,7 @@
   "license": "MIT",
   "dependencies": {
     "@earendil-works/pi-ai": "^0.82.1",
-    "dsh-llm-providers-ui": "link:../dsh-llm-providers-ui"
+    "dsh-llm-providers-ui": "github:NOirBRight/dsh-llm-providers-ui#v0.1.0"
   },
   "dsh": {
     "bundle": {

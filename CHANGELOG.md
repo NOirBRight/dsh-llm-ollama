@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.14
+
+- Settings → LLM Providers: drag cards to reorder; chat picker follows `llm-providers.order` via dsh-llm-providers-ui.
+
+
 ## 0.6.13
 
 - Fix sandbox escalation-schema leak for Ollama: narrow tool `sandbox_permissions` enum to strictly-wider modes scanned from `system` and context-injection `messages`; danger-full-access removes `sandbox_permissions`+justification, read-only keeps both, workspace-write keeps only danger-full-access, original schema unmutated; applied to direct `stream` and `prepareCall` stream
