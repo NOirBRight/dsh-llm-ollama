@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
-import type { SettingsScope } from '@deepseek-ai/dsh-client-runtime/client'
+import type { SettingsScope, SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { InjectFace, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-settings-plugins/client'
 import type {
@@ -21,8 +21,7 @@ import {
 import type { OllamaSettingsKey } from './locales.ts'
 import { BrandMark } from './BrandMark.tsx'
 import { ProviderCardHeader, UsageHeader, UsageResetAt, UsageSkeleton, UsageUpdatedAt, formatProviderSummary, formatUsageClock, providerHeaderStyle, resetLabelOf } from './provider-chrome.tsx'
-import type {} from './provider-section.ts'
-import { SortableList } from './SortableList.tsx'
+import { SortableList } from 'dsh-llm-providers-ui/sortable'
 import {
   CapabilitiesRow,
   CatalogRow,
@@ -386,7 +385,7 @@ function UsageBar({ label, usedText, window: quota, t, fallbackReset }: {
 /** Render the single-package Ollama Cloud contribution under Plugin configuration. */
 export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
   const { t } = props
-  const snapshot = props.useOllamaSettings(value => value)
+  const snapshot = props.useOllamaSettings((value: SettingsScopeSnapshot<OllamaSettingsView>) => value)
   const [open, setOpen] = useState(false)
   const initial = useMemo(() => snapshot.value === undefined ? undefined : draftOf(snapshot.value), [snapshot.value])
   const [source, setSource] = useState<Draft | undefined>(initial)

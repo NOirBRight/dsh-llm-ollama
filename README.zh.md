@@ -8,43 +8,28 @@ DeepSeek Harness 的 Ollama Cloud 集成。聊天通过共享的 pi-ai adapter �
 
 ## 安装
 
-要求 DeepSeek Harness 0.1.0-rc.6 或更高版本。直接从 GitHub 安装：
+要求 DeepSeek Harness 0.1.2-alpha.1 或更高版本。直接从 GitHub 安装：
 
 ~~~sh
-dsh plugin --profile web add github:NOirBRight/dsh-llm-ollama#v0.6.6
+dsh plugin --profile web add github:NOirBRight/dsh-llm-ollama#v0.6.15
 dsh web
 ~~~
 
-仓库跟踪可直接发布的 lib artifacts，因此 GitHub 安装不需要 build-script allowlist。源码 checkout 可在执行 pnpm run build 后使用 link 安装。
+仓库跟踪可直接发布的 lib artifacts，因此 GitHub 安装不需要 build-script allowlist。
 
-## 远程管理
+## Connection 身份验证与信任
 
-默认插件设置 RPC 仅允许 loopback。通过非回环地址打开 DSH（如 https://dsh.noirbright.top 或 http://192.168.50.75:3080）时会显示“远程浏览器无法编辑插件设置”。
+本插件通过官方 alpha1 Connection 服务的两参数 `rpc.handle(channel, handler)` API 注册设置、发现和用量 channel。不选择 authority；alpha1 Connection 对所有 Host RPC 方法和 WebSocket stream 统一执行已验证的浏览器会话策略。
 
-如需在可信主机上远程编辑：
+每个进程都会生成随机启动 token。DSH 只在 `GET /` 上接受该 token，将其交换为绑定 authority 的签名浏览器会话 cookie，然后重定向到干净的根 URL。缺少、过期、格式错误或 authority 不匹配的 cookie 会在 RPC 分发前返回 401；静态资源仍可公开访问。根交换之外的 query token 和 Authorization header token 均不接受。
 
-1. 在 profile patch（生产 `~/.dsh/profiles/web/cordis.patch.yml`，lab `~/.dsh-lab/profiles/web/cordis.patch.yml`）中加入：
-   ```yaml
-   - id: llm-ollama
-     config:
-       remoteManagement: true
-   ```
-2. 以可信主机重启 DSH：
-   ```sh
-   dsh web --trusted-host 192.168.50.75 --trusted-host dsh.noirbright.top
-   ```
-   当前生产已使用 `--trusted-host 192.168.50.75 --trusted-host dsh.noirbright.top`，新增主机需一并加入。
-3. 刷新浏览器。主机上保存的设置对远程会话依然有效。
-
-未启用 `remoteManagement: true` 时，请使用 `ssh -L 3080:127.0.0.1:3080 user@host` 后打开 `http://127.0.0.1:3080`。
+身份验证前，Connection 要求 Host 为 loopback，或匹配 Host 配置的 `--trusted-host` 条目。若请求带有 Origin，它必须等于 Host；跨站 Fetch Metadata 会被拒绝。Host/Origin 检查失败返回 403，可信但未认证的请求返回 401。远程浏览器应配置 Host allowlist 并使用 DSH 打印的 authenticated URL，也可以使用 SSH loopback tunnel。本插件不会绕过 Host 信任或浏览器会话检查。
 
 ## Web 配置
 
-打开 Settings → LLM Providers → Ollama Cloud。卡片通过 provider RPC 管理设置和凭据。Host 不会返回已保存的明文；设置的 revision 防护不会把凭据存储和设置保存伪装成一个原子事务。
+打开 Settings → LLM Providers → Ollama Cloud。卡片通过已验证的 Connection RPC 管理设置和凭据。Host 不会返回已保存的明文；设置的 revision 防护不会把凭据存储和设置保存伪装成一个原子事务。
 
-在 external-auth 或非 loopback 部署中，请在 provider 配置中设置 `remoteManagement: true` 并重启 Host；用可信主机启动（例如 `dsh web --trusted-host <origin>`）。除非确实需要远程管理，否则保持 `false`。禁用时请从 loopback 浏览器配置 key，或在启动环境导出 `OLLAMA_API_KEY`。修改 `remoteManagement` 后必须重启 Host。
-
-Fetch available models 会立即打开 picker，并用未保存 endpoint 和一次性 key 调用包的 loopback-only RPC。Host 读取 /api/tags、按原生 id 去重，并最多并发六个 /api/show 请求 enrich 模型。原生元数据会提供 /v1/models 不提供的 context window 及 vision、thinking、tools 标志。Picker 从当前草稿选择初始化，保留 current-only 模型，并在应用时替换草稿目录。
+Fetch available models 会立即打开 picker，并通过已验证的 Connection RPC 发送未保存 endpoint 和一次性 key。Host 读取 /api/tags、按原生 id 去重，并最多并发六个 /api/show 请求 enrich 模型。原生元数据会提供 /v1/models 不提供的 context window 及 vision、thinking、tools 标志。Picker 从当前草稿选择初始化，保留 current-only 模型，并在应用时替换草稿目录。
 
 卡片的「云端用量」区与 ollama.com/settings 一致：Host 用已存（或一次性）key 读取 GET <baseURL>/usage，把 Session 和每周窗口渲染成已用百分比进度条，并列出本周各模型的请求数。凭据不会传到浏览器。没有用量接口的自建端点会显示「不支持」提示而不是报错。
 
@@ -162,3 +147,62 @@ Usage 映射成 Harness input/output 计数。pi-ai 会按配置的 context capa
 - Ollama 不公开逐模型输出限制。
 - v0.2.2 及更早版本的日志可能包含重复 ollama-call-0；本次不迁移旧日志。
 - 本包不公开 structured-output format 配置。
+
+## LLM Providers UI ownership
+
+**LLM 供应商**设置页（`settings.section` `id: providers` 及子槽 `settings.provider.item`）与共享的 `llm-providers` 排序存储完全由 `dsh-llm-providers-ui` 拥有。
+
+- 本插件仅贡献自己的卡片（`key: llm-ollama`）和 Host 上的 `llm` 路由；不安装页面或共享命名空间。加载顺序不影响归属。
+- 未安装 owner 时（Headless 或 Web 未装 `dsh-llm-providers-ui`）：Host 侧模型路由 `ollama-cloud` 仍可工作；Web 侧 Providers 页面与本卡片不显示，并在浏览器控制台提示缺少 owner。正式 Web 发版的组合测试会拒绝缺少 owner 的图。
+- 导航地球图标为 ``alpha.1`` 临时 DOM 适配器，仅由 `dsh-llm-providers-ui` 持有；本插件不含该适配。
+
+请在 profile 中与 provider 插件一起显式安装 `dsh-llm-providers-ui`（见其 `cordis.patch.yml`）。
+
+
+## 正式版安装（Latest）
+
+Ollama Cloud chat, model discovery, and Web Search/Fetch providers. 正式成品只支持 DeepSeek Harness 0.1.2-alpha.1；发布包只包含构建后的 Host/Client 产物，不包含兄弟仓库源码、本机路径或 link:/workspace: 依赖。
+
+LLM Providers 页面、导航和共享排序由 dsh-llm-providers-ui 独占；本插件只提供卡片、模型和 Host 路由。Web 必须先装 Owner，headless 只使用 Host 路由时可以不装 Owner。
+
+Owner（Latest）：
+
+~~~sh
+dsh plugin --profile web add --force \
+  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/latest/download/dsh-llm-providers-ui.tgz
+~~~
+
+本 Provider（Latest）：
+
+~~~sh
+dsh plugin --profile web add --force \
+  https://github.com/NOirBRight/dsh-llm-ollama/releases/latest/download/dsh-llm-ollama.tgz
+~~~
+
+固定版本（可复现）：
+
+~~~sh
+dsh plugin --profile web add --force \
+  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/v0.1.2/dsh-llm-providers-ui.tgz
+dsh plugin --profile web add --force \
+  https://github.com/NOirBRight/dsh-llm-ollama/releases/download/v0.6.15/dsh-llm-ollama.tgz
+~~~
+
+更新、卸载与验证：
+
+~~~sh
+# 更新到最新 Release
+dsh plugin --profile web add --force \
+  https://github.com/NOirBRight/dsh-llm-ollama/releases/latest/download/dsh-llm-ollama.tgz
+# 验证加载与版本
+dsh plugin --profile web list
+dsh plugin --profile web doctor
+# 只卸载本插件
+dsh plugin --profile web remove dsh-llm-ollama
+~~~
+
+配置入口：Web 使用「设置」中的本插件页面；Host-only 插件使用 profile 的 dsh.profile.bundles 配置。先复制本 README 的最小 YAML/JSON 示例，再填写凭据或后端地址。
+
+回滚：重新执行固定版本 v0.6.15 命令，确认插件列表后只重启一次 Web 服务。失败时查看 journalctl --user -u dsh-web.service 与 dsh plugin --profile web doctor，不要把源码 checkout 写入 production profile。
+
+Release 与完整性：[v0.6.15](https://github.com/NOirBRight/dsh-llm-ollama/releases/tag/v0.6.15) · [SHA256SUMS](https://github.com/NOirBRight/dsh-llm-ollama/releases/download/v0.6.15/SHA256SUMS)。

@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.6.14
+
+- Settings → LLM Providers: drag cards to reorder; chat picker follows `llm-providers.order` via dsh-llm-providers-ui.
+
+
+## 0.6.13
+
+- Fix sandbox escalation-schema leak for Ollama: narrow tool `sandbox_permissions` enum to strictly-wider modes scanned from `system` and context-injection `messages`; danger-full-access removes `sandbox_permissions`+justification, read-only keeps both, workspace-write keeps only danger-full-access, original schema unmutated; applied to direct `stream` and `prepareCall` stream
+
+## 0.6.12
+
+
+- Remove stale RC-only client test dependencies from the alpha1 compatibility gate
+- Keep the frozen-install CI and quota-free provider suite release-blocking
+
+## 0.6.11
+
+- Support the DSH 0.1.2-alpha.1 Host image-pricing call while retaining neutral heuristic pricing
+- Restore full published-RC and alpha1 client builds with a structural settings scope interface
+- Check the built alpha1 adapter contract in CI
+
 ## 0.6.9
 
 - Unify model catalog to opencode baseline (Context first row, Vision/Reasoning/Default thinking second row, 32/36px)

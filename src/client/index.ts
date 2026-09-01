@@ -1,12 +1,13 @@
 /** Browser half: Ollama Cloud setup inside Plugin configuration. */
 
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
-import type { SettingsScope, SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-runtime/client'
+import type { SettingsScope, SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings-plugins/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
+import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
 import {
@@ -26,7 +27,6 @@ import {
   OLLAMA_USAGE_ENDPOINT,
 } from '../client-contract.ts'
 import type { OllamaDiscoveryRequest, OllamaSettingsView } from '../client-contract.ts'
-import { ensureProviderSection } from './provider-section.ts'
 import { OllamaPluginCard } from './OllamaPluginCard.tsx'
 import type { OllamaPluginCardFace } from './OllamaPluginCard.tsx'
 import { OllamaModelPicker, OllamaModelPickerController } from './OllamaModelPicker.tsx'
@@ -34,6 +34,12 @@ import type { OllamaModelPickerFace } from './OllamaModelPicker.tsx'
 import { en, zh } from './locales.ts'
 import type { OllamaSettingsKey } from './locales.ts'
 
+
+declare module '@deepseek-ai/dsh-client-ui-slots' {
+  interface SlotMap {
+    'settings.provider.item': { kind: 'keyed'; scope: 'root' }
+  }
+}
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
     /** Ollama Cloud Plugin configuration copy. */
@@ -47,6 +53,7 @@ export const name = 'dsh-llm-ollama-client'
 export const inject = ['slots', 'locale', 'connection']
 
 /** Register localized Ollama Cloud configuration under Plugin configuration. */
+
 export function apply(ctx: ClientContext): void {
   const localeNamespace = 'settings.ollama-cloud'
   ctx.effect(
@@ -55,8 +62,6 @@ export function apply(ctx: ClientContext): void {
   )
   const t = ctx.locale.bind(localeNamespace) as OllamaPluginCardFace['t']
   const picker = new OllamaModelPickerController()
-  // This dual-runtime package compiles Host and Client Context augmentations in
-  // one project; the browser entry receives the client handle at runtime.
   const { rpc } = ctx.get('connection') as unknown as ConnectionHandle
   let currentSnapshot: SettingsScopeSnapshot<OllamaSettingsView> = { status: 'loading', value: undefined, base: undefined, user: undefined, revision: undefined, writable: false, mode: 'host' }
   const listeners = new Set<() => void>()
@@ -71,6 +76,7 @@ export function apply(ctx: ClientContext): void {
   const scope: SettingsScope<OllamaSettingsView> = {
     getSnapshot: () => currentSnapshot,
     subscribe: listener => { listeners.add(listener); return () => { listeners.delete(listener) } },
+    mutate: async () => { throw new Error('settings are managed by the provider RPC') },
     set: async () => { throw new Error('settings are managed by the provider RPC') },
     unset: async () => { throw new Error('settings are managed by the provider RPC') },
   }
@@ -158,8 +164,6 @@ export function apply(ctx: ClientContext): void {
       adoptPickerModels: picker.adopt,
     }),
   }, OllamaModelPicker))
-
-  ensureProviderSection(ctx)
   ctx.slots.inject('settings.provider.item', () => ctx.slots.register({
     name: 'settings.provider.item',
     key: OLLAMA_SETTINGS_NAMESPACE,
@@ -178,4 +182,23 @@ export function apply(ctx: ClientContext): void {
       closeModelPicker: picker.close,
     }),
   }, OllamaPluginCard))
+  // Diagnostic when the Providers UI owner is not mounted (Web without dsh-llm-providers-ui).
+  // The card is registered but the page will not appear; providers still work Host-side.
+  ctx.effect(() => {
+    let warned = false
+    const check = (): void => {
+      const hasProvidersSection = ctx.slots.entries('settings.section').some(entry => (entry.options as { id?: string }).id === 'providers')
+      if (!hasProvidersSection && !warned) {
+        warned = true
+        console.warn('[dsh-llm-providers-ui] LLM Providers page missing for card llm-ollama: install dsh-llm-providers-ui to show the card. Host route remains active.')
+      }
+    }
+    const timer = setTimeout(check, 0)
+    const stop = ctx.slots.subscribe('settings.section', check)
+    return () => {
+      clearTimeout(timer)
+      stop()
+    }
+  }, 'dsh-llm-providers-ui: missing owner diagnostic')
+
 }

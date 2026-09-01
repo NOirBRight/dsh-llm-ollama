@@ -52,8 +52,6 @@ export interface Config {
     webRequestTimeoutMs?: number;
     /** Provider-owned model-request retry policy; omission uses normal defaults. */
     retryPolicy?: RetryPolicyConfig;
-    /** Permit trusted non-loopback clients to manage this provider remotely. */
-    remoteManagement?: boolean;
 }
 export declare const Config: z<Config>;
 /** One resolution's complete request facts. */

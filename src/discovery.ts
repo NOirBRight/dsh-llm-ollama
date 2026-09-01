@@ -266,12 +266,14 @@ async function discoverTaggedModel(
  * @param request - the endpoint and one-shot credential to use.
  * @param storedApiKey - the credential the named route already stored, asked
  *   for only when the draft carries none.
+ * @param signal - operation cancellation supplied separately by the LLM seam.
  * @returns advertised models with context windows and native capability flags in endpoint order.
  * @throws LlmError when the endpoint refuses or fails the request, or the reply is not a model listing.
  */
 export async function discoverModels(
   request: LlmModelDiscoveryRequest,
   storedApiKey?: () => Promise<string | undefined>,
+  signal?: AbortSignal,
 ): Promise<readonly OllamaDiscoveredModel[]> {
   const baseURL = (request.baseURL ?? PUBLIC_BASE_URL).replace(/\/+$/, '')
   const supplied = request.apiKey ?? await storedApiKey?.()
@@ -279,7 +281,7 @@ export async function discoverModels(
 
   // List models via /api/tags.
   const tagsUrl = `${baseURL}/tags`
-  const tagsResponse = await fetchTags(tagsUrl, authHeaders(apiKey), request.signal)
+  const tagsResponse = await fetchTags(tagsUrl, authHeaders(apiKey), signal)
   if (!tagsResponse.ok) {
     throw new LlmError(
       `${tagsUrl} answered ${tagsResponse.status}${tagsResponse.status === 401 || tagsResponse.status === 403 ? '; check the API key' : ''}`,
@@ -290,7 +292,7 @@ export async function discoverModels(
   try {
     tagsText = await readBounded(tagsResponse, tagsUrl)
   } catch (error: unknown) {
-    if (request.signal?.aborted) {
+    if (signal?.aborted) {
       throw new LlmError('model discovery aborted by caller', 'ABORTED', { cause: error })
     }
     throw error
@@ -320,7 +322,7 @@ export async function discoverModels(
       if (index >= uniqueTags.length) return
       const tag = uniqueTags[index]
       if (tag !== undefined) {
-        models[index] = await discoverTaggedModel(tag, baseURL, apiKey, request.signal)
+        models[index] = await discoverTaggedModel(tag, baseURL, apiKey, signal)
       }
     }
   }

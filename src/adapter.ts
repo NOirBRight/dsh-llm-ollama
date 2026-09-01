@@ -10,9 +10,11 @@
 import { LlmAdapter } from '@deepseek-ai/dsh-llm'
 import type {
   GenerateOptions,
+  LlmImageRequestPricing,
   LlmModelInfo,
   LlmProviderInfo,
   LlmResolvedModelInfo,
+  PreparedAdapterCall,
   ResolvedRetryPolicy,
   StreamChunk,
 } from '@deepseek-ai/dsh-llm'
@@ -115,6 +117,86 @@ export function classifyOllamaTransientError(chunk: StreamChunk): StreamChunk {
   }
 }
 
+const SANDBOX_MODE_RANK: Record<string, number> = {
+  'read-only': 0,
+  'workspace-write': 1,
+  'danger-full-access': 2,
+}
+
+/**
+ * Remove sandbox escalation choices that cannot be strictly wider than the
+ * current DSH policy. Core still validates every retained request; this only
+ * prevents the model from selecting an impossible optional enum value.
+ * Scans both options.system and context-injection text inside options.messages.
+ */
+export function narrowOllamaEscalationSchemas(options: GenerateOptions): GenerateOptions {
+  const mode = sandboxModeOf(options)
+  const currentRank = mode === undefined ? undefined : SANDBOX_MODE_RANK[mode]
+  if (currentRank === undefined || options.tools === undefined) return options
+  let changed = false
+  const tools = options.tools.map((tool) => {
+    const parameters = tool.parameters
+    const properties = isRecord(parameters.properties) ? parameters.properties : undefined
+    const permission = properties === undefined || !isRecord(properties.sandbox_permissions)
+      ? undefined
+      : properties.sandbox_permissions
+    if (permission === undefined || !Array.isArray(permission.enum)) return tool
+    const wider = permission.enum.filter((candidate): candidate is string => {
+      return typeof candidate === 'string' && (SANDBOX_MODE_RANK[candidate] ?? -1) > currentRank
+    })
+    if (wider.length === permission.enum.length) return tool
+    changed = true
+    const nextProperties = { ...properties }
+    if (wider.length === 0) {
+      delete nextProperties.sandbox_permissions
+      delete nextProperties.justification
+    } else {
+      nextProperties.sandbox_permissions = { ...permission, enum: wider }
+    }
+    const required = Array.isArray(parameters.required)
+      ? parameters.required.filter(name => name !== 'sandbox_permissions' && name !== 'justification')
+      : undefined
+    return {
+      ...tool,
+      parameters: {
+        ...parameters,
+        properties: nextProperties,
+        ...(required === undefined ? {} : { required }),
+      },
+    }
+  })
+  return changed ? { ...options, tools } : options
+}
+
+function sandboxModeOf(options: GenerateOptions): string | undefined {
+  for (let index = options.messages.length - 1; index >= 0; index -= 1) {
+    const message = options.messages[index]
+    if (!isRecord(message)) continue
+    const found = sandboxModeIn((message as { content?: unknown }).content)
+    if (found !== undefined) return found
+  }
+  return sandboxModeIn(options.system)
+}
+
+function sandboxModeIn(value: unknown): string | undefined {
+  if (typeof value === 'string') {
+    return /Current DSH file policy:\s*(read-only|workspace-write|danger-full-access)\./u.exec(value)?.[1]
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = sandboxModeIn(item)
+      if (found !== undefined) return found
+    }
+    return undefined
+  }
+  if (!isRecord(value)) return undefined
+  return sandboxModeIn((value as { text?: unknown }).text) ?? sandboxModeIn((value as { content?: unknown }).content)
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
 /** The Ollama Cloud chat adapter backed by pi-ai OpenAI Chat Completions. */
 export class OllamaAdapter extends LlmAdapter {
   private readonly auth = createOllamaPiAiAuth()
@@ -166,31 +248,40 @@ export class OllamaAdapter extends LlmAdapter {
   }
 
   override async * stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
-    for await (const chunk of this.current().stream(options)) {
+    for await (const chunk of this.current().stream(narrowOllamaEscalationSchemas(options))) {
       yield classifyOllamaTransientError(chunk)
     }
   }
 
-  /** Own the method so rc.2 Host can call it even when this class extends an older LlmAdapter. */
-  async prepareCall(provider: string, model: string, signal?: AbortSignal) {
+  /**
+   * Wrap the delegated alpha preparation with Ollama request policy and wire normalization.
+   * @param provider - provider route.
+   * @param model - configured model id.
+   * @param signal - optional cancellation signal.
+   * @returns prepared model metadata and an Ollama-normalizing stream.
+   */
+  override async prepareCall(provider: string, model: string, signal?: AbortSignal): Promise<PreparedAdapterCall> {
     const delegate = this.current()
-    const inner = typeof (delegate as { prepareCall?: unknown }).prepareCall === 'function'
-      ? await (delegate as unknown as { prepareCall: (provider: string, model: string, signal?: AbortSignal) => Promise<{
-        model: LlmResolvedModelInfo
-        stream: (options: GenerateOptions) => AsyncIterable<StreamChunk>
-      }> }).prepareCall(provider, model, signal)
-      : {
-        model: await this.resolveModel(provider, model, signal),
-        stream: (options: GenerateOptions) => delegate.stream(options),
-      }
+    const inner = await delegate.prepareCall(provider, model, signal)
+    const catalog = this.config.options().models.find(entry => entry.id === model)
     return {
-      model: inner.model,
+      model: applyOllamaReasoningMetadata(inner.model, model, catalog?.defaultEffort),
       stream: async function* (options: GenerateOptions) {
-        for await (const chunk of inner.stream(options) as AsyncIterable<StreamChunk>) {
+        for await (const chunk of inner.stream(narrowOllamaEscalationSchemas(options))) {
           yield classifyOllamaTransientError(chunk)
         }
       },
     }
+  }
+
+  /**
+   * Ollama does not publish provider-owned image-request pricing.
+   * @param _provider - provider route.
+   * @param _model - exact model id.
+   * @returns undefined so the Host uses neutral image estimation.
+   */
+  override imageRequestPricing(_provider: string, _model: string): LlmImageRequestPricing | undefined {
+    return undefined
   }
 }
 

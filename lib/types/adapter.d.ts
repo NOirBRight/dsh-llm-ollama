@@ -7,7 +7,7 @@
  * @module dsh-llm-ollama/adapter
  */
 import { LlmAdapter } from '@deepseek-ai/dsh-llm';
-import type { GenerateOptions, LlmModelInfo, LlmProviderInfo, LlmResolvedModelInfo, ResolvedRetryPolicy, StreamChunk } from '@deepseek-ai/dsh-llm';
+import type { GenerateOptions, LlmImageRequestPricing, LlmModelInfo, LlmProviderInfo, LlmResolvedModelInfo, PreparedAdapterCall, ResolvedRetryPolicy, StreamChunk } from '@deepseek-ai/dsh-llm';
 import type { CredentialRef } from '@deepseek-ai/dsh-credentials';
 import type { AttachmentStore } from '@deepseek-ai/dsh-attachment';
 import { discoverModels } from './discovery.ts';
@@ -68,6 +68,13 @@ export declare function httpErrorCode(status: number, error?: WireError): string
  * @returns The original chunk, or a copy with a retryable server code.
  */
 export declare function classifyOllamaTransientError(chunk: StreamChunk): StreamChunk;
+/**
+ * Remove sandbox escalation choices that cannot be strictly wider than the
+ * current DSH policy. Core still validates every retained request; this only
+ * prevents the model from selecting an impossible optional enum value.
+ * Scans both options.system and context-injection text inside options.messages.
+ */
+export declare function narrowOllamaEscalationSchemas(options: GenerateOptions): GenerateOptions;
 /** The Ollama Cloud chat adapter backed by pi-ai OpenAI Chat Completions. */
 export declare class OllamaAdapter extends LlmAdapter {
     private readonly config;
@@ -81,11 +88,21 @@ export declare class OllamaAdapter extends LlmAdapter {
     listModels(provider: string): Promise<readonly LlmModelInfo[]>;
     resolveModel(provider: string, model: string, signal?: AbortSignal): Promise<LlmResolvedModelInfo>;
     stream(options: GenerateOptions): AsyncIterable<StreamChunk>;
-    /** Own the method so rc.2 Host can call it even when this class extends an older LlmAdapter. */
-    prepareCall(provider: string, model: string, signal?: AbortSignal): Promise<{
-        model: LlmResolvedModelInfo;
-        stream: (options: GenerateOptions) => AsyncGenerator<StreamChunk, void, unknown>;
-    }>;
+    /**
+     * Wrap the delegated alpha preparation with Ollama request policy and wire normalization.
+     * @param provider - provider route.
+     * @param model - configured model id.
+     * @param signal - optional cancellation signal.
+     * @returns prepared model metadata and an Ollama-normalizing stream.
+     */
+    prepareCall(provider: string, model: string, signal?: AbortSignal): Promise<PreparedAdapterCall>;
+    /**
+     * Ollama does not publish provider-owned image-request pricing.
+     * @param _provider - provider route.
+     * @param _model - exact model id.
+     * @returns undefined so the Host uses neutral image estimation.
+     */
+    imageRequestPricing(_provider: string, _model: string): LlmImageRequestPricing | undefined;
 }
 /** Re-export the discovery function for the plugin entry. */
 export { discoverModels };

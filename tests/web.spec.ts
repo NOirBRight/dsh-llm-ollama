@@ -152,7 +152,7 @@ describe('OllamaWebSearchProvider', () => {
     const server = await mockServer([{ kind: 'json', status: 500, body: '{"error":"boom"}' }])
     const provider = new OllamaWebSearchProvider({
       ...options(server.url, 'test-key'),
-      requestTimeoutMs: 5,
+      requestTimeoutMs: 1_000,
     })
 
     await expect(provider.search({ query: 'x' })).rejects.toMatchObject({ code: 'WEB_PROVIDER_ERROR' })

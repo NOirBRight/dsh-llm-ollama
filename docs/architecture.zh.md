@@ -71,7 +71,7 @@ Host plugin 注册：
 - OllamaAdapter route；
 - llm-ollama 设置节；
 - Ollama Web Search/Fetch provider；
-- loopback-only 的模型发现/保存 RPC。
+- 由 authenticated Connection RPC 提供设置、模型发现和用量；Host 信任与浏览器会话身份验证由 Connection 策略负责。
 
 Client plugin 提供 Ollama Cloud 设置卡片和模型选择器。聊天协议迁移不会改变设置命名空间、凭据引用、provider id 和 picker 行为。
 

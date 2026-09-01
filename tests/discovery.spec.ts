@@ -216,9 +216,6 @@ describe('discoverModels', () => {
     // a real network call would fail, so we provide a signal that aborts immediately.
     const controller = new AbortController()
     controller.abort()
-    await expect(discoverModels({
-      apiKey: 'key',
-      signal: controller.signal,
-    })).rejects.toThrow()
+    await expect(discoverModels({ apiKey: 'key' }, undefined, controller.signal)).rejects.toThrow()
   })
 })

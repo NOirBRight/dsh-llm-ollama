@@ -7,7 +7,7 @@ export declare const en: {
     readonly collapse: "Collapse settings";
     readonly loading: "Loading plugin settings…";
     readonly unavailable: "This profile does not expose Ollama Cloud settings.";
-    readonly remoteAccess: "Remote browsers cannot edit plugin settings: the Harness configuration API is loopback-only. Browse the page on the host itself, or forward it first (ssh -L 3080:127.0.0.1:3080 user@host, then open http://127.0.0.1:3080). Settings saved there keep working for remote sessions.";
+    readonly remoteAccess: "This profile cannot expose Ollama Cloud settings here. Connection requires an authenticated browser session and a trusted Host/Origin; open the authenticated DSH URL or use an SSH loopback tunnel.";
     readonly readOnly: "This profile’s settings document is read-only.";
     readonly apiKey: "API key";
     readonly apiKeyPlaceholder: "Enter API key";
