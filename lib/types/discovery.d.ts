@@ -60,8 +60,9 @@ export declare function uniqueTagModels(tags: readonly WireTagModel[]): readonly
  * @param request - the endpoint and one-shot credential to use.
  * @param storedApiKey - the credential the named route already stored, asked
  *   for only when the draft carries none.
+ * @param signal - operation cancellation supplied separately by the LLM seam.
  * @returns advertised models with context windows and native capability flags in endpoint order.
  * @throws LlmError when the endpoint refuses or fails the request, or the reply is not a model listing.
  */
-export declare function discoverModels(request: LlmModelDiscoveryRequest, storedApiKey?: () => Promise<string | undefined>): Promise<readonly OllamaDiscoveredModel[]>;
+export declare function discoverModels(request: LlmModelDiscoveryRequest, storedApiKey?: () => Promise<string | undefined>, signal?: AbortSignal): Promise<readonly OllamaDiscoveredModel[]>;
 //# sourceMappingURL=discovery.d.ts.map

@@ -2,7 +2,7 @@
 
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { SettingsScopeSnapshot } from '../src/client/shim.ts'
+import type { SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { OllamaPluginCard } from '../src/client/OllamaPluginCard.tsx'
 import type { OllamaPluginCardProps } from '../src/client/OllamaPluginCard.tsx'
 import { en } from '../src/client/locales.ts'
@@ -51,7 +51,7 @@ function props(overrides: Partial<OllamaPluginCardProps> = {}): OllamaPluginCard
 }
 
 describe('OllamaPluginCard', () => {
-  it('stays visible in a remote browser and explains the loopback-only configuration plane', () => {
+  it('stays visible when Connection does not expose the settings plane', () => {
     const current = snapshot({
       status: 'unavailable',
       value: undefined,

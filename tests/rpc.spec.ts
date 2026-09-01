@@ -14,7 +14,7 @@ import { closeMockServers, mockServer } from './mock-server.ts'
 afterEach(async () => { await closeMockServers() })
 
 describe('Ollama rich-discovery RPC', () => {
-  it('registers a loopback channel and retains native capabilities', async () => {
+  it('registers an authenticated Connection channel and retains native capabilities', async () => {
     type Handler = (
       endpoint: string,
       payload: unknown,
@@ -22,17 +22,18 @@ describe('Ollama rich-discovery RPC', () => {
     ) => Promise<{ ok: boolean; value?: unknown; error?: unknown }>
     const ctx = new Context()
     await ctx.plugin(LlmRuntime).await()
-    const handle = vi.fn((_channel: string, _handler: Handler, _options: { authority: 'loopback' }) =>
-      () => Promise.resolve())
+    const dispose = vi.fn(() => Promise.resolve())
+    const handle = vi.fn((_channel: string, _handler: Handler) => dispose)
     ctx.provide('connection', { rpc: { handle } } as never)
     const fiber = ctx.plugin({ inject: [...inject], Config, apply }, {})
     await fiber.await()
 
     expect(handle).toHaveBeenCalledTimes(1)
+    expect(handle).toHaveBeenCalledWith(OLLAMA_RPC_CHANNEL, expect.any(Function))
     const registration = handle.mock.calls[0]
     if (registration === undefined) throw new Error('rich-discovery RPC was not registered')
+    expect(registration).toHaveLength(2)
     expect(registration[0]).toBe(OLLAMA_RPC_CHANNEL)
-    expect(registration[2]).toEqual({ authority: 'loopback' })
 
     const handler = registration[1]
     const server = await mockServer([
@@ -71,6 +72,7 @@ describe('Ollama rich-discovery RPC', () => {
     expect(server.headers[0]?.authorization).toBe('Bearer one-shot-key')
 
     await fiber.dispose()
+    expect(dispose).toHaveBeenCalledTimes(1)
     await ctx.fiber.dispose()
   })
 
@@ -108,8 +110,8 @@ describe('Ollama rich-discovery RPC', () => {
     }
     const ctx = new Context()
     await ctx.plugin(LlmRuntime).await()
-    const handle = vi.fn((_channel: string, _handler: Handler, _options: { authority: 'loopback' }) =>
-      () => Promise.resolve())
+    const dispose = vi.fn(() => Promise.resolve())
+    const handle = vi.fn((_channel: string, _handler: Handler) => dispose)
     ctx.provide('connection', { rpc: { handle } } as never)
     ctx.provide('settings', settings as never)
     const fiber = ctx.plugin({ inject: [...inject], Config, apply }, {})
@@ -142,10 +144,11 @@ describe('Ollama rich-discovery RPC', () => {
     expect(settings.describe()[0]?.value.models).toEqual([{ id: 'gemma3', vision: true, tools: true }])
 
     await fiber.dispose()
+    expect(dispose).toHaveBeenCalledTimes(1)
     await ctx.fiber.dispose()
   })
 
-  it('serves a secret-free usage snapshot over the loopback channel', async () => {
+  it('serves a secret-free usage snapshot over authenticated Connection RPC', async () => {
     type Handler = (
       endpoint: string,
       payload: unknown,
@@ -153,8 +156,8 @@ describe('Ollama rich-discovery RPC', () => {
     ) => Promise<{ ok: boolean; value?: unknown; error?: unknown }>
     const ctx = new Context()
     await ctx.plugin(LlmRuntime).await()
-    const handle = vi.fn((_channel: string, _handler: Handler, _options: { authority: 'loopback' }) =>
-      () => Promise.resolve())
+    const dispose = vi.fn(() => Promise.resolve())
+    const handle = vi.fn((_channel: string, _handler: Handler) => dispose)
     ctx.provide('connection', { rpc: { handle } } as never)
     const fiber = ctx.plugin({ inject: [...inject], Config, apply }, {})
     await fiber.await()
@@ -199,18 +202,15 @@ describe('Ollama rich-discovery RPC', () => {
     expect(declined).toEqual({ ok: true, value: { status: 'unsupported' } })
 
     await fiber.dispose()
+    expect(dispose).toHaveBeenCalledTimes(1)
     await ctx.fiber.dispose()
   })
 
-  it('uses trusted-host authority only when remoteManagement is enabled', async () => {
+  it('rejects obsolete remoteManagement configuration', async () => {
     const ctx = new Context()
     await ctx.plugin(LlmRuntime).await()
-    const handle = vi.fn((_channel: string, _handler: unknown, _options: unknown) => () => Promise.resolve())
-    ctx.provide('connection', { rpc: { handle } } as never)
-    const fiber = ctx.plugin({ inject: [...inject], Config, apply }, { remoteManagement: true })
-    await fiber.await()
-    expect(handle).toHaveBeenCalledWith(OLLAMA_RPC_CHANNEL, expect.any(Function), { authority: 'trusted-host' })
-    await fiber.dispose()
+    const fiber = ctx.plugin({ inject: [...inject], Config, apply }, { remoteManagement: true } as never)
+    await expect(fiber.await()).rejects.toThrow('remoteManagement is not supported by the alpha.1 Connection service')
     await ctx.fiber.dispose()
   })
 })

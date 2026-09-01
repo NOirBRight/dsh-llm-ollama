@@ -227,7 +227,7 @@ const outlineButtonStyle: CSSProperties = {
 /** Render the Ollama model candidate picker in the frame overlay layer. */
 export function OllamaModelPicker(props: OllamaModelPickerProps): ReactNode {
   const { t } = props
-  const snapshot = props.useOllamaModelPicker(value => value)
+  const snapshot = props.useOllamaModelPicker((value: OllamaModelPickerSnapshot) => value)
   useEffect(() => {
     if (!snapshot.open) return
     const onKeyDown = (event: KeyboardEvent): void => {
@@ -259,7 +259,7 @@ export function OllamaModelPicker(props: OllamaModelPickerProps): ReactNode {
             ? <p style={errorStyle} role="alert">{snapshot.error}</p>
             : (
               <ul style={listStyle}>
-                {snapshot.candidates.map(model => (
+                {snapshot.candidates.map((model: OllamaCatalogModelConfig) => (
                   <li key={model.id}>
                     <label style={candidateStyle}>
                       <input

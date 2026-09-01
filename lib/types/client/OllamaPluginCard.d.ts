@@ -1,6 +1,6 @@
 /** Ollama Cloud connection and model-catalog card for Plugin configuration. */
 import type { ReactNode } from 'react';
-import type { SettingsScope } from './shim.js';
+import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client';
 import type { InjectFace, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
 import type { OllamaCatalogModelConfig, OllamaDiscoveryRequest, OllamaSaveResult, OllamaSettingsView, OllamaUsageView } from '../client-contract.ts';
 import type { OllamaSettingsKey } from './locales.ts';

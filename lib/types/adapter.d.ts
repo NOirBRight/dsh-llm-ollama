@@ -7,7 +7,7 @@
  * @module dsh-llm-ollama/adapter
  */
 import { LlmAdapter } from '@deepseek-ai/dsh-llm';
-import type { GenerateOptions, LlmModelInfo, LlmProviderInfo, LlmResolvedModelInfo, ResolvedRetryPolicy, StreamChunk } from '@deepseek-ai/dsh-llm';
+import type { GenerateOptions, LlmImageRequestPricing, LlmModelInfo, LlmProviderInfo, LlmResolvedModelInfo, PreparedAdapterCall, ResolvedRetryPolicy, StreamChunk } from '@deepseek-ai/dsh-llm';
 import type { CredentialRef } from '@deepseek-ai/dsh-credentials';
 import type { AttachmentStore } from '@deepseek-ai/dsh-attachment';
 import { discoverModels } from './discovery.ts';
@@ -88,19 +88,21 @@ export declare class OllamaAdapter extends LlmAdapter {
     listModels(provider: string): Promise<readonly LlmModelInfo[]>;
     resolveModel(provider: string, model: string, signal?: AbortSignal): Promise<LlmResolvedModelInfo>;
     stream(options: GenerateOptions): AsyncIterable<StreamChunk>;
-    /** Own the method so rc.2 Host can call it even when this class extends an older LlmAdapter. */
-    prepareCall(provider: string, model: string, signal?: AbortSignal): Promise<{
-        model: LlmResolvedModelInfo;
-        stream: (options: GenerateOptions) => AsyncGenerator<StreamChunk, void, unknown>;
-    }>;
     /**
-     * Declare neutral request-image pricing when a newer Host calls an adapter built against an older peer instance.
-     * The method omits `override` so the same source compiles against pre-alpha peer types.
-     * @param _provider - provider route.
-     * @param _model - model id.
-     * @returns `undefined` so the Host uses heuristic image pricing.
+     * Wrap the delegated alpha preparation with Ollama request policy and wire normalization.
+     * @param provider - provider route.
+     * @param model - configured model id.
+     * @param signal - optional cancellation signal.
+     * @returns prepared model metadata and an Ollama-normalizing stream.
      */
-    imageRequestPricing(_provider: string, _model: string): undefined;
+    prepareCall(provider: string, model: string, signal?: AbortSignal): Promise<PreparedAdapterCall>;
+    /**
+     * Ollama does not publish provider-owned image-request pricing.
+     * @param _provider - provider route.
+     * @param _model - exact model id.
+     * @returns undefined so the Host uses neutral image estimation.
+     */
+    imageRequestPricing(_provider: string, _model: string): LlmImageRequestPricing | undefined;
 }
 /** Re-export the discovery function for the plugin entry. */
 export { discoverModels };

@@ -6,45 +6,42 @@ Ollama Cloud integration for DeepSeek Harness. Chat uses Ollama's OpenAI-compati
 
 The package root exposes the Cordis plugin contract and OllamaAdapter. The same artifact exports ./client, which contributes the Ollama Cloud card under Settings → LLM Providers. The protocol and capability split is recorded in [ADR 0001](docs/adr/0001-separate-chat-protocol-from-ollama-capabilities.md).
 
+
+## LLM Providers UI ownership
+
+The **LLM Providers** Settings page (`settings.section` `id: providers` with child `settings.provider.item`) and the shared `llm-providers` order store are owned solely by `dsh-llm-providers-ui`.
+
+- This plugin contributes only its keyed card (`key: llm-ollama`) and its Host ``llm`` route; it does not install the page or the shared `llm-providers` namespace. Load order with the owner does not matter.
+- Without the owner (Headless or Web without `dsh-llm-providers-ui`): the Host model route `ollama-cloud` still works; in Web the Providers page and this card are omitted and the browser console warns that the owner is missing. A Web release composition test rejects a bundle graph that ships provider cards without the owner.
+- The nav globe glyph is a temporary `alpha.1` DOM adapter owned only by `dsh-llm-providers-ui` (`src/client/nav-icon.ts`); this plugin does not ship that adapter.
+
+Install `dsh-llm-providers-ui` explicitly in the profile alongside provider plugins (see that package's `cordis.patch.yml`).
+
+
 ## Installation
 
-DeepSeek Harness 0.1.0-rc.6 or later is required. Install directly from GitHub:
+DeepSeek Harness 0.1.2-alpha.1 or later is required. Install directly from GitHub:
 
 ~~~sh
-dsh plugin --profile web add github:NOirBRight/dsh-llm-ollama#v0.6.13
+dsh plugin --profile web add github:NOirBRight/dsh-llm-ollama#v0.6.15
 dsh web
 ~~~
 
-The repository tracks release-ready lib artifacts, so GitHub installation needs no build-script allowlist. A source checkout can use a link installation after running pnpm run build.
+The repository tracks release-ready lib artifacts, so GitHub installation needs no build-script allowlist.
 
-## Remote management
+## Connection authentication and trust
 
-By default the plugin's settings RPC is loopback-only. When you open DSH from a non-loopback host (e.g. https://dsh.noirbright.top or http://192.168.50.75:3080), the card shows “A remote browser cannot edit plugin settings”.
+This plugin registers its management, discovery, and usage channel with the official alpha1 Connection service through the two-argument `rpc.handle(channel, handler)` API. It does not select an authority; alpha1 Connection owns one authenticated policy for every Host RPC method and WebSocket stream.
 
-To allow editing from a trusted host:
+Each process mints a random launch token. DSH accepts that token only on `GET /`, exchanges it for an authority-bound signed browser-session cookie, and redirects to the clean root URL. Missing, expired, malformed, or wrong-authority cookies are rejected with 401 before RPC dispatch; static assets remain public. Query tokens outside the root exchange and Authorization-header tokens are not accepted.
 
-1. Add to your profile patch (`~/.dsh/profiles/web/cordis.patch.yml` for production, `~/.dsh-lab/profiles/web/cordis.patch.yml` for lab):
-   ```yaml
-   - id: llm-ollama
-     config:
-       remoteManagement: true
-   ```
-2. Restart DSH with the host allowlisted:
-   ```sh
-   dsh web --trusted-host 192.168.50.75 --trusted-host dsh.noirbright.top
-   ```
-   The current production launch already uses `--trusted-host 192.168.50.75 --trusted-host dsh.noirbright.top`; add any additional host you use.
-3. Refresh the browser. Settings saved on the host keep working for remote sessions.
-
-Without `remoteManagement: true`, use `ssh -L 3080:127.0.0.1:3080 user@host` and open `http://127.0.0.1:3080`.
+Before authentication, Connection requires a loopback Host or a Host matching the configured `--trusted-host` entries. An attached Origin must equal Host, and cross-site Fetch Metadata is rejected. Host/Origin failures return 403; a trusted but unauthenticated request returns 401. For a remote browser, configure the Host allowlist and use the authenticated URL printed by DSH, or use an SSH loopback tunnel. This plugin never bypasses the Host trust or browser-session checks.
 
 ## Web configuration
 
-Open Settings → LLM Providers → Ollama Cloud. The card manages settings and credentials through the provider RPC. The Host never returns the stored literal, and settings revision fencing does not pretend that credential storage and settings save are one atomic transaction.
+Open Settings → LLM Providers → Ollama Cloud. The card manages settings and credentials through the authenticated Connection RPC. The Host never returns the stored literal, and settings revision fencing does not pretend that credential storage and settings save are one atomic transaction.
 
-For external-auth or non-loopback deployments, set `remoteManagement: true` in the provider config and restart the Host. Start the deployment with a trusted host (for example `dsh web --trusted-host <origin>`); keep it `false` unless you explicitly need remote management. When disabled, configure the key from a loopback browser or export `OLLAMA_API_KEY` in the launching environment. Changes to `remoteManagement` require a Host restart.
-
-Fetch available models opens the picker immediately and calls the package's loopback-only RPC with the unsaved endpoint and one-shot key. The Host reads /api/tags, deduplicates native ids, and enriches up to six models concurrently through /api/show. The native metadata supplies context windows plus vision, thinking, and tools flags that /v1/models does not expose. The picker starts from the current draft selection, preserves current-only models, and replaces the draft catalog when applied.
+Fetch available models opens the picker immediately and calls the authenticated Connection RPC with the unsaved endpoint and one-shot key. The Host reads /api/tags, deduplicates native ids, and enriches up to six models concurrently through /api/show. The native metadata supplies context windows plus vision, thinking, and tools flags that /v1/models does not expose. The picker starts from the current draft selection, preserves current-only models, and replaces the draft catalog when applied.
 
 The card's Cloud usage section mirrors ollama.com/settings: the Host reads GET <baseURL>/usage with the stored (or one-shot) key and renders the session and weekly windows as consumed-percentage meters plus the week's per-model request counts. The credential never crosses to the browser. A self-hosted endpoint without the usage surface shows an unsupported note instead of an error.
 
@@ -161,3 +158,51 @@ Stable model, system prompt, history, tool definitions, and request options pres
 - Ollama does not publish per-model output limits.
 - Logs written by v0.2.2 and earlier can contain duplicate ollama-call-0 values; existing logs are not migrated.
 - Structured-output format configuration is not exposed by this package.
+
+## Release installation (Latest)
+
+Ollama Cloud chat, model discovery, and Web Search/Fetch providers. The release artifact targets DeepSeek Harness 0.1.2-alpha.1 and contains built Host/Client files only; it has no sibling-repository source, workstation path, link:, or workspace: dependency.
+
+The dsh-llm-providers-ui package owns the LLM Providers page, navigation, and shared order store. This package owns only its provider card, models, credentials, and Host route. Install the Owner first for Web; headless Host routing works without the Owner.
+
+Owner (Latest):
+
+~~~sh
+dsh plugin --profile web add --force \
+  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/latest/download/dsh-llm-providers-ui.tgz
+~~~
+
+Provider (Latest):
+
+~~~sh
+dsh plugin --profile web add --force \
+  https://github.com/NOirBRight/dsh-llm-ollama/releases/latest/download/dsh-llm-ollama.tgz
+~~~
+
+Fixed versions (reproducible):
+
+~~~sh
+dsh plugin --profile web add --force \
+  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/v0.1.2/dsh-llm-providers-ui.tgz
+dsh plugin --profile web add --force \
+  https://github.com/NOirBRight/dsh-llm-ollama/releases/download/v0.6.15/dsh-llm-ollama.tgz
+~~~
+
+Update, uninstall, and verify:
+
+~~~sh
+# Update to the latest Release
+dsh plugin --profile web add --force \
+  https://github.com/NOirBRight/dsh-llm-ollama/releases/latest/download/dsh-llm-ollama.tgz
+# Verify the loaded version
+dsh plugin --profile web list
+dsh plugin --profile web doctor
+# Uninstall only this plugin
+dsh plugin --profile web remove dsh-llm-ollama
+~~~
+
+Configuration: use the plugin section in Settings for Web UI plugins, or the profile dsh.profile.bundles entry for Host-only plugins. Start with this README's minimal YAML/JSON example and provide credentials/backend addresses explicitly.
+
+Rollback: rerun the fixed v0.6.15 command, verify the profile list, then restart the Web service once. Inspect journalctl --user -u dsh-web.service and dsh plugin --profile web doctor; never put a source checkout in the production profile.
+
+Release and integrity: [v0.6.15](https://github.com/NOirBRight/dsh-llm-ollama/releases/tag/v0.6.15) · [SHA256SUMS](https://github.com/NOirBRight/dsh-llm-ollama/releases/download/v0.6.15/SHA256SUMS).

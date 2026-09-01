@@ -71,7 +71,7 @@ The Host plugin registers:
 - the OllamaAdapter route;
 - the llm-ollama settings section;
 - Ollama Web Search and Fetch providers;
-- the loopback-only discovery/save RPC.
+- the authenticated Connection RPC for settings, discovery, and usage; Host trust and browser-session authentication remain Connection policy.
 
 The client plugin contributes the Ollama Cloud settings card and model picker. The settings namespace, credential reference, provider id, and picker behavior remain stable across the chat protocol migration.
 

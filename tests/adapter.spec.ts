@@ -1,5 +1,7 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { CallId, createMessage, createUserMessage, ReasoningEffortId, resolveRetryPolicy } from '@deepseek-ai/dsh-llm'
+import { ToolCallId, createMessage, createUserMessage, ReasoningEffortId, resolveRetryPolicy } from '@deepseek-ai/dsh-llm'
 import type { GenerateOptions, Message, StreamChunk } from '@deepseek-ai/dsh-llm'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import {
@@ -235,6 +237,17 @@ describe('narrowOllamaEscalationSchemas', () => {
   })
 })
 
+
+describe('OllamaAdapter alpha preparation contract', () => {
+  it('delegates preparation directly without a legacy fallback', () => {
+    const source = readFileSync(resolve('src/adapter.ts'), 'utf8')
+    const prepareCall = source.slice(source.indexOf('override async prepareCall'))
+    expect(prepareCall).toContain('const inner = await delegate.prepareCall(provider, model, signal)')
+    expect(prepareCall).not.toMatch(/typeof .*prepareCall/u)
+    expect(prepareCall).not.toContain('resolveModel(')
+    expect(source).not.toContain('unknown as')
+  })
+})
 
 describe('OllamaAdapter escalation narrowing via stream', () => {
   const toolWithEscalation = {
@@ -476,8 +489,8 @@ describe('OllamaAdapter.stream', () => {
     const firstCall = first.find(c => c.type === 'block-end' && c.block.type === 'tool-call')
     const secondCall = second.find(c => c.type === 'block-end' && c.block.type === 'tool-call')
 
-    expect(firstCall).toMatchObject({ block: { id: CallId('call_first'), name: 'get_weather' } })
-    expect(secondCall).toMatchObject({ block: { id: CallId('call_second'), name: 'get_weather' } })
+    expect(firstCall).toMatchObject({ block: { id: ToolCallId('call_first'), name: 'get_weather' } })
+    expect(secondCall).toMatchObject({ block: { id: ToolCallId('call_second'), name: 'get_weather' } })
     expect(first.at(-1)).toMatchObject({ type: 'finish', reason: { kind: 'tool-calls' } })
   })
 
@@ -488,12 +501,12 @@ describe('OllamaAdapter.stream', () => {
       createUserMessage({ content: [{ type: 'text', text: 'weather?' }], source: { kind: 'user' } }),
       createMessage({
         role: 'assistant',
-        content: [{ type: 'tool-call', id: CallId('call_first'), name: 'get_weather', arguments: JSON.stringify({ city: 'NYC' }) }],
+        content: [{ type: 'tool-call', id: ToolCallId('call_first'), name: 'get_weather', arguments: JSON.stringify({ city: 'NYC' }) }],
         source: { kind: 'plugin', plugin: 'test' },
       }),
       createUserMessage({
-        content: [{ type: 'tool-result', toolCallId: CallId('call_first'), content: [{ type: 'text', text: '22°C' }] }],
-        source: { kind: 'tool', callId: CallId('call_first') },
+        content: [{ type: 'tool-result', toolCallId: ToolCallId('call_first'), content: [{ type: 'text', text: '22°C' }] }],
+        source: { kind: 'tool', callId: ToolCallId('call_first') },
       }),
     ]
 

@@ -21,7 +21,7 @@ import { ollamaThinkingLevelMap } from './reasoning.ts'
 /** Safe output capability used when Ollama does not disclose one. */
 export const OLLAMA_DEFAULT_MODEL_MAX_TOKENS = 32_768
 
-/** Mirrors the RC1 official 20MiB request image bound; rc8 hosts ignore this extra field at runtime. */
+/** Request image byte bound used by the Ollama Cloud profile. */
 const DEFAULT_MAX_REQUEST_IMAGE_BYTES = 20 * 1024 * 1024
 
 const NO_COST = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
@@ -120,7 +120,6 @@ export function createOllamaPiAiProfile(
     defaultInput: ['text' as const],
     streamIdleTimeoutMs: connection.streamIdleTimeoutMs,
     maxRequestImageBytes: DEFAULT_MAX_REQUEST_IMAGE_BYTES,
-    /** Required by the rc.2 resolved-profile contract for deterministic request images. */
     requestImagePixelBudget: 2048 * 2048,
     requestImageMaxBytes: 1024 * 1024,
     retryPolicy: connection.retryPolicy,

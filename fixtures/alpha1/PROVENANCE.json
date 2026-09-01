@@ -1,0 +1,2835 @@
+{
+  "source": {
+    "repository": "https://github.com/deepseek-ai/deepseek-harness.git",
+    "checkout": "dsh-v0.1.2-alpha.1-cd5ef8148158",
+    "tag": "dsh-v0.1.2-alpha.1",
+    "commit": "cd5ef8148158c3a752a658978873241fdf8e2bbc",
+    "packagesBuiltFromThisCheckout": true
+  },
+  "ownerArtifact": {
+    "package": "dsh-llm-providers-ui",
+    "version": "0.1.1",
+    "file": "dsh-llm-providers-ui-0.1.1-35cfc1b816dc3f9c176d10b67fdf0fc450fbaf9ae6d47d3253709de278165a39.tgz",
+    "bytes": 29120,
+    "sha256": "35cfc1b816dc3f9c176d10b67fdf0fc450fbaf9ae6d47d3253709de278165a39"
+  },
+  "graph": {
+    "officialAlpha1Packages": [
+      "@deepseek-ai/dsh-agent",
+      "@deepseek-ai/dsh-agent-default-model",
+      "@deepseek-ai/dsh-agent-presets",
+      "@deepseek-ai/dsh-api-gateway",
+      "@deepseek-ai/dsh-api-remotes",
+      "@deepseek-ai/dsh-api-session-controller",
+      "@deepseek-ai/dsh-api-settings-controller",
+      "@deepseek-ai/dsh-api-workspace-controller",
+      "@deepseek-ai/dsh-atomic-write",
+      "@deepseek-ai/dsh-attachment",
+      "@deepseek-ai/dsh-authorization",
+      "@deepseek-ai/dsh-brand",
+      "@deepseek-ai/dsh-client-connection",
+      "@deepseek-ai/dsh-client-locale",
+      "@deepseek-ai/dsh-client-ui-layout",
+      "@deepseek-ai/dsh-client-ui-renderer",
+      "@deepseek-ai/dsh-client-ui-session",
+      "@deepseek-ai/dsh-client-ui-settings",
+      "@deepseek-ai/dsh-client-ui-settings-plugins",
+      "@deepseek-ai/dsh-client-ui-slots",
+      "@deepseek-ai/dsh-client-ui-theme",
+      "@deepseek-ai/dsh-code-runtime",
+      "@deepseek-ai/dsh-commands",
+      "@deepseek-ai/dsh-compaction",
+      "@deepseek-ai/dsh-cordis-host-runner",
+      "@deepseek-ai/dsh-credentials",
+      "@deepseek-ai/dsh-file-reference",
+      "@deepseek-ai/dsh-fs",
+      "@deepseek-ai/dsh-goal",
+      "@deepseek-ai/dsh-home-paths",
+      "@deepseek-ai/dsh-host-directory-picker",
+      "@deepseek-ai/dsh-host-plugin-inventory",
+      "@deepseek-ai/dsh-host-webserver",
+      "@deepseek-ai/dsh-invariants",
+      "@deepseek-ai/dsh-jobs",
+      "@deepseek-ai/dsh-launch-environment",
+      "@deepseek-ai/dsh-llm",
+      "@deepseek-ai/dsh-llm-pi-ai",
+      "@deepseek-ai/dsh-message-feedback",
+      "@deepseek-ai/dsh-native-command",
+      "@deepseek-ai/dsh-output-retention",
+      "@deepseek-ai/dsh-sandbox",
+      "@deepseek-ai/dsh-sandbox-policy",
+      "@deepseek-ai/dsh-scope",
+      "@deepseek-ai/dsh-session",
+      "@deepseek-ai/dsh-session-persistence",
+      "@deepseek-ai/dsh-session-projection",
+      "@deepseek-ai/dsh-session-projection-cache",
+      "@deepseek-ai/dsh-session-query",
+      "@deepseek-ai/dsh-session-reference",
+      "@deepseek-ai/dsh-session-title",
+      "@deepseek-ai/dsh-settings",
+      "@deepseek-ai/dsh-skill",
+      "@deepseek-ai/dsh-storage",
+      "@deepseek-ai/dsh-storage-domain",
+      "@deepseek-ai/dsh-subagent",
+      "@deepseek-ai/dsh-system-prompt",
+      "@deepseek-ai/dsh-timeout",
+      "@deepseek-ai/dsh-tool-todo",
+      "@deepseek-ai/dsh-tools",
+      "@deepseek-ai/dsh-typert-protocol",
+      "@deepseek-ai/dsh-typert-registry",
+      "@deepseek-ai/dsh-user-approval",
+      "@deepseek-ai/dsh-user-questions",
+      "@deepseek-ai/dsh-util-crypto",
+      "@deepseek-ai/dsh-util-workspace-path",
+      "@deepseek-ai/dsh-web",
+      "@deepseek-ai/dsh-workspace"
+    ],
+    "thirdPartyPackages": [
+      "@anthropic-ai/sdk@0.91.1",
+      "@aws-crypto/crc32@5.2.0",
+      "@aws-crypto/sha256-browser@5.2.0",
+      "@aws-crypto/sha256-js@5.2.0",
+      "@aws-crypto/supports-web-crypto@5.2.0",
+      "@aws-crypto/util@5.2.0",
+      "@aws-sdk/client-bedrock-runtime@3.1048.0",
+      "@aws-sdk/core@3.974.20",
+      "@aws-sdk/core@3.977.9",
+      "@aws-sdk/credential-provider-env@3.972.46",
+      "@aws-sdk/credential-provider-env@3.972.70",
+      "@aws-sdk/credential-provider-http@3.972.48",
+      "@aws-sdk/credential-provider-http@3.972.72",
+      "@aws-sdk/credential-provider-ini@3.972.53",
+      "@aws-sdk/credential-provider-ini@3.973.15",
+      "@aws-sdk/credential-provider-login@3.972.52",
+      "@aws-sdk/credential-provider-login@3.972.77",
+      "@aws-sdk/credential-provider-node@3.972.55",
+      "@aws-sdk/credential-provider-node@3.972.81",
+      "@aws-sdk/credential-provider-process@3.972.46",
+      "@aws-sdk/credential-provider-process@3.972.70",
+      "@aws-sdk/credential-provider-sso@3.972.52",
+      "@aws-sdk/credential-provider-sso@3.973.14",
+      "@aws-sdk/credential-provider-web-identity@3.972.52",
+      "@aws-sdk/credential-provider-web-identity@3.972.76",
+      "@aws-sdk/eventstream-handler-node@3.972.21",
+      "@aws-sdk/eventstream-handler-node@3.972.34",
+      "@aws-sdk/middleware-eventstream@3.972.17",
+      "@aws-sdk/middleware-eventstream@3.972.29",
+      "@aws-sdk/middleware-websocket@3.972.28",
+      "@aws-sdk/middleware-websocket@3.972.52",
+      "@aws-sdk/nested-clients@3.997.20",
+      "@aws-sdk/nested-clients@3.997.44",
+      "@aws-sdk/signature-v4-multi-region@3.996.34",
+      "@aws-sdk/signature-v4-multi-region@3.996.46",
+      "@aws-sdk/token-providers@3.1048.0",
+      "@aws-sdk/token-providers@3.1066.0",
+      "@aws-sdk/token-providers@3.1116.0",
+      "@aws-sdk/types@3.973.12",
+      "@aws-sdk/types@3.974.5",
+      "@aws-sdk/util-locate-window@3.965.10",
+      "@aws-sdk/util-locate-window@3.965.7",
+      "@aws-sdk/xml-builder@3.972.29",
+      "@aws-sdk/xml-builder@3.972.40",
+      "@aws/lambda-invoke-store@0.2.4",
+      "@aws/lambda-invoke-store@0.3.0",
+      "@babel/runtime@7.29.7",
+      "@babel/runtime@8.0.0-rc.6",
+      "@cfworker/json-schema@4.1.1",
+      "@deepseek-ai/cordis-plugin-include@1.0.6",
+      "@deepseek-ai/cordis-plugin-loader@1.0.2",
+      "@deepseek-ai/cordis@4.0.1",
+      "@deepseek-ai/cosmokit@1.8.2",
+      "@deepseek-ai/schemastery@3.18.1",
+      "@earendil-works/pi-ai@0.84.2",
+      "@earendil-works/pi-ai@0.84.4",
+      "@earendil-works/pi-telemetry@0.84.2",
+      "@earendil-works/pi-telemetry@0.84.4",
+      "@google/genai@1.52.0",
+      "@hono/node-server@1.19.14",
+      "@modelcontextprotocol/sdk@1.29.0",
+      "@nodable/entities@2.2.0",
+      "@opentelemetry/api@1.9.0",
+      "@protobufjs/aspromise@1.1.2",
+      "@protobufjs/base64@1.1.2",
+      "@protobufjs/codegen@2.0.5",
+      "@protobufjs/eventemitter@1.1.1",
+      "@protobufjs/fetch@1.1.1",
+      "@protobufjs/float@1.0.2",
+      "@protobufjs/path@1.1.2",
+      "@protobufjs/pool@1.1.0",
+      "@protobufjs/utf8@1.1.1",
+      "@protobufjs/utf8@1.1.2",
+      "@smithy/core@3.24.7",
+      "@smithy/core@3.33.3",
+      "@smithy/credential-provider-imds@4.3.9",
+      "@smithy/credential-provider-imds@4.5.2",
+      "@smithy/fetch-http-handler@5.4.7",
+      "@smithy/fetch-http-handler@5.7.2",
+      "@smithy/is-array-buffer@2.2.0",
+      "@smithy/node-http-handler@4.11.3",
+      "@smithy/node-http-handler@4.7.3",
+      "@smithy/node-http-handler@4.7.8",
+      "@smithy/signature-v4@5.4.7",
+      "@smithy/signature-v4@5.7.3",
+      "@smithy/types@4.14.4",
+      "@smithy/types@4.17.2",
+      "@smithy/util-buffer-from@2.2.0",
+      "@smithy/util-utf8@2.3.0",
+      "@standard-schema/spec@1.1.0",
+      "@types/node@22.20.0",
+      "@types/node@26.4.0",
+      "@types/retry@0.12.0",
+      "accepts@2.0.0",
+      "agent-base@7.1.4",
+      "ajv-formats@3.0.1",
+      "ajv@8.20.0",
+      "anynum@1.0.0",
+      "argparse@2.0.1",
+      "base64-js@1.5.1",
+      "bignumber.js@9.3.1",
+      "body-parser@2.3.0",
+      "bowser@2.14.1",
+      "buffer-equal-constant-time@1.0.1",
+      "bytes@3.1.2",
+      "call-bind-apply-helpers@1.0.2",
+      "call-bound@1.0.4",
+      "clsx@2.1.1",
+      "compressible@2.0.18",
+      "compression@1.8.1",
+      "content-disposition@1.1.0",
+      "content-type@1.0.5",
+      "content-type@2.1.0",
+      "cookie-signature@1.2.2",
+      "cookie@0.7.2",
+      "cors@2.8.6",
+      "cross-spawn@7.0.6",
+      "data-uri-to-buffer@4.0.1",
+      "debug@2.6.9",
+      "debug@4.4.3",
+      "depd@2.0.0",
+      "dunder-proto@1.0.1",
+      "ecdsa-sig-formatter@1.0.11",
+      "ee-first@1.1.1",
+      "encodeurl@2.0.0",
+      "es-define-property@1.0.1",
+      "es-errors@1.3.0",
+      "es-object-atoms@1.1.2",
+      "escape-html@1.0.3",
+      "etag@1.8.1",
+      "eventsource-parser@3.1.0",
+      "eventsource@3.0.7",
+      "express-rate-limit@8.5.2",
+      "express@5.2.1",
+      "extend@3.0.2",
+      "fast-deep-equal@3.1.3",
+      "fast-uri@3.1.3",
+      "fast-xml-builder@1.2.0",
+      "fast-xml-parser@5.7.3",
+      "fetch-blob@3.2.0",
+      "finalhandler@2.1.1",
+      "formdata-polyfill@4.0.10",
+      "forwarded@0.2.0",
+      "fresh@2.0.0",
+      "function-bind@1.1.2",
+      "gaxios@7.3.1",
+      "gcp-metadata@8.1.2",
+      "get-intrinsic@1.3.0",
+      "get-proto@1.0.1",
+      "google-auth-library@10.9.1",
+      "google-logging-utils@1.1.3",
+      "gopd@1.2.0",
+      "has-symbols@1.1.0",
+      "hasown@2.0.4",
+      "hono@4.12.29",
+      "http-errors@2.0.1",
+      "http-proxy-agent@7.0.2",
+      "https-proxy-agent@7.0.6",
+      "iconv-lite@0.7.3",
+      "inherits@2.0.4",
+      "ip-address@10.2.0",
+      "ipaddr.js@1.9.1",
+      "is-promise@4.0.0",
+      "isexe@2.0.0",
+      "jose@6.2.3",
+      "js-tokens@4.0.0",
+      "js-yaml@4.3.1",
+      "js-yaml@4.3.2",
+      "json-bigint@1.0.0",
+      "json-schema-to-ts@3.1.1",
+      "json-schema-traverse@1.0.0",
+      "json-schema-typed@8.0.2",
+      "jwa@2.0.1",
+      "jws@4.0.1",
+      "long@5.3.2",
+      "loose-envify@1.4.0",
+      "math-intrinsics@1.1.0",
+      "media-typer@1.1.0",
+      "merge-descriptors@2.0.0",
+      "mime-db@1.54.0",
+      "mime-types@3.0.2",
+      "ms@2.0.0",
+      "ms@2.1.3",
+      "ms@3.0.0-canary.202508261828",
+      "negotiator@0.6.4",
+      "negotiator@1.0.0",
+      "negotiator@1.1.0",
+      "node-addon-native-custom-loader@0.1.5",
+      "node-addon-require-builtin-darwin-arm64@0.1.5",
+      "node-addon-require-builtin-darwin-x64@0.1.5",
+      "node-addon-require-builtin-linux-arm64-gnu@0.1.5",
+      "node-addon-require-builtin-linux-x64-gnu@0.1.5",
+      "node-addon-require-builtin-win32-arm64-msvc@0.1.5",
+      "node-addon-require-builtin-win32-ia32-msvc@0.1.5",
+      "node-addon-require-builtin-win32-x64-msvc@0.1.5",
+      "node-addon-require-builtin@0.1.5",
+      "node-domexception@1.0.0",
+      "node-fetch@3.3.2",
+      "node-fetch@4.0.0-beta.4",
+      "object-assign@4.1.1",
+      "object-inspect@1.13.4",
+      "on-finished@2.4.1",
+      "on-headers@1.1.0",
+      "once@1.4.0",
+      "openai@6.40.0",
+      "p-retry@4.6.2",
+      "parseurl@1.3.3",
+      "partial-json@0.1.7",
+      "path-expression-matcher@1.5.0",
+      "path-key@3.1.1",
+      "path-to-regexp@8.4.2",
+      "pkce-challenge@5.0.1",
+      "protobufjs@7.6.4",
+      "protobufjs@7.6.6",
+      "proxy-addr@2.0.7",
+      "qs@6.15.3",
+      "range-parser@1.3.0",
+      "raw-body@3.0.2",
+      "react-dom@18.3.1",
+      "react@18.3.1",
+      "require-from-string@2.0.2",
+      "retry@0.13.1",
+      "router@2.2.0",
+      "safe-buffer@5.2.1",
+      "safer-buffer@2.1.2",
+      "scheduler@0.23.2",
+      "send@1.2.1",
+      "serve-static@2.2.1",
+      "setprototypeof@1.2.0",
+      "shebang-command@2.0.0",
+      "shebang-regex@3.0.0",
+      "side-channel-list@1.0.1",
+      "side-channel-map@1.0.1",
+      "side-channel-weakmap@1.0.2",
+      "side-channel@1.1.1",
+      "statuses@2.0.2",
+      "strnum@2.4.0",
+      "toidentifier@1.0.1",
+      "ts-algebra@2.0.0",
+      "tslib@2.8.1",
+      "type-is@2.1.0",
+      "typebox@1.3.7",
+      "undici-types@6.21.0",
+      "undici-types@8.3.0",
+      "unpipe@1.0.0",
+      "use-sync-external-store@1.2.0",
+      "vary@1.1.2",
+      "web-streams-polyfill@3.0.3",
+      "web-streams-polyfill@4.0.0-beta.3",
+      "which@2.0.2",
+      "wrappy@1.0.2",
+      "ws@8.21.0",
+      "ws@8.21.3",
+      "xml-naming@0.1.0",
+      "zod-to-json-schema@3.25.2",
+      "zod@4.4.3",
+      "zod@4.5.4"
+    ],
+    "optionalPlatformGaps": [
+      {
+        "parent": "ws@8.21.0",
+        "section": "peerDependencies",
+        "name": "bufferutil",
+        "spec": "^4.0.1",
+        "platform": "native",
+        "reason": "optional native acceleration package is platform-specific"
+      },
+      {
+        "parent": "ws@8.21.0",
+        "section": "peerDependencies",
+        "name": "utf-8-validate",
+        "spec": ">=5.0.2",
+        "platform": "native",
+        "reason": "optional native acceleration package is platform-specific"
+      },
+      {
+        "parent": "ws@8.21.3",
+        "section": "peerDependencies",
+        "name": "bufferutil",
+        "spec": "^4.0.1",
+        "platform": "native",
+        "reason": "optional native acceleration package is platform-specific"
+      },
+      {
+        "parent": "ws@8.21.3",
+        "section": "peerDependencies",
+        "name": "utf-8-validate",
+        "spec": ">=5.0.2",
+        "platform": "native",
+        "reason": "optional native acceleration package is platform-specific"
+      }
+    ],
+    "multiVersionPackages": {
+      "@aws-sdk/core": [
+        "3.974.20",
+        "3.977.9"
+      ],
+      "@aws-sdk/credential-provider-env": [
+        "3.972.46",
+        "3.972.70"
+      ],
+      "@aws-sdk/credential-provider-http": [
+        "3.972.48",
+        "3.972.72"
+      ],
+      "@aws-sdk/credential-provider-ini": [
+        "3.972.53",
+        "3.973.15"
+      ],
+      "@aws-sdk/credential-provider-login": [
+        "3.972.52",
+        "3.972.77"
+      ],
+      "@aws-sdk/credential-provider-node": [
+        "3.972.55",
+        "3.972.81"
+      ],
+      "@aws-sdk/credential-provider-process": [
+        "3.972.46",
+        "3.972.70"
+      ],
+      "@aws-sdk/credential-provider-sso": [
+        "3.972.52",
+        "3.973.14"
+      ],
+      "@aws-sdk/credential-provider-web-identity": [
+        "3.972.52",
+        "3.972.76"
+      ],
+      "@aws-sdk/eventstream-handler-node": [
+        "3.972.21",
+        "3.972.34"
+      ],
+      "@aws-sdk/middleware-eventstream": [
+        "3.972.17",
+        "3.972.29"
+      ],
+      "@aws-sdk/middleware-websocket": [
+        "3.972.28",
+        "3.972.52"
+      ],
+      "@aws-sdk/nested-clients": [
+        "3.997.20",
+        "3.997.44"
+      ],
+      "@aws-sdk/signature-v4-multi-region": [
+        "3.996.34",
+        "3.996.46"
+      ],
+      "@aws-sdk/token-providers": [
+        "3.1048.0",
+        "3.1066.0",
+        "3.1116.0"
+      ],
+      "@aws-sdk/types": [
+        "3.973.12",
+        "3.974.5"
+      ],
+      "@aws-sdk/util-locate-window": [
+        "3.965.10",
+        "3.965.7"
+      ],
+      "@aws-sdk/xml-builder": [
+        "3.972.29",
+        "3.972.40"
+      ],
+      "@aws/lambda-invoke-store": [
+        "0.2.4",
+        "0.3.0"
+      ],
+      "@babel/runtime": [
+        "7.29.7",
+        "8.0.0-rc.6"
+      ],
+      "@earendil-works/pi-ai": [
+        "0.84.2",
+        "0.84.4"
+      ],
+      "@earendil-works/pi-telemetry": [
+        "0.84.2",
+        "0.84.4"
+      ],
+      "@protobufjs/utf8": [
+        "1.1.1",
+        "1.1.2"
+      ],
+      "@smithy/core": [
+        "3.24.7",
+        "3.33.3"
+      ],
+      "@smithy/credential-provider-imds": [
+        "4.3.9",
+        "4.5.2"
+      ],
+      "@smithy/fetch-http-handler": [
+        "5.4.7",
+        "5.7.2"
+      ],
+      "@smithy/node-http-handler": [
+        "4.11.3",
+        "4.7.3",
+        "4.7.8"
+      ],
+      "@smithy/signature-v4": [
+        "5.4.7",
+        "5.7.3"
+      ],
+      "@smithy/types": [
+        "4.14.4",
+        "4.17.2"
+      ],
+      "@types/node": [
+        "22.20.0",
+        "26.4.0"
+      ],
+      "content-type": [
+        "1.0.5",
+        "2.1.0"
+      ],
+      "debug": [
+        "2.6.9",
+        "4.4.3"
+      ],
+      "js-yaml": [
+        "4.3.1",
+        "4.3.2"
+      ],
+      "ms": [
+        "2.0.0",
+        "2.1.3",
+        "3.0.0-canary.202508261828"
+      ],
+      "negotiator": [
+        "0.6.4",
+        "1.0.0",
+        "1.1.0"
+      ],
+      "node-fetch": [
+        "3.3.2",
+        "4.0.0-beta.4"
+      ],
+      "protobufjs": [
+        "7.6.4",
+        "7.6.6"
+      ],
+      "undici-types": [
+        "6.21.0",
+        "8.3.0"
+      ],
+      "web-streams-polyfill": [
+        "3.0.3",
+        "4.0.0-beta.3"
+      ],
+      "ws": [
+        "8.21.0",
+        "8.21.3"
+      ],
+      "zod": [
+        "4.4.3",
+        "4.5.4"
+      ]
+    }
+  },
+  "tarballs": {
+    "cfworker-json-schema-4.1.1.tgz": {
+      "package": "@cfworker/json-schema",
+      "version": "4.1.1",
+      "bytes": 26705,
+      "sha256": "f3a8076b450505f0671fa78a6efb5e7726883e2c6dfb13b29261872803610203",
+      "source": "registry"
+    },
+    "accepts-2.0.0.tgz": {
+      "package": "accepts",
+      "version": "2.0.0",
+      "bytes": 5460,
+      "sha256": "173d915f7d88df8cd4db2129a030c3b1c9cafd3b7aee5b89465bf3ad18372542",
+      "source": "registry"
+    },
+    "agent-base-7.1.4.tgz": {
+      "package": "agent-base",
+      "version": "7.1.4",
+      "bytes": 7627,
+      "sha256": "a0fac70e9e6a14b24bad2481807d82955c87a3483665957107fa086ef9d22028",
+      "source": "registry"
+    },
+    "ajv-8.20.0.tgz": {
+      "package": "ajv",
+      "version": "8.20.0",
+      "bytes": 216963,
+      "sha256": "bb582b709d42c080bae9b21911eaebc8657bd616502e2e17b9a25f24d10473ca",
+      "source": "registry"
+    },
+    "ajv-formats-3.0.1.tgz": {
+      "package": "ajv-formats",
+      "version": "3.0.1",
+      "bytes": 15999,
+      "sha256": "f4d6980fd367381fd29199066911e863db8d97496613b6c2c5b91563a150acc5",
+      "source": "registry"
+    },
+    "anthropic-ai-sdk-0.91.1.tgz": {
+      "package": "@anthropic-ai/sdk",
+      "version": "0.91.1",
+      "bytes": 641458,
+      "sha256": "fbd7e8849ea8fcea70db76ccddfa5da5fb783bc66eb1b1fb73ed479a1560cce6",
+      "source": "registry"
+    },
+    "anynum-1.0.0.tgz": {
+      "package": "anynum",
+      "version": "1.0.0",
+      "bytes": 7802,
+      "sha256": "6d4f7bf16a40104bb8fbe46f46b772d85df68454f7be2aa12ed4b22208df1aaf",
+      "source": "registry"
+    },
+    "argparse-2.0.1.tgz": {
+      "package": "argparse",
+      "version": "2.0.1",
+      "bytes": 37671,
+      "sha256": "1eeab48f4a303ba31d823955470e55d2dbe30d65066dd653c32dff2c5335daa4",
+      "source": "registry"
+    },
+    "aws-crypto-crc32-5.2.0.tgz": {
+      "package": "@aws-crypto/crc32",
+      "version": "5.2.0",
+      "bytes": 10872,
+      "sha256": "ac4ce8d9d488e36b0c23e3cdc1c4bad4b81e12f2bc9e679ad49ae35f773d693f",
+      "source": "registry"
+    },
+    "aws-crypto-sha256-browser-5.2.0.tgz": {
+      "package": "@aws-crypto/sha256-browser",
+      "version": "5.2.0",
+      "bytes": 11297,
+      "sha256": "82dc999a2ecae74d5d5744d86057c67ec36ce18a2cd7ed867b69ae3f37302004",
+      "source": "registry"
+    },
+    "aws-crypto-sha256-js-5.2.0.tgz": {
+      "package": "@aws-crypto/sha256-js",
+      "version": "5.2.0",
+      "bytes": 25398,
+      "sha256": "d31a3cf8830163435c915dbecf979c290d82cc9d111feef33020aa86f166d56d",
+      "source": "registry"
+    },
+    "aws-crypto-supports-web-crypto-5.2.0.tgz": {
+      "package": "@aws-crypto/supports-web-crypto",
+      "version": "5.2.0",
+      "bytes": 8063,
+      "sha256": "a0440db60e62e65fd081defa8b2909c4233ee3f9f4f3c57ea4265d5559010a56",
+      "source": "registry"
+    },
+    "aws-crypto-util-5.2.0.tgz": {
+      "package": "@aws-crypto/util",
+      "version": "5.2.0",
+      "bytes": 9149,
+      "sha256": "97d9cfee43333b03b313112c14285da7bb66b8a9a558b7372ccd9651482137b7",
+      "source": "registry"
+    },
+    "aws-lambda-invoke-store-0.2.4.tgz": {
+      "package": "@aws/lambda-invoke-store",
+      "version": "0.2.4",
+      "bytes": 7959,
+      "sha256": "f6bcaef73a748772ac68fa667d5cd5df966d9d924716ea8ccbe5a451d4da3159",
+      "source": "registry"
+    },
+    "aws-sdk-client-bedrock-runtime-3.1048.0.tgz": {
+      "package": "@aws-sdk/client-bedrock-runtime",
+      "version": "3.1048.0",
+      "bytes": 110922,
+      "sha256": "3a6ab758e0b3e811678449f9e4b0e77cf2db71601902adc743a01bad9d419862",
+      "source": "registry"
+    },
+    "aws-sdk-core-3.974.20.tgz": {
+      "package": "@aws-sdk/core",
+      "version": "3.974.20",
+      "bytes": 101414,
+      "sha256": "0c808f5a626f92622d05182fdecb8482f9c91b8624ed9b4bea8aa63e5c24cf35",
+      "source": "registry"
+    },
+    "aws-sdk-credential-provider-env-3.972.46.tgz": {
+      "package": "@aws-sdk/credential-provider-env",
+      "version": "3.972.46",
+      "bytes": 6288,
+      "sha256": "1e26f000a07d790921d449df7c4b6c47a8d7e990b0af3a67589b31974b8e783d",
+      "source": "registry"
+    },
+    "aws-sdk-credential-provider-env-3.972.70.tgz": {
+      "package": "@aws-sdk/credential-provider-env",
+      "version": "3.972.70",
+      "bytes": 6301,
+      "sha256": "0a81fd770c8807da5854029f75712627f8ef9ab072789f10fe75bdc388affe35",
+      "source": "registry"
+    },
+    "aws-sdk-credential-provider-http-3.972.48.tgz": {
+      "package": "@aws-sdk/credential-provider-http",
+      "version": "3.972.48",
+      "bytes": 5681,
+      "sha256": "c6ad9455693f38ec7ad967f9cfa4472e88a871efd6ef69b195483447097a39ae",
+      "source": "registry"
+    },
+    "aws-sdk-credential-provider-ini-3.972.53.tgz": {
+      "package": "@aws-sdk/credential-provider-ini",
+      "version": "3.972.53",
+      "bytes": 11394,
+      "sha256": "616e87822e032b0e84599f53f553ec723b6a76627f31465bb5101083485e43b8",
+      "source": "registry"
+    },
+    "aws-sdk-credential-provider-login-3.972.52.tgz": {
+      "package": "@aws-sdk/credential-provider-login",
+      "version": "3.972.52",
+      "bytes": 6376,
+      "sha256": "5ddd634cf06b5478b70fa176703f5c5c502154b13fc5d0e7e512bc282f85f1ed",
+      "source": "registry"
+    },
+    "aws-sdk-credential-provider-login-3.972.77.tgz": {
+      "package": "@aws-sdk/credential-provider-login",
+      "version": "3.972.77",
+      "bytes": 6366,
+      "sha256": "c8f4051ea210213c7bf60fc0c4e757e295c5e33ea3addc1ef98b678690661234",
+      "source": "registry"
+    },
+    "aws-sdk-credential-provider-node-3.972.55.tgz": {
+      "package": "@aws-sdk/credential-provider-node",
+      "version": "3.972.55",
+      "bytes": 9860,
+      "sha256": "14e1f14888b80352082c7a08189ab60b19ba0dbfadb16671f1cb961bff94c5d7",
+      "source": "registry"
+    },
+    "aws-sdk-credential-provider-process-3.972.46.tgz": {
+      "package": "@aws-sdk/credential-provider-process",
+      "version": "3.972.46",
+      "bytes": 7172,
+      "sha256": "a95445180d4de1e9b1cd9f41bb0ad78cf80d4df9918c2a389b6de3164516e3e8",
+      "source": "registry"
+    },
+    "aws-sdk-credential-provider-sso-3.972.52.tgz": {
+      "package": "@aws-sdk/credential-provider-sso",
+      "version": "3.972.52",
+      "bytes": 9227,
+      "sha256": "463ecfbffd1a9c9bcb35e8f594141319e7843e46f9712ec739ef6ba7c7e6e3d0",
+      "source": "registry"
+    },
+    "aws-sdk-credential-provider-web-identity-3.972.52.tgz": {
+      "package": "@aws-sdk/credential-provider-web-identity",
+      "version": "3.972.52",
+      "bytes": 9446,
+      "sha256": "451622cb2223bbeb8f0ebc7c21a8cea32e56dd6bac17da4f516bf08c02efc845",
+      "source": "registry"
+    },
+    "aws-sdk-eventstream-handler-node-3.972.21.tgz": {
+      "package": "@aws-sdk/eventstream-handler-node",
+      "version": "3.972.21",
+      "bytes": 7595,
+      "sha256": "438513e428b243f751c72a3ff64651fde372dc5011fd75afa47bd8f0a6e0cf1b",
+      "source": "registry"
+    },
+    "aws-sdk-middleware-eventstream-3.972.17.tgz": {
+      "package": "@aws-sdk/middleware-eventstream",
+      "version": "3.972.17",
+      "bytes": 6647,
+      "sha256": "21b2c8a974637f5892d96a8be7e4ae2706ce4a017e698a7b4edcab0cc412176b",
+      "source": "registry"
+    },
+    "aws-sdk-middleware-websocket-3.972.28.tgz": {
+      "package": "@aws-sdk/middleware-websocket",
+      "version": "3.972.28",
+      "bytes": 12889,
+      "sha256": "7c4c8b9bd41fdf3d1f3e53257c756f621a4760615d2443eca9b9a8af484362b2",
+      "source": "registry"
+    },
+    "aws-sdk-middleware-websocket-3.972.52.tgz": {
+      "package": "@aws-sdk/middleware-websocket",
+      "version": "3.972.52",
+      "bytes": 12788,
+      "sha256": "4cd547557c41c2de0b876067bf9ea8ff8fc807d3761ee2c56fa2461ab4237973",
+      "source": "registry"
+    },
+    "aws-sdk-nested-clients-3.997.20.tgz": {
+      "package": "@aws-sdk/nested-clients",
+      "version": "3.997.20",
+      "bytes": 86831,
+      "sha256": "ef870f01a80f526424de1e81876a954c731563082e74d424a408bd13badc1f17",
+      "source": "registry"
+    },
+    "aws-sdk-nested-clients-3.997.44.tgz": {
+      "package": "@aws-sdk/nested-clients",
+      "version": "3.997.44",
+      "bytes": 90935,
+      "sha256": "bfadc489d5343dc2908b9bb8c0a462d85fbca0ed6a41f7cf73b7c67ed5303951",
+      "source": "registry"
+    },
+    "aws-sdk-signature-v4-multi-region-3.996.34.tgz": {
+      "package": "@aws-sdk/signature-v4-multi-region",
+      "version": "3.996.34",
+      "bytes": 8446,
+      "sha256": "c8a3ce45e7155df5b40eba97e28c74ca84554399900d493cb24ab1549a86221d",
+      "source": "registry"
+    },
+    "aws-sdk-signature-v4-multi-region-3.996.46.tgz": {
+      "package": "@aws-sdk/signature-v4-multi-region",
+      "version": "3.996.46",
+      "bytes": 8369,
+      "sha256": "1c42034f02a90a2cd974903106fd8c282c78e1974f1fe5a66f6cbd93c50083dc",
+      "source": "registry"
+    },
+    "aws-sdk-token-providers-3.1048.0.tgz": {
+      "package": "@aws-sdk/token-providers",
+      "version": "3.1048.0",
+      "bytes": 10125,
+      "sha256": "2e0fb493727193dba58c2c2a2f5482717c9710e4262e3bff258b0f10eadd2052",
+      "source": "registry"
+    },
+    "aws-sdk-token-providers-3.1066.0.tgz": {
+      "package": "@aws-sdk/token-providers",
+      "version": "3.1066.0",
+      "bytes": 10131,
+      "sha256": "74701a999bf9a11f9150958ed90e5deac61596e41c6708833467850661f391c7",
+      "source": "registry"
+    },
+    "aws-sdk-token-providers-3.1116.0.tgz": {
+      "package": "@aws-sdk/token-providers",
+      "version": "3.1116.0",
+      "bytes": 10040,
+      "sha256": "a237c326d8b8abdc6e8ee7d8fe0b4a41843e65be6d5a791421d16cd26b1bf001",
+      "source": "registry"
+    },
+    "aws-sdk-types-3.973.12.tgz": {
+      "package": "@aws-sdk/types",
+      "version": "3.973.12",
+      "bytes": 14171,
+      "sha256": "5020e0e45a516f6282dd623717ad883571a8077720df6812a2d0aa8f03223554",
+      "source": "registry"
+    },
+    "aws-sdk-util-locate-window-3.965.10.tgz": {
+      "package": "@aws-sdk/util-locate-window",
+      "version": "3.965.10",
+      "bytes": 5171,
+      "sha256": "9a995e1990c1a92776fc7f1ea08e219218fde5cf0811b35b88f1448f985a2995",
+      "source": "registry"
+    },
+    "aws-sdk-util-locate-window-3.965.7.tgz": {
+      "package": "@aws-sdk/util-locate-window",
+      "version": "3.965.7",
+      "bytes": 5213,
+      "sha256": "eccb174cd6997cbd4c66aedc13e2b8d0ec8e1c7ea121d7db8d11f891c1a168b8",
+      "source": "registry"
+    },
+    "aws-sdk-xml-builder-3.972.29.tgz": {
+      "package": "@aws-sdk/xml-builder",
+      "version": "3.972.29",
+      "bytes": 13128,
+      "sha256": "7e776be4ad1dcd58aacd18d49c2026712802911bd217122a77756703bf1e3ff5",
+      "source": "registry"
+    },
+    "babel-runtime-7.29.7.tgz": {
+      "package": "@babel/runtime",
+      "version": "7.29.7",
+      "bytes": 36147,
+      "sha256": "ff75b84f70981bbca1d820b3152670d27e73e75f11768d250c123c82845b8914",
+      "source": "registry"
+    },
+    "babel-runtime-8.0.0-rc.6.tgz": {
+      "package": "@babel/runtime",
+      "version": "8.0.0-rc.6",
+      "bytes": 32137,
+      "sha256": "18f57fdb7db650bc5afaf4d399c37811d4f04ac24ec0016c73880ee8e295f943",
+      "source": "registry"
+    },
+    "base64-js-1.5.1.tgz": {
+      "package": "base64-js",
+      "version": "1.5.1",
+      "bytes": 4132,
+      "sha256": "5091cc518ddf22ef156dd5151d1782098b0c7a2fad979c0f9931bda04d269703",
+      "source": "registry"
+    },
+    "bignumber.js-9.3.1.tgz": {
+      "package": "bignumber.js",
+      "version": "9.3.1",
+      "bytes": 79843,
+      "sha256": "f5a943ea290e66f64cb9adaaed2ff1b7c4ee02a4cca9d709d9c9c6c222512e82",
+      "source": "registry"
+    },
+    "body-parser-2.3.0.tgz": {
+      "package": "body-parser",
+      "version": "2.3.0",
+      "bytes": 11135,
+      "sha256": "031d7f6c5142e31be91d36a43f541f02a505943e3b871aa44ef5fb6939be258e",
+      "source": "registry"
+    },
+    "bowser-2.14.1.tgz": {
+      "package": "bowser",
+      "version": "2.14.1",
+      "bytes": 64403,
+      "sha256": "9701a257a1e25b0caf9740a48979d4d955e61c0e4dfa7508d4a789eb4e41caa0",
+      "source": "registry"
+    },
+    "buffer-equal-constant-time-1.0.1.tgz": {
+      "package": "buffer-equal-constant-time",
+      "version": "1.0.1",
+      "bytes": 2301,
+      "sha256": "057fd0ec2f9621160d9274d476b3dbeb1f39890a521577f56120b09fbae0fc56",
+      "source": "registry"
+    },
+    "bytes-3.1.2.tgz": {
+      "package": "bytes",
+      "version": "3.1.2",
+      "bytes": 4531,
+      "sha256": "e4dd3e76a487f29c2305b96c7ce0840e89a5a3337c4efffd5c247e99c2ceedfb",
+      "source": "registry"
+    },
+    "call-bind-apply-helpers-1.0.2.tgz": {
+      "package": "call-bind-apply-helpers",
+      "version": "1.0.2",
+      "bytes": 6067,
+      "sha256": "073e9ff9dbabedf5c128020a677381e9f92c90188d118830b30a7656a7c37d2c",
+      "source": "registry"
+    },
+    "call-bound-1.0.4.tgz": {
+      "package": "call-bound",
+      "version": "1.0.4",
+      "bytes": 6382,
+      "sha256": "32086f492fedf1b9b34811f2ee50ca2cca53da5c783f7cd5f939d3f1e86bbd32",
+      "source": "registry"
+    },
+    "clsx-2.1.1.tgz": {
+      "package": "clsx",
+      "version": "2.1.1",
+      "bytes": 3936,
+      "sha256": "6320104b491ca645120e8f99589ce663ff1fb337ba80066719a011bd95320303",
+      "source": "registry"
+    },
+    "compressible-2.0.18.tgz": {
+      "package": "compressible",
+      "version": "2.0.18",
+      "bytes": 3057,
+      "sha256": "22c44fc3f0bba415215efea5171b93dee0772b1c6307f16d7df09f437fe35e77",
+      "source": "registry"
+    },
+    "compression-1.8.1.tgz": {
+      "package": "compression",
+      "version": "1.8.1",
+      "bytes": 9213,
+      "sha256": "871674d45b53482fae81687f547e4c677c5c637eaa066ec8c412178b549dd5d5",
+      "source": "registry"
+    },
+    "content-disposition-1.1.0.tgz": {
+      "package": "content-disposition",
+      "version": "1.1.0",
+      "bytes": 7066,
+      "sha256": "2f8b1925a8b123a86606c11322fc10aafc1dd85f2860fffe32893e20aef4093c",
+      "source": "registry"
+    },
+    "content-type-1.0.5.tgz": {
+      "package": "content-type",
+      "version": "1.0.5",
+      "bytes": 3945,
+      "sha256": "ea1de76a6f8fbb045ea0487a94838b85aa6bbc4fd805293f41e6e2bc2257dffd",
+      "source": "registry"
+    },
+    "content-type-2.1.0.tgz": {
+      "package": "content-type",
+      "version": "2.1.0",
+      "bytes": 6227,
+      "sha256": "47a08ee5ddf87a96dd263aa942c5e04b2c5d26251e04affa8ace6804b450d758",
+      "source": "registry"
+    },
+    "cookie-0.7.2.tgz": {
+      "package": "cookie",
+      "version": "0.7.2",
+      "bytes": 8220,
+      "sha256": "76b160f8251c630a116a2e0acf03557b0758975b2c0df800607248fc9aae9e20",
+      "source": "registry"
+    },
+    "cookie-signature-1.2.2.tgz": {
+      "package": "cookie-signature",
+      "version": "1.2.2",
+      "bytes": 2537,
+      "sha256": "e5cc1399a26293fd24a28daaece3dacb78917c2153d623ec45e1b75ace350fa3",
+      "source": "registry"
+    },
+    "core-3.33.3.tgz": {
+      "package": "@smithy/core",
+      "version": "3.33.3",
+      "bytes": 378369,
+      "sha256": "3fdfde668cab2a1cc97e674dc9e93e6f9c49641690a83b6c4abffce0560c4a87",
+      "source": "registry"
+    },
+    "core-3.977.9.tgz": {
+      "package": "@aws-sdk/core",
+      "version": "3.977.9",
+      "bytes": 105061,
+      "sha256": "553bcc5d5191b751bdf56f21a793f320fa9383c2e026b6dcc3988903e50eab8b",
+      "source": "registry"
+    },
+    "cors-2.8.6.tgz": {
+      "package": "cors",
+      "version": "2.8.6",
+      "bytes": 6456,
+      "sha256": "32242124397140800e1238a252b4cd74669d58c81b655d9d3721789b56c1c1ff",
+      "source": "registry"
+    },
+    "credential-provider-http-3.972.72.tgz": {
+      "package": "@aws-sdk/credential-provider-http",
+      "version": "3.972.72",
+      "bytes": 5167,
+      "sha256": "2fdfd740abe32d1bf93fd12fe3bc7aecdf253b56ed00de36555178b6eb681a53",
+      "source": "registry"
+    },
+    "credential-provider-imds-4.5.2.tgz": {
+      "package": "@smithy/credential-provider-imds",
+      "version": "4.5.2",
+      "bytes": 17698,
+      "sha256": "01ce4798200c999ed16b932c90adfa63e83cd9b437bd8809c3ac68ced0310612",
+      "source": "registry"
+    },
+    "credential-provider-ini-3.973.15.tgz": {
+      "package": "@aws-sdk/credential-provider-ini",
+      "version": "3.973.15",
+      "bytes": 11287,
+      "sha256": "35541ba7111317142d225fd619bd51060c756dca7c369f40798ebf5066230dd6",
+      "source": "registry"
+    },
+    "credential-provider-node-3.972.81.tgz": {
+      "package": "@aws-sdk/credential-provider-node",
+      "version": "3.972.81",
+      "bytes": 9808,
+      "sha256": "1cf0f9bb0d6bba1caece3a78b3ab4cbe0f15d66f06c5556947e40d7891ffedb2",
+      "source": "registry"
+    },
+    "credential-provider-process-3.972.70.tgz": {
+      "package": "@aws-sdk/credential-provider-process",
+      "version": "3.972.70",
+      "bytes": 7122,
+      "sha256": "09d70d8a8a3ce2191f4cdcac64b0f509d5a59e9953f915ea5d1736f4ebffda13",
+      "source": "registry"
+    },
+    "credential-provider-sso-3.973.14.tgz": {
+      "package": "@aws-sdk/credential-provider-sso",
+      "version": "3.973.14",
+      "bytes": 9088,
+      "sha256": "f6d80983c384e09007dcebc89e465941ffee15d6949ad52a782b6851369ec8de",
+      "source": "registry"
+    },
+    "credential-provider-web-identity-3.972.76.tgz": {
+      "package": "@aws-sdk/credential-provider-web-identity",
+      "version": "3.972.76",
+      "bytes": 9079,
+      "sha256": "633b4cf4eaf7dda2eaeadf67cad5e721982fe2103169911ba7dff18455269235",
+      "source": "registry"
+    },
+    "cross-spawn-7.0.6.tgz": {
+      "package": "cross-spawn",
+      "version": "7.0.6",
+      "bytes": 6255,
+      "sha256": "188c320cdc413adfec03098fda72af7a9b02152ba13d3a8f87f172d93ced38ea",
+      "source": "registry"
+    },
+    "data-uri-to-buffer-4.0.1.tgz": {
+      "package": "data-uri-to-buffer",
+      "version": "4.0.1",
+      "bytes": 3721,
+      "sha256": "d119e8f695c4cf045add30c3d9fea81192333d00ab18e2204cd0a7e8069048a4",
+      "source": "registry"
+    },
+    "debug-2.6.9.tgz": {
+      "package": "debug",
+      "version": "2.6.9",
+      "bytes": 16781,
+      "sha256": "1de1426fbd3c19849ebd6ff6667dda965212139ab0e0a217da17c28857bb8168",
+      "source": "registry"
+    },
+    "debug-4.4.3.tgz": {
+      "package": "debug",
+      "version": "4.4.3",
+      "bytes": 13449,
+      "sha256": "89c1ac9c946ee8905a875837114528e97eeae35e03be3190584b2216af43e4a7",
+      "source": "registry"
+    },
+    "dsh-llm-providers-ui-0.1.1-35cfc1b816dc3f9c176d10b67fdf0fc450fbaf9ae6d47d3253709de278165a39.tgz": {
+      "package": "dsh-llm-providers-ui",
+      "version": "0.1.1",
+      "bytes": 29120,
+      "sha256": "35cfc1b816dc3f9c176d10b67fdf0fc450fbaf9ae6d47d3253709de278165a39",
+      "source": "frozen-owner"
+    },
+    "deepseek-ai-cordis-4.0.1.tgz": {
+      "package": "@deepseek-ai/cordis",
+      "version": "4.0.1",
+      "bytes": 55438,
+      "sha256": "b07c794237ef9ec3b3bf86c8bdd8de456ae5c5ed45fd495f827884bc27c3c338",
+      "source": "registry"
+    },
+    "deepseek-ai-cordis-plugin-include-1.0.6.tgz": {
+      "package": "@deepseek-ai/cordis-plugin-include",
+      "version": "1.0.6",
+      "bytes": 8950,
+      "sha256": "4ea73247692d9e018e2c94a92cd894ffe5a3e41abb884fd416a61849be6c7680",
+      "source": "registry"
+    },
+    "deepseek-ai-cordis-plugin-loader-1.0.2.tgz": {
+      "package": "@deepseek-ai/cordis-plugin-loader",
+      "version": "1.0.2",
+      "bytes": 23397,
+      "sha256": "72469cdbafa429df5c9f6eb95310e491c25689bdf8d879ffa9aaff9936bf8134",
+      "source": "registry"
+    },
+    "deepseek-ai-cosmokit-1.8.2.tgz": {
+      "package": "@deepseek-ai/cosmokit",
+      "version": "1.8.2",
+      "bytes": 13976,
+      "sha256": "74986e0a5d2b7984607d5913974b083d30efe31ac5c25a8b1efc90b06fa4ec90",
+      "source": "registry"
+    },
+    "deepseek-ai-dsh-agent-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-agent",
+      "version": "0.1.2-alpha.1",
+      "bytes": 43127,
+      "sha256": "5c0132913c8f388b0eac243e3e0370f1d8dca07689ead4090fb6541e5fff3620",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-agent-default-model-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-agent-default-model",
+      "version": "0.1.2-alpha.1",
+      "bytes": 8298,
+      "sha256": "071725b8c5d948072d4476a2056581834a2d8f0a40b9aa7a1706bc6e919f9966",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-agent-presets-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-agent-presets",
+      "version": "0.1.2-alpha.1",
+      "bytes": 128844,
+      "sha256": "8848759ffb5774c64b25937e50fc2df373d2ed6b01f2b5b5501a06164d670895",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-api-gateway-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-api-gateway",
+      "version": "0.1.2-alpha.1",
+      "bytes": 75465,
+      "sha256": "1cdc9b977d7a6e4df8cfe632306a53d04cfa58d41d3e6bc225a9086c28db2bf9",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-api-remotes-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-api-remotes",
+      "version": "0.1.2-alpha.1",
+      "bytes": 53120,
+      "sha256": "d402386fe45e5c462425b54cd8f213438b710f5391d8c5b3960f742cce08e90b",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-api-session-controller-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-api-session-controller",
+      "version": "0.1.2-alpha.1",
+      "bytes": 175077,
+      "sha256": "6f1162c151c69b406e00b9b38986cae53614388e66d4815188cd7825eade6e31",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-api-settings-controller-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-api-settings-controller",
+      "version": "0.1.2-alpha.1",
+      "bytes": 23252,
+      "sha256": "bea72e6d0bb48fa1e1e99233f997f29ebd979640992134215849ac02a5666ef1",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-api-workspace-controller-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-api-workspace-controller",
+      "version": "0.1.2-alpha.1",
+      "bytes": 32711,
+      "sha256": "2f4e48768d5ccc8261b13b8e79694a188a1ed15ee16977fa70205db71ab62783",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-atomic-write-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-atomic-write",
+      "version": "0.1.2-alpha.1",
+      "bytes": 10578,
+      "sha256": "79e9112009a8e2d8a5dc79bc0c565425c67a6b99293bb7c82fc508f29920750f",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-attachment-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-attachment",
+      "version": "0.1.2-alpha.1",
+      "bytes": 17789,
+      "sha256": "52489b6fd0493f9fdae9c8215d5fb244b13b4e6f8f9cc2adc48f3ef1b0b3ea70",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-authorization-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-authorization",
+      "version": "0.1.2-alpha.1",
+      "bytes": 21715,
+      "sha256": "44a52ef89b8c3f3d60b2adededf58d44a086295c316ba3c0b52fd3c03d79f9f9",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-brand-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-brand",
+      "version": "0.1.2-alpha.1",
+      "bytes": 6245,
+      "sha256": "285217a5f5d2dd70bfc1137ba8d88bbde0f0aeae57b8bc8304bec6251eee3778",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-client-connection-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-client-connection",
+      "version": "0.1.2-alpha.1",
+      "bytes": 67223,
+      "sha256": "4d0738fc38ec86d2d98edcf3956a55d6ec427745f046500c0990a10a42c19c35",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-client-locale-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-client-locale",
+      "version": "0.1.2-alpha.1",
+      "bytes": 29892,
+      "sha256": "6d41144f0b69add70ca6b26ee3e46ecbf6ab9d13f13745a5ad7dc0c257506156",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-client-ui-layout-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-client-ui-layout",
+      "version": "0.1.2-alpha.1",
+      "bytes": 18242,
+      "sha256": "b54592480a3ffdda7eb19a14296b8091920f797736fff4963f02a2d5cc1bf5a5",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-client-ui-renderer-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-client-ui-renderer",
+      "version": "0.1.2-alpha.1",
+      "bytes": 27249,
+      "sha256": "3f4836f95745c7f530d06e1c4e5571b885124043f2b84ef88c582be7d35e7538",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-client-ui-session-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-client-ui-session",
+      "version": "0.1.2-alpha.1",
+      "bytes": 8704,
+      "sha256": "f9caa90673c2a4beb129b52ad9fa41916055c31370e3853a053fe726851158bc",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-client-ui-settings-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-client-ui-settings",
+      "version": "0.1.2-alpha.1",
+      "bytes": 29279,
+      "sha256": "1c3cc84d2eba4e7b1f4c80d3e45113549b4728c36b1f0e3a8e701311cbbc8dc0",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-client-ui-settings-plugins-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-client-ui-settings-plugins",
+      "version": "0.1.2-alpha.1",
+      "bytes": 37600,
+      "sha256": "434034de8b248844247c5bc6617e82772880d3080074eff63a546f6b47f43a21",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-client-ui-slots-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-client-ui-slots",
+      "version": "0.1.2-alpha.1",
+      "bytes": 26470,
+      "sha256": "a79d2a84690a71836984d84f133c901e538a8a27cf4609a0d70b40717f491938",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-client-ui-theme-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-client-ui-theme",
+      "version": "0.1.2-alpha.1",
+      "bytes": 35500,
+      "sha256": "4cf8a3fc06c3473171f504c1a40db8ecb0ce115655d2981fc9387594e89544d0",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-code-runtime-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-code-runtime",
+      "version": "0.1.2-alpha.1",
+      "bytes": 15152,
+      "sha256": "a057a2811d5554cc917f7ae822701666f0f179eb9c89e72fc3904a5740f5a5a8",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-commands-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-commands",
+      "version": "0.1.2-alpha.1",
+      "bytes": 30692,
+      "sha256": "656b25c3fcc81030b27ccee497fb93ae9cd28f5ff8b6e3d1cec380fce4104ecb",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-compaction-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-compaction",
+      "version": "0.1.2-alpha.1",
+      "bytes": 25655,
+      "sha256": "3d75b0cca9557b2169a1c05a7813a716e9c52bff04624b672ad1686aaeba3e64",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-cordis-host-runner-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-cordis-host-runner",
+      "version": "0.1.2-alpha.1",
+      "bytes": 97746,
+      "sha256": "ef416bfa2fd776097084e5a1e2a9e015c0407c6328bbb7021d4588432fa320f1",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-credentials-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-credentials",
+      "version": "0.1.2-alpha.1",
+      "bytes": 20032,
+      "sha256": "25f752460118db156e0a9231a8e53db05f5e97813c80555ebc4de23357c9b0cd",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-file-reference-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-file-reference",
+      "version": "0.1.2-alpha.1",
+      "bytes": 9214,
+      "sha256": "64aa0bcd53507c284ed0e30547ae3c0150f1034c24b4d6dd018a03a7c3326597",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-fs-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-fs",
+      "version": "0.1.2-alpha.1",
+      "bytes": 16310,
+      "sha256": "4367c1afee3cf516a95ceb30d1e10659ae507585b72f3dd1e5f6eba25881b605",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-goal-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-goal",
+      "version": "0.1.2-alpha.1",
+      "bytes": 42973,
+      "sha256": "35f1265bf510ab98f499c40689ea44ee377733890599e1a34c81bc032e0d293a",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-home-paths-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-home-paths",
+      "version": "0.1.2-alpha.1",
+      "bytes": 8487,
+      "sha256": "b7d6627b1b7fa6de6192134271e4463c2c730921827e46c10fe22135c08e36e2",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-host-directory-picker-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-host-directory-picker",
+      "version": "0.1.2-alpha.1",
+      "bytes": 9931,
+      "sha256": "71d9899ed711e06cffaf91f32b765a783483f4ad3e5caef9e3fb0b1ca291dc32",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-host-plugin-inventory-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-host-plugin-inventory",
+      "version": "0.1.2-alpha.1",
+      "bytes": 10342,
+      "sha256": "402946c555628b8c7a1e1201b5c82818ecff677ca076d0059fbf787f1595e7d7",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-host-webserver-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-host-webserver",
+      "version": "0.1.2-alpha.1",
+      "bytes": 15516,
+      "sha256": "7a3fe7bd962c850d856f8e50b64582a06e8556a59b57ea9bff396a6e6a8f157e",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-invariants-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-invariants",
+      "version": "0.1.2-alpha.1",
+      "bytes": 13389,
+      "sha256": "8158af724b80392c1e4aec4dc7e710811a76b61578b40bf59d87592ffc263a47",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-jobs-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-jobs",
+      "version": "0.1.2-alpha.1",
+      "bytes": 16140,
+      "sha256": "41412bdccf92756e4cffce8fe80c130bd2fdbbcba67e3d8f1df43d00cbe90d2e",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-launch-environment-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-launch-environment",
+      "version": "0.1.2-alpha.1",
+      "bytes": 8869,
+      "sha256": "98c6ee14f5de98acdf19f42e36607017950c183449b208565dd383c9e2f4f69f",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-llm-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-llm",
+      "version": "0.1.2-alpha.1",
+      "bytes": 88654,
+      "sha256": "a6be754cf1def642f523f8b144a86c17d522acc89ba92f57075c02e7b8161c3b",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-llm-pi-ai-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-llm-pi-ai",
+      "version": "0.1.2-alpha.1",
+      "bytes": 65620,
+      "sha256": "9fa227c4a70ef5dc1ed661e580fa3e30f7d099ac8bd0285e4430a518db129ac9",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-message-feedback-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-message-feedback",
+      "version": "0.1.2-alpha.1",
+      "bytes": 25554,
+      "sha256": "4b5077b42ed89a8191d2531e5d72bb5a035e8a15cefb595cde370acc41013caf",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-native-command-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-native-command",
+      "version": "0.1.2-alpha.1",
+      "bytes": 9761,
+      "sha256": "06343d5e01940d4ed8315c94beaad7f4755705cfbfe870db82b95ef3bf1bba3a",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-output-retention-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-output-retention",
+      "version": "0.1.2-alpha.1",
+      "bytes": 14864,
+      "sha256": "0a8e5a26a16fbaf491282638fb26594c6fb7bbba9f301c496523d1ae34ff1424",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-sandbox-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-sandbox",
+      "version": "0.1.2-alpha.1",
+      "bytes": 20135,
+      "sha256": "7b96863032b920a88f430f2ebca99c226b8b34e4d22db5bbb5eac7322e0cd0c1",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-sandbox-policy-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-sandbox-policy",
+      "version": "0.1.2-alpha.1",
+      "bytes": 13332,
+      "sha256": "abbf6462505c276c4e61d24e6cfc3c9ebf296e2d89044ef13099978b277c02ed",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-scope-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-scope",
+      "version": "0.1.2-alpha.1",
+      "bytes": 15116,
+      "sha256": "abe87a14d9ac8840a53b30e047a335e0f9e23f385cf3f87caa482c360a6dd57a",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-session-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-session",
+      "version": "0.1.2-alpha.1",
+      "bytes": 85695,
+      "sha256": "bfaa1feb8169f91b921029ed1e34cc2d5de90f691e0ef95feef0b03e9616444e",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-session-persistence-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-session-persistence",
+      "version": "0.1.2-alpha.1",
+      "bytes": 37873,
+      "sha256": "b32e284e830dfd9b51d15e4291ee73ef9c1e6da6eb436201834dac061f133d18",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-session-projection-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-session-projection",
+      "version": "0.1.2-alpha.1",
+      "bytes": 22159,
+      "sha256": "08c0ade8c611669580ef81a95488fd91383feefde5966d7254c0c5c77b206f64",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-session-projection-cache-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-session-projection-cache",
+      "version": "0.1.2-alpha.1",
+      "bytes": 16677,
+      "sha256": "4f15efc5f297af92ae846b02c880ab829caf5fe8000c8075dad7d56394c61085",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-session-query-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-session-query",
+      "version": "0.1.2-alpha.1",
+      "bytes": 28777,
+      "sha256": "08ef234e365a7d46a3282e18a4cd7ce63dd198e96605b96f5ee0f4c617d51467",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-session-reference-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-session-reference",
+      "version": "0.1.2-alpha.1",
+      "bytes": 34873,
+      "sha256": "00d665236f86007383958968dbe7279755229f9482ce380b84094f8531df6029",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-session-title-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-session-title",
+      "version": "0.1.2-alpha.1",
+      "bytes": 24944,
+      "sha256": "cc12aa6645177644547fd70beef2e1a4e8584c997b81add26b0efdf24cd2175a",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-settings-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-settings",
+      "version": "0.1.2-alpha.1",
+      "bytes": 35236,
+      "sha256": "621a7a08dcfe0487b456d0aa2e7df295c889e79409f8dd0a87a97d429ce4c662",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-skill-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-skill",
+      "version": "0.1.2-alpha.1",
+      "bytes": 21510,
+      "sha256": "768af3b1c32d503505d109ee58101a14a8285e40239aca10bb5b35bfb45e2434",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-storage-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-storage",
+      "version": "0.1.2-alpha.1",
+      "bytes": 12949,
+      "sha256": "34cd70fd88e91aded468d35ee297a97ce31b60f14097d621576fe6b9e3d91cfc",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-storage-domain-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-storage-domain",
+      "version": "0.1.2-alpha.1",
+      "bytes": 21438,
+      "sha256": "0518a43a4a1ab641f1daf896914d9d96291089d3715be10aa85290f22589168d",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-subagent-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-subagent",
+      "version": "0.1.2-alpha.1",
+      "bytes": 138520,
+      "sha256": "2101d9ac7e7f1e3dea17d75f1e0031feb0c82d2feb4de9c2f3ada9197e089114",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-system-prompt-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-system-prompt",
+      "version": "0.1.2-alpha.1",
+      "bytes": 19269,
+      "sha256": "4e90e80d64363221b99a15e30c7f4904a62bd7d74ed5e07f1b67be77b8767160",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-timeout-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-timeout",
+      "version": "0.1.2-alpha.1",
+      "bytes": 10892,
+      "sha256": "2abed7a638df6a3650d7e46392d9d7fe731149316b4f564556f6583ed1a400a7",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-tool-todo-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-tool-todo",
+      "version": "0.1.2-alpha.1",
+      "bytes": 18415,
+      "sha256": "2360144cc792ff002629323ddc2a575293baf84724dc390efdacfdd9ee2701f1",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-tools-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-tools",
+      "version": "0.1.2-alpha.1",
+      "bytes": 141047,
+      "sha256": "bca00920c633bed1ef227a0b334e12d9b334bf8b554ef81d2b11173cd496b576",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-typert-protocol-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-typert-protocol",
+      "version": "0.1.2-alpha.1",
+      "bytes": 17539,
+      "sha256": "13b17a1105bb3112987a10d1d3a973d7142457bb9955275faeb95bfb03e36ab3",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-typert-registry-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-typert-registry",
+      "version": "0.1.2-alpha.1",
+      "bytes": 26162,
+      "sha256": "8f54ac0d39326c70728f3200d8d58123430dbebd787cb5c68073ba5d297f7349",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-user-approval-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-user-approval",
+      "version": "0.1.2-alpha.1",
+      "bytes": 19395,
+      "sha256": "16b4d4c9b3436d6cde5b45810484c94e10a32a174658a68a6ff6e04db324807e",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-user-questions-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-user-questions",
+      "version": "0.1.2-alpha.1",
+      "bytes": 10348,
+      "sha256": "c414a7936483f1865b1cb67564acd7ed915645a776f04cb4c9c11a834c06b81b",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-util-crypto-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-util-crypto",
+      "version": "0.1.2-alpha.1",
+      "bytes": 5272,
+      "sha256": "91ad559fcaecb2014a339589a803cf00e97b678f8685a94b0a5038b997b2d927",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-util-workspace-path-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-util-workspace-path",
+      "version": "0.1.2-alpha.1",
+      "bytes": 4301,
+      "sha256": "badbad867fde363998b531c989f1ccfe4299cc98ec01a65f9b366a05f33b19c5",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-web-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-web",
+      "version": "0.1.2-alpha.1",
+      "bytes": 15582,
+      "sha256": "ed54d3ac0d161c6de7dd232aa941030d105886bc953ceff39bcc0dbcd9223b56",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-dsh-workspace-0.1.2-alpha.1.tgz": {
+      "package": "@deepseek-ai/dsh-workspace",
+      "version": "0.1.2-alpha.1",
+      "bytes": 31330,
+      "sha256": "e907c1d8ce48199430e2b3e2758c1b7da552eb388b59ca412401df32fe07876a",
+      "source": "clean-alpha1"
+    },
+    "deepseek-ai-schemastery-3.18.1.tgz": {
+      "package": "@deepseek-ai/schemastery",
+      "version": "3.18.1",
+      "bytes": 25098,
+      "sha256": "a64b5bed661f303cb27a44bc3942142da953460cca44571f89d960f35a74b682",
+      "source": "registry"
+    },
+    "depd-2.0.0.tgz": {
+      "package": "depd",
+      "version": "2.0.0",
+      "bytes": 8350,
+      "sha256": "1f8a0d0377d7b73c2cc8c30f94890e0649a77eec72951a15667dce4d14b752bb",
+      "source": "registry"
+    },
+    "dunder-proto-1.0.1.tgz": {
+      "package": "dunder-proto",
+      "version": "1.0.1",
+      "bytes": 5049,
+      "sha256": "ed1342228c82c10df9921c59d684df516a0cd6ed25b61e5f9d6330895326cfdb",
+      "source": "registry"
+    },
+    "earendil-works-pi-ai-0.84.2.tgz": {
+      "package": "@earendil-works/pi-ai",
+      "version": "0.84.2",
+      "bytes": 755734,
+      "sha256": "381ce40b0927dc98125d1e48769471f72f8e877e347d5c01dcbd1ed903999273",
+      "source": "clean-alpha1-third-party"
+    },
+    "earendil-works-pi-telemetry-0.84.2.tgz": {
+      "package": "@earendil-works/pi-telemetry",
+      "version": "0.84.2",
+      "bytes": 27329,
+      "sha256": "fd0bac7e48af7c81c0d88f85f59200722e9acab095cb6ed795fdff6aa4784570",
+      "source": "registry"
+    },
+    "ecdsa-sig-formatter-1.0.11.tgz": {
+      "package": "ecdsa-sig-formatter",
+      "version": "1.0.11",
+      "bytes": 7101,
+      "sha256": "4cd8beb27324c0725b76a8036fe633ec2a80f040f1aa49cab86c6093fc0c589c",
+      "source": "registry"
+    },
+    "ee-first-1.1.1.tgz": {
+      "package": "ee-first",
+      "version": "1.1.1",
+      "bytes": 2721,
+      "sha256": "2b050ead869e11bb4f45fdbda5eeb49c922c7ce62b4513b58a3bbffead6c9a63",
+      "source": "registry"
+    },
+    "encodeurl-2.0.0.tgz": {
+      "package": "encodeurl",
+      "version": "2.0.0",
+      "bytes": 3020,
+      "sha256": "9b2e418b8851b8f9e7a13d5ada3bd4d3c5ef042885867261f556347d4bbefb29",
+      "source": "registry"
+    },
+    "es-define-property-1.0.1.tgz": {
+      "package": "es-define-property",
+      "version": "1.0.1",
+      "bytes": 4431,
+      "sha256": "5986b8b13121340a8b0d5c7d8f0f961aa80ef3a74515ca9cb7a78d86ed0385f7",
+      "source": "registry"
+    },
+    "es-errors-1.3.0.tgz": {
+      "package": "es-errors",
+      "version": "1.3.0",
+      "bytes": 5338,
+      "sha256": "d14dd1c35b4bd3b8aca3219fd3627eb7f3eb49cf6b4c8a7ca58b91fd7a190993",
+      "source": "registry"
+    },
+    "es-object-atoms-1.1.2.tgz": {
+      "package": "es-object-atoms",
+      "version": "1.1.2",
+      "bytes": 4820,
+      "sha256": "f295c5df6751c65b4b9492b03c88fab5e13419de28a51ecdf17e693b4a421af0",
+      "source": "registry"
+    },
+    "escape-html-1.0.3.tgz": {
+      "package": "escape-html",
+      "version": "1.0.3",
+      "bytes": 1898,
+      "sha256": "2db8de6d863a724f471e43ea3aec3fad9a2e1a798fa8bd70b299e4821654c60a",
+      "source": "registry"
+    },
+    "etag-1.8.1.tgz": {
+      "package": "etag",
+      "version": "1.8.1",
+      "bytes": 4344,
+      "sha256": "5a52a3ea68325575315728d8e0d017c94589bcac0c196f626a8aafe35def418b",
+      "source": "registry"
+    },
+    "eventsource-3.0.7.tgz": {
+      "package": "eventsource",
+      "version": "3.0.7",
+      "bytes": 24507,
+      "sha256": "7c62d4bb196e59b39c5af79e550d6fe4261649a74d9f5e605b071e1da6081c92",
+      "source": "registry"
+    },
+    "eventsource-parser-3.1.0.tgz": {
+      "package": "eventsource-parser",
+      "version": "3.1.0",
+      "bytes": 22597,
+      "sha256": "9bd196b2b4c2096060750e697ba83e60226e5f9f06b3376eb5e2ee4ff2f1ac06",
+      "source": "registry"
+    },
+    "eventstream-handler-node-3.972.34.tgz": {
+      "package": "@aws-sdk/eventstream-handler-node",
+      "version": "3.972.34",
+      "bytes": 7498,
+      "sha256": "8c306adae5ad4a186353cd142cdcc67ebf4f13a2fb82efb275f7cceb52190042",
+      "source": "registry"
+    },
+    "express-5.2.1.tgz": {
+      "package": "express",
+      "version": "5.2.1",
+      "bytes": 22560,
+      "sha256": "1773a16c02b4422653479b9c4d211268f7022bdac0d817b5698535bb485dd005",
+      "source": "registry"
+    },
+    "express-rate-limit-8.5.2.tgz": {
+      "package": "express-rate-limit",
+      "version": "8.5.2",
+      "bytes": 30950,
+      "sha256": "b5378c50798c138fc0cb2a8f7f377b6a4c11ca97c35ca7fe1cf2d834d9193a93",
+      "source": "registry"
+    },
+    "extend-3.0.2.tgz": {
+      "package": "extend",
+      "version": "3.0.2",
+      "bytes": 7251,
+      "sha256": "66d2c14b2a31b20dd15d71db5e4eb0a6aab20c91462270fe90a8da4fea97be52",
+      "source": "registry"
+    },
+    "fast-deep-equal-3.1.3.tgz": {
+      "package": "fast-deep-equal",
+      "version": "3.1.3",
+      "bytes": 3643,
+      "sha256": "8ba3affa608837aba564803aafee53dc58c20317085509edfd9b8fb4acef2142",
+      "source": "registry"
+    },
+    "fast-uri-3.1.3.tgz": {
+      "package": "fast-uri",
+      "version": "3.1.3",
+      "bytes": 29405,
+      "sha256": "6f6691dfcf2a47248d33ae8bf2ad6562ecb4a932993265d43a0fc2346dc04f78",
+      "source": "registry"
+    },
+    "fast-xml-builder-1.2.0.tgz": {
+      "package": "fast-xml-builder",
+      "version": "1.2.0",
+      "bytes": 54599,
+      "sha256": "b9344ea671b80ab2d3d4614883991c8584d36db9607e32b57e56b81b9c8af487",
+      "source": "registry"
+    },
+    "fast-xml-parser-5.7.3.tgz": {
+      "package": "fast-xml-parser",
+      "version": "5.7.3",
+      "bytes": 271790,
+      "sha256": "0cbd7fbfa60fc17386629671c6cb6f32b6762ab0f440c342aa436547b3e964b4",
+      "source": "registry"
+    },
+    "fetch-blob-3.2.0.tgz": {
+      "package": "fetch-blob",
+      "version": "3.2.0",
+      "bytes": 7702,
+      "sha256": "fd1d21c2b3b399b525ddd1ca1b63350c3c20285b535bf14239f61e8ad11598c5",
+      "source": "registry"
+    },
+    "fetch-http-handler-5.7.2.tgz": {
+      "package": "@smithy/fetch-http-handler",
+      "version": "5.7.2",
+      "bytes": 11953,
+      "sha256": "c48e0bd90a6dc27ed96be3ccf8b54569f84c94a078f0e14fc7706d9931520e06",
+      "source": "registry"
+    },
+    "finalhandler-2.1.1.tgz": {
+      "package": "finalhandler",
+      "version": "2.1.1",
+      "bytes": 6341,
+      "sha256": "22949bfc51a620b3598bbe67d65619a9efd781d52704a38d7ba675e248a8b872",
+      "source": "registry"
+    },
+    "formdata-polyfill-4.0.10.tgz": {
+      "package": "formdata-polyfill",
+      "version": "4.0.10",
+      "bytes": 11432,
+      "sha256": "8c97830aff2d0848ffd5cd62d4d3ce8bf44fa50690c9d6936a4ca7ad6b94f8dc",
+      "source": "registry"
+    },
+    "forwarded-0.2.0.tgz": {
+      "package": "forwarded",
+      "version": "0.2.0",
+      "bytes": 2689,
+      "sha256": "95874e3f12fa19021a2008230a20e003837f25643ad029035b4abc5f6eeb6051",
+      "source": "registry"
+    },
+    "fresh-2.0.0.tgz": {
+      "package": "fresh",
+      "version": "2.0.0",
+      "bytes": 4330,
+      "sha256": "ad08397ab05f62b2b507682e23aad699cf8cc33922e0030be0cb640a23277ad7",
+      "source": "registry"
+    },
+    "function-bind-1.1.2.tgz": {
+      "package": "function-bind",
+      "version": "1.1.2",
+      "bytes": 9795,
+      "sha256": "880202346f8531b38ba8e51751d1f3842ac72db70096ed11ed80a1b51096885f",
+      "source": "registry"
+    },
+    "gaxios-7.3.1.tgz": {
+      "package": "gaxios",
+      "version": "7.3.1",
+      "bytes": 107881,
+      "sha256": "439c4c3b435011c92f9c725bd461e2253a4e0c6d780f1b7057a45f591c69999c",
+      "source": "registry"
+    },
+    "gcp-metadata-8.1.2.tgz": {
+      "package": "gcp-metadata",
+      "version": "8.1.2",
+      "bytes": 17285,
+      "sha256": "f9c3f2c868755c074152ecd291733c56c536678b0284c34c3613365bc730db94",
+      "source": "registry"
+    },
+    "get-intrinsic-1.3.0.tgz": {
+      "package": "get-intrinsic",
+      "version": "1.3.0",
+      "bytes": 13800,
+      "sha256": "662e27e54e00fe46fbb08f9f4aacb054e3695dbe72cc14b436613fbcfb780544",
+      "source": "registry"
+    },
+    "get-proto-1.0.1.tgz": {
+      "package": "get-proto",
+      "version": "1.0.1",
+      "bytes": 4474,
+      "sha256": "eb2cc52afb1f1fd82c5fc2a58c2380f0f16fdcdb5631538f3c66887435d70681",
+      "source": "registry"
+    },
+    "google-auth-library-10.9.1.tgz": {
+      "package": "google-auth-library",
+      "version": "10.9.1",
+      "bytes": 131875,
+      "sha256": "499530b85428ea27785a8ea1772458d6b821d2c917cbc1ae8f8843dca9b5327a",
+      "source": "registry"
+    },
+    "google-genai-1.52.0.tgz": {
+      "package": "@google/genai",
+      "version": "1.52.0",
+      "bytes": 2267821,
+      "sha256": "0509f4c2b2de108e4741776b67c21c03fcb174e399ee6058b7c7601b895c1981",
+      "source": "registry"
+    },
+    "google-logging-utils-1.1.3.tgz": {
+      "package": "google-logging-utils",
+      "version": "1.1.3",
+      "bytes": 19040,
+      "sha256": "3a921c0d4e333f94be726fc2c0ce10025f8d87f8fae5affa01a52b2da7970bbd",
+      "source": "registry"
+    },
+    "gopd-1.2.0.tgz": {
+      "package": "gopd",
+      "version": "1.2.0",
+      "bytes": 4584,
+      "sha256": "d536d0de4dd285dc1468fbb7f39334a47ee0eec9c27f9b626a6e71466c9fda82",
+      "source": "registry"
+    },
+    "has-symbols-1.1.0.tgz": {
+      "package": "has-symbols",
+      "version": "1.1.0",
+      "bytes": 8059,
+      "sha256": "4460c7532f28b8df2ddc9a1ec17816d43c24d4b9591dc6c5936b82f7f86ae7c5",
+      "source": "registry"
+    },
+    "hasown-2.0.4.tgz": {
+      "package": "hasown",
+      "version": "2.0.4",
+      "bytes": 4608,
+      "sha256": "e9d2b03f95573600e1c13124ce618e3142ed2c538d164595bedcd4408b8a4e4c",
+      "source": "registry"
+    },
+    "hono-4.12.29.tgz": {
+      "package": "hono",
+      "version": "4.12.29",
+      "bytes": 225314,
+      "sha256": "8f1b3107b82a1ee57475310288b75d0b0da7277eb4fd3baacdb214239f0173c7",
+      "source": "registry"
+    },
+    "hono-node-server-1.19.14.tgz": {
+      "package": "@hono/node-server",
+      "version": "1.19.14",
+      "bytes": 28860,
+      "sha256": "02f9637f54d72a41304704eedbd7e2c15d6b48b5691fea15226f3fdc84f14027",
+      "source": "registry"
+    },
+    "http-errors-2.0.1.tgz": {
+      "package": "http-errors",
+      "version": "2.0.1",
+      "bytes": 6448,
+      "sha256": "ad62bbb11baf079699a3f269ed089efdb589be16083ceed94a1117801e1a6c61",
+      "source": "registry"
+    },
+    "http-proxy-agent-7.0.2.tgz": {
+      "package": "http-proxy-agent",
+      "version": "7.0.2",
+      "bytes": 6168,
+      "sha256": "8c5efec78e485fdce8fb9115b2d13f046f13691caf8ff9e2ee62d167f6d64db6",
+      "source": "registry"
+    },
+    "https-proxy-agent-7.0.6.tgz": {
+      "package": "https-proxy-agent",
+      "version": "7.0.6",
+      "bytes": 8823,
+      "sha256": "6aed9bb171993d94bd835d3bc34e19f32d157b9f6f791057a47335858810b4bf",
+      "source": "registry"
+    },
+    "iconv-lite-0.7.3.tgz": {
+      "package": "iconv-lite",
+      "version": "0.7.3",
+      "bytes": 189859,
+      "sha256": "40789b7733e230a0439e07075fe2f37819f4a47ee7115fe17188451fab8e3941",
+      "source": "registry"
+    },
+    "inherits-2.0.4.tgz": {
+      "package": "inherits",
+      "version": "2.0.4",
+      "bytes": 2031,
+      "sha256": "06fb88732042243c690b60bae5521ac8fc3425f693edd6daa99018acebc9047e",
+      "source": "registry"
+    },
+    "ip-address-10.2.0.tgz": {
+      "package": "ip-address",
+      "version": "10.2.0",
+      "bytes": 59066,
+      "sha256": "37e0ddc03f4d1576c11b4405b022c41cdbcdcf1347f07fa96ea03d75f9a7c0ba",
+      "source": "registry"
+    },
+    "ipaddr.js-1.9.1.tgz": {
+      "package": "ipaddr.js",
+      "version": "1.9.1",
+      "bytes": 11511,
+      "sha256": "2743a129ef48424d85f20154efa689d0aa95012f53a3e19160e02261239cbbf0",
+      "source": "registry"
+    },
+    "is-promise-4.0.0.tgz": {
+      "package": "is-promise",
+      "version": "4.0.0",
+      "bytes": 1615,
+      "sha256": "3afa7587f20f45ca0a3b42c318bb86aa76f8045e9c00bc733324d83433eeb2b5",
+      "source": "registry"
+    },
+    "isexe-2.0.0.tgz": {
+      "package": "isexe",
+      "version": "2.0.0",
+      "bytes": 3655,
+      "sha256": "b0ef59799a33d5b136ab797f86e474ecef408aee684c7a86d3b7e9e40b3c1e84",
+      "source": "registry"
+    },
+    "jose-6.2.3.tgz": {
+      "package": "jose",
+      "version": "6.2.3",
+      "bytes": 50070,
+      "sha256": "c4448be09f18470665391b6a29ab3ec108e6830b78aea93076ce3348fb7b55a5",
+      "source": "registry"
+    },
+    "js-tokens-4.0.0.tgz": {
+      "package": "js-tokens",
+      "version": "4.0.0",
+      "bytes": 4892,
+      "sha256": "12345f46f2c67829571a6c2386d3b067444395b9c9ed96d2d22d4e318e0859a7",
+      "source": "registry"
+    },
+    "js-yaml-4.3.1.tgz": {
+      "package": "js-yaml",
+      "version": "4.3.1",
+      "bytes": 226859,
+      "sha256": "08d6282b77a3e7242061f6dd5516c019b25c53041ad267bca3b790d79ddd5f34",
+      "source": "registry"
+    },
+    "js-yaml-4.3.2.tgz": {
+      "package": "js-yaml",
+      "version": "4.3.2",
+      "bytes": 227545,
+      "sha256": "c7b241d2224cf9253ff53854aa4cee87da91bd889c4d0fa3a3ffd1041ecee5b1",
+      "source": "registry"
+    },
+    "json-bigint-1.0.0.tgz": {
+      "package": "json-bigint",
+      "version": "1.0.0",
+      "bytes": 11220,
+      "sha256": "be11126f41f6b2c4717a8cd6eaf2e7140b4af02fb1199850dc0d3e58b78fffd4",
+      "source": "registry"
+    },
+    "json-schema-to-ts-3.1.1.tgz": {
+      "package": "json-schema-to-ts",
+      "version": "3.1.1",
+      "bytes": 26929,
+      "sha256": "d46e779f177b68309219d29b877f0e70f56265704d22e56e8236f223293548c4",
+      "source": "registry"
+    },
+    "json-schema-traverse-1.0.0.tgz": {
+      "package": "json-schema-traverse",
+      "version": "1.0.0",
+      "bytes": 6062,
+      "sha256": "47eafdfa33602838ad6249f4d7079ffce313b864fe4661d7cfe03b3d23d8992a",
+      "source": "registry"
+    },
+    "json-schema-typed-8.0.2.tgz": {
+      "package": "json-schema-typed",
+      "version": "8.0.2",
+      "bytes": 37491,
+      "sha256": "e7dc4126e4fcf4c3073b3f7e99531eadc8633f7837b20ec97359a8d7add06bc9",
+      "source": "registry"
+    },
+    "jwa-2.0.1.tgz": {
+      "package": "jwa",
+      "version": "2.0.1",
+      "bytes": 4720,
+      "sha256": "c8bc0cf9fbbdc9d2f1b6f3f97ab9c1f70130eec6b153f29fd69baa5a6aa8341d",
+      "source": "registry"
+    },
+    "jws-4.0.1.tgz": {
+      "package": "jws",
+      "version": "4.0.1",
+      "bytes": 6190,
+      "sha256": "ed3a5fb027f8ce1006c8e30a37e88e7cd49824d4873efca8765304b20fe92e12",
+      "source": "registry"
+    },
+    "lambda-invoke-store-0.3.0.tgz": {
+      "package": "@aws/lambda-invoke-store",
+      "version": "0.3.0",
+      "bytes": 8318,
+      "sha256": "9ad184d7f16e463ca79668bdb5b16be0c421c1d1a289f6d6c5a26f39658cb667",
+      "source": "registry"
+    },
+    "long-5.3.2.tgz": {
+      "package": "long",
+      "version": "5.3.2",
+      "bytes": 26657,
+      "sha256": "902d8d07d2b28821ec2bf4f69ae0aba99cac718016bd28a7a5ed4188288812e8",
+      "source": "registry"
+    },
+    "loose-envify-1.4.0.tgz": {
+      "package": "loose-envify",
+      "version": "1.4.0",
+      "bytes": 2824,
+      "sha256": "c2c026de8c227a75b31e65f548bd0dc21846eb9fed27baffc7116ac2f2a11bee",
+      "source": "registry"
+    },
+    "math-intrinsics-1.1.0.tgz": {
+      "package": "math-intrinsics",
+      "version": "1.1.0",
+      "bytes": 6355,
+      "sha256": "b8c2c35575493dc086df88cfc468a9e2651b6617336480ab3f00fcf853f443a7",
+      "source": "registry"
+    },
+    "media-typer-1.1.0.tgz": {
+      "package": "media-typer",
+      "version": "1.1.0",
+      "bytes": 3670,
+      "sha256": "fd5b4bd631a74dbd394aeed434b0a6275ef2a7188dfb13b8491f23026ad493b6",
+      "source": "registry"
+    },
+    "merge-descriptors-2.0.0.tgz": {
+      "package": "merge-descriptors",
+      "version": "2.0.0",
+      "bytes": 2029,
+      "sha256": "6ecc8f330f5e52b4e5155877c0e84e743bbb5b99647a527307a072df7959484e",
+      "source": "registry"
+    },
+    "middleware-eventstream-3.972.29.tgz": {
+      "package": "@aws-sdk/middleware-eventstream",
+      "version": "3.972.29",
+      "bytes": 6640,
+      "sha256": "9b44cb5e11aa78fbba889a005f7938440a0806872899da6d2e4b39232cbcf9ca",
+      "source": "registry"
+    },
+    "mime-db-1.54.0.tgz": {
+      "package": "mime-db",
+      "version": "1.54.0",
+      "bytes": 29535,
+      "sha256": "2b21054e65d0eabd58c5002d2713e968dd47b15700bfed4b7281a344ded1c420",
+      "source": "registry"
+    },
+    "mime-types-3.0.2.tgz": {
+      "package": "mime-types",
+      "version": "3.0.2",
+      "bytes": 7375,
+      "sha256": "2f9dd28353c303ff8750fbf68e474755b01c54a989883d227d605f7bfa3dd2ac",
+      "source": "registry"
+    },
+    "modelcontextprotocol-sdk-1.29.0.tgz": {
+      "package": "@modelcontextprotocol/sdk",
+      "version": "1.29.0",
+      "bytes": 519081,
+      "sha256": "d908a82f769ea9af1c00039433eb3b75237b18226bd341492e0c4726c7f4fb90",
+      "source": "clean-alpha1-third-party"
+    },
+    "ms-2.0.0.tgz": {
+      "package": "ms",
+      "version": "2.0.0",
+      "bytes": 2874,
+      "sha256": "d38d55a6546f184371867764f865041be06df049e2b439d6e74b36e05f8009a1",
+      "source": "registry"
+    },
+    "ms-2.1.3.tgz": {
+      "package": "ms",
+      "version": "2.1.3",
+      "bytes": 2974,
+      "sha256": "cb0e001f61efd2f6dc327cad286bb7f68b53e297c646bd4e0fc83a4f9803d129",
+      "source": "registry"
+    },
+    "ms-3.0.0-canary.202508261828.tgz": {
+      "package": "ms",
+      "version": "3.0.0-canary.202508261828",
+      "bytes": 8162,
+      "sha256": "fe55a3a8005ab6fad5e94a58f480b286e104ef30c75d2f73e2bfb9e90c53c2d8",
+      "source": "registry"
+    },
+    "negotiator-0.6.4.tgz": {
+      "package": "negotiator",
+      "version": "0.6.4",
+      "bytes": 6725,
+      "sha256": "8fc72d4030ac7b0d4c51933a19224d72bebab8d51da196cb863f754cd772b210",
+      "source": "registry"
+    },
+    "negotiator-1.0.0.tgz": {
+      "package": "negotiator",
+      "version": "1.0.0",
+      "bytes": 6792,
+      "sha256": "b5a2dfee1dc0ac52c623cd5c0304be5a8a41cfad40e09f1a13606972cb2dbc04",
+      "source": "registry"
+    },
+    "negotiator-1.1.0.tgz": {
+      "package": "negotiator",
+      "version": "1.1.0",
+      "bytes": 5630,
+      "sha256": "04ada283b29ea69189a5eac97fa3815f20480255fa4667258366c31e1d92ced4",
+      "source": "registry"
+    },
+    "nodable-entities-2.2.0.tgz": {
+      "package": "@nodable/entities",
+      "version": "2.2.0",
+      "bytes": 19825,
+      "sha256": "aa86ce17d23103e701f3c21cda5bbf8a931d4ca316cefa918ae893bb5b63dcab",
+      "source": "registry"
+    },
+    "node-addon-native-custom-loader-0.1.5.tgz": {
+      "package": "node-addon-native-custom-loader",
+      "version": "0.1.5",
+      "bytes": 7908,
+      "sha256": "704ce5143e28e17200d37b6b70cf2743cb9240e1d5a60e022c848ad34c6e1597",
+      "source": "registry"
+    },
+    "node-addon-require-builtin-0.1.5.tgz": {
+      "package": "node-addon-require-builtin",
+      "version": "0.1.5",
+      "bytes": 2051,
+      "sha256": "870f4731cf36d32b77e1297fd08828569c0614de69d2c520dffa4b8b0d984e44",
+      "source": "registry"
+    },
+    "node-addon-require-builtin-darwin-arm64-0.1.5.tgz": {
+      "package": "node-addon-require-builtin-darwin-arm64",
+      "version": "0.1.5",
+      "bytes": 46327,
+      "sha256": "f9a2fffc80dcc38990db59cd0c65a0e01999717cacf5bddbc46530c4f37f3d48",
+      "source": "registry"
+    },
+    "node-addon-require-builtin-darwin-x64-0.1.5.tgz": {
+      "package": "node-addon-require-builtin-darwin-x64",
+      "version": "0.1.5",
+      "bytes": 45695,
+      "sha256": "536c49ce412ed3bcea7b2a6c153b54564a74a6f2125b4a36259ed1cd565da096",
+      "source": "registry"
+    },
+    "node-addon-require-builtin-linux-arm64-gnu-0.1.5.tgz": {
+      "package": "node-addon-require-builtin-linux-arm64-gnu",
+      "version": "0.1.5",
+      "bytes": 71835,
+      "sha256": "3bb02462c24b6a20d502bf34581e5ba16dece5d236a6511346d82893089ad77d",
+      "source": "registry"
+    },
+    "node-addon-require-builtin-linux-x64-gnu-0.1.5.tgz": {
+      "package": "node-addon-require-builtin-linux-x64-gnu",
+      "version": "0.1.5",
+      "bytes": 71544,
+      "sha256": "494dac809d631820133546ffe000e1ccee3042044d4d196a400f15782f8b0381",
+      "source": "registry"
+    },
+    "node-addon-require-builtin-win32-arm64-msvc-0.1.5.tgz": {
+      "package": "node-addon-require-builtin-win32-arm64-msvc",
+      "version": "0.1.5",
+      "bytes": 141238,
+      "sha256": "3dacb1093a901f8574e76c9690d6dddf7b49db73fe157aeeb950491cad01d84a",
+      "source": "registry"
+    },
+    "node-addon-require-builtin-win32-ia32-msvc-0.1.5.tgz": {
+      "package": "node-addon-require-builtin-win32-ia32-msvc",
+      "version": "0.1.5",
+      "bytes": 144066,
+      "sha256": "3a3d78de3f2b3c46dbb3ece7906b4eff049eec22cdc56842c779466efb1487b5",
+      "source": "registry"
+    },
+    "node-addon-require-builtin-win32-x64-msvc-0.1.5.tgz": {
+      "package": "node-addon-require-builtin-win32-x64-msvc",
+      "version": "0.1.5",
+      "bytes": 169884,
+      "sha256": "4376d42bd6b2c3e004bb387db7d0a87f1b99610cc7bd72cea163380b6697a1e6",
+      "source": "registry"
+    },
+    "node-domexception-1.0.0.tgz": {
+      "package": "node-domexception",
+      "version": "1.0.0",
+      "bytes": 3614,
+      "sha256": "eba234134890897807b85c2bc67cd32d0242eb9be1d1c62513797fdaab60c971",
+      "source": "registry"
+    },
+    "node-fetch-3.3.2.tgz": {
+      "package": "node-fetch",
+      "version": "3.3.2",
+      "bytes": 31798,
+      "sha256": "b8b9d575cf961acd43501abb3b8982e481670b8c5819e662b969fb380cc71d92",
+      "source": "registry"
+    },
+    "node-fetch-4.0.0-beta.4.tgz": {
+      "package": "node-fetch",
+      "version": "4.0.0-beta.4",
+      "bytes": 30969,
+      "sha256": "19e6c6c0e9eb7f5ed499c5fbc07c789637d2841edce9db5d33c547f169046dd4",
+      "source": "registry"
+    },
+    "object-assign-4.1.1.tgz": {
+      "package": "object-assign",
+      "version": "4.1.1",
+      "bytes": 2657,
+      "sha256": "0a87a2359649e1116ab5c719556378f4cc0fdc17210f8da1dd71d21163cf02e0",
+      "source": "registry"
+    },
+    "object-inspect-1.13.4.tgz": {
+      "package": "object-inspect",
+      "version": "1.13.4",
+      "bytes": 28026,
+      "sha256": "8324967a3afd8a45b0401e3554aebc1843f493bec46a89a7ce8cf072e62e90bf",
+      "source": "registry"
+    },
+    "on-finished-2.4.1.tgz": {
+      "package": "on-finished",
+      "version": "2.4.1",
+      "bytes": 5057,
+      "sha256": "92c2f655c3e5a6419302d90708d0e1a3a99736a6e318edd55b681684d4ec7f70",
+      "source": "registry"
+    },
+    "on-headers-1.1.0.tgz": {
+      "package": "on-headers",
+      "version": "1.1.0",
+      "bytes": 3607,
+      "sha256": "2721477949965442f4229652bb79cc252fc5074458c40adfef12d933f156c224",
+      "source": "registry"
+    },
+    "once-1.4.0.tgz": {
+      "package": "once",
+      "version": "1.4.0",
+      "bytes": 1951,
+      "sha256": "d1717c1d801644261e519b37fd4287f630852c65a97829af3d0cf1de1767f585",
+      "source": "registry"
+    },
+    "openai-6.40.0.tgz": {
+      "package": "openai",
+      "version": "6.40.0",
+      "bytes": 1415664,
+      "sha256": "f4086b8db8ca3472c5ada34bedeee7a3506e3695aa7cc047e107ee63ef5e3e8a",
+      "source": "clean-alpha1-third-party"
+    },
+    "opentelemetry-api-1.9.0.tgz": {
+      "package": "@opentelemetry/api",
+      "version": "1.9.0",
+      "bytes": 121192,
+      "sha256": "6da0657a129d93e0136269d87f8175eed68809a2be63d3fe8935f63f110394e3",
+      "source": "registry"
+    },
+    "p-retry-4.6.2.tgz": {
+      "package": "p-retry",
+      "version": "4.6.2",
+      "bytes": 3922,
+      "sha256": "a9893a911be99b1e1edde32db6e00c2541b4297330cdb70c67a22d6d432e00f6",
+      "source": "registry"
+    },
+    "parseurl-1.3.3.tgz": {
+      "package": "parseurl",
+      "version": "1.3.3",
+      "bytes": 3954,
+      "sha256": "446411c354f6e0caab6e59899ea65a4e158ee339e67f1871fbc7a3909490ea23",
+      "source": "registry"
+    },
+    "partial-json-0.1.7.tgz": {
+      "package": "partial-json",
+      "version": "0.1.7",
+      "bytes": 6304,
+      "sha256": "30eafeed6fdc25fb2ca24f34c37796d9f98f0bf5e156452b98a2c356762f6322",
+      "source": "registry"
+    },
+    "path-expression-matcher-1.5.0.tgz": {
+      "package": "path-expression-matcher",
+      "version": "1.5.0",
+      "bytes": 36327,
+      "sha256": "1351ff7f33dae4660827cf6fb74c109f0840daea989faa2c991cd85bc3e9b173",
+      "source": "registry"
+    },
+    "path-key-3.1.1.tgz": {
+      "package": "path-key",
+      "version": "3.1.1",
+      "bytes": 2258,
+      "sha256": "61f8831079384e0405510b30892d57d4776dfe8d7f9894a9f9da8ec8d405efc4",
+      "source": "registry"
+    },
+    "path-to-regexp-8.4.2.tgz": {
+      "package": "path-to-regexp",
+      "version": "8.4.2",
+      "bytes": 14900,
+      "sha256": "e8712a9c53b0a2a27cfecc7b80c54df92afb4643c01351e2b2ebb7784bcabd78",
+      "source": "registry"
+    },
+    "pi-ai-0.84.4.tgz": {
+      "package": "@earendil-works/pi-ai",
+      "version": "0.84.4",
+      "bytes": 776905,
+      "sha256": "dfd3c929cee5a7387199a0a24dfc1be2096f1ea8f59ffb8285198a0ed01ebf93",
+      "source": "registry"
+    },
+    "pi-telemetry-0.84.4.tgz": {
+      "package": "@earendil-works/pi-telemetry",
+      "version": "0.84.4",
+      "bytes": 27324,
+      "sha256": "412bde65d3bcd8f722b386c8e08f6d1f43d131b2077c9ee65b45cc3a8f29ff05",
+      "source": "registry"
+    },
+    "pkce-challenge-5.0.1.tgz": {
+      "package": "pkce-challenge",
+      "version": "5.0.1",
+      "bytes": 4196,
+      "sha256": "dc8adf01bc6cac32a476f8eb2b37ae022e0ab25fd9fdc2995e06cb68817e95c2",
+      "source": "registry"
+    },
+    "protobufjs-7.6.4.tgz": {
+      "package": "protobufjs",
+      "version": "7.6.4",
+      "bytes": 638804,
+      "sha256": "e688bb96079cefa6b9a7d84fe3c34475e36e745ff840b4300c44548814f1e9bd",
+      "source": "registry"
+    },
+    "protobufjs-7.6.6.tgz": {
+      "package": "protobufjs",
+      "version": "7.6.6",
+      "bytes": 641865,
+      "sha256": "df0241b3046b505d27396da6eef107f14dffb108f77aa89cfd9611a928eb6dfe",
+      "source": "registry"
+    },
+    "protobufjs-aspromise-1.1.2.tgz": {
+      "package": "@protobufjs/aspromise",
+      "version": "1.1.2",
+      "bytes": 2584,
+      "sha256": "db79ce19da723734ec0a4cc8ea0e3da8cdd8bdd1acdbed6c4e414a05fea0ee86",
+      "source": "registry"
+    },
+    "protobufjs-base64-1.1.2.tgz": {
+      "package": "@protobufjs/base64",
+      "version": "1.1.2",
+      "bytes": 3220,
+      "sha256": "90ec8fc84b4ca66b4d00f7fbdce52875c4a5ba4a1a78bf9689c00b1f6301f2ac",
+      "source": "registry"
+    },
+    "protobufjs-codegen-2.0.5.tgz": {
+      "package": "@protobufjs/codegen",
+      "version": "2.0.5",
+      "bytes": 3698,
+      "sha256": "20bafed1221bcba23a2450a841998edaef9a56bc2101d6e38c2117dd58a13a01",
+      "source": "registry"
+    },
+    "protobufjs-eventemitter-1.1.1.tgz": {
+      "package": "@protobufjs/eventemitter",
+      "version": "1.1.1",
+      "bytes": 3411,
+      "sha256": "5536b98cb7062e771c1dadd1828e352ebe40034f1480836f21c776ec372a797c",
+      "source": "registry"
+    },
+    "protobufjs-fetch-1.1.1.tgz": {
+      "package": "@protobufjs/fetch",
+      "version": "1.1.1",
+      "bytes": 4454,
+      "sha256": "54481d9c62debce1c38b0239f2358eeb3b73f7bb1ba3105bd6123fd81b8b7268",
+      "source": "registry"
+    },
+    "protobufjs-float-1.0.2.tgz": {
+      "package": "@protobufjs/float",
+      "version": "1.0.2",
+      "bytes": 6000,
+      "sha256": "61e13b7d20e8b3a28c89b5ca0d77cadc57dfbc123d2035408a4822d24551b3a3",
+      "source": "registry"
+    },
+    "protobufjs-path-1.1.2.tgz": {
+      "package": "@protobufjs/path",
+      "version": "1.1.2",
+      "bytes": 2670,
+      "sha256": "19547c3e1baf1596866e7717cd0bda1240c7f3f2eb47ad8ca0ae002bbd8340bf",
+      "source": "registry"
+    },
+    "protobufjs-pool-1.1.0.tgz": {
+      "package": "@protobufjs/pool",
+      "version": "1.1.0",
+      "bytes": 2470,
+      "sha256": "b4c8ccfcc9fa59c00fc3917bb76cde1d15dfe0706bb476b0e35eced0e5e9a3ca",
+      "source": "registry"
+    },
+    "protobufjs-utf8-1.1.1.tgz": {
+      "package": "@protobufjs/utf8",
+      "version": "1.1.1",
+      "bytes": 10234,
+      "sha256": "46ea4e6d025995a9e0a1ae98b4371e03179827d6dc09a7a0d4263a9b864673ef",
+      "source": "registry"
+    },
+    "protobufjs-utf8-1.1.2.tgz": {
+      "package": "@protobufjs/utf8",
+      "version": "1.1.2",
+      "bytes": 10793,
+      "sha256": "512bce48e5bb53d4351a415be21c6430e33103ecca831439e7e6cfb7aa3fca7d",
+      "source": "registry"
+    },
+    "proxy-addr-2.0.7.tgz": {
+      "package": "proxy-addr",
+      "version": "2.0.7",
+      "bytes": 5486,
+      "sha256": "322c398913e1abfbf2a9c1c04da3f8b6907fac7ff88241232a2ebecd7b32622a",
+      "source": "registry"
+    },
+    "qs-6.15.3.tgz": {
+      "package": "qs",
+      "version": "6.15.3",
+      "bytes": 71213,
+      "sha256": "c0278b636e7a016d6e835cd8f194a63c276dff430620e4a04344a4ba8892c0f9",
+      "source": "registry"
+    },
+    "range-parser-1.3.0.tgz": {
+      "package": "range-parser",
+      "version": "1.3.0",
+      "bytes": 3783,
+      "sha256": "51b79ec072db6788b132680256e9e733af8bb091df4f8ce8562ca631118f0fae",
+      "source": "registry"
+    },
+    "raw-body-3.0.2.tgz": {
+      "package": "raw-body",
+      "version": "3.0.2",
+      "bytes": 6308,
+      "sha256": "66de2a025036de58bbe50ab1d42a24ec6d33eda338b8115a3ebf942dae8419db",
+      "source": "registry"
+    },
+    "react-18.3.1.tgz": {
+      "package": "react",
+      "version": "18.3.1",
+      "bytes": 81751,
+      "sha256": "8d9bed01a672e7eaf387942d781ad47c6a43089a30a0306060f9fd5ac7870347",
+      "source": "registry"
+    },
+    "react-dom-18.3.1.tgz": {
+      "package": "react-dom",
+      "version": "18.3.1",
+      "bytes": 1089001,
+      "sha256": "031d4427a99f2f3f6cac18bbbf308594a67e4f47d10f4896fdec446505b040e0",
+      "source": "registry"
+    },
+    "require-from-string-2.0.2.tgz": {
+      "package": "require-from-string",
+      "version": "2.0.2",
+      "bytes": 1815,
+      "sha256": "e44931ac0b86a37293a8d796ea8b84350475b385f6066ce13640aa0eb1375b93",
+      "source": "registry"
+    },
+    "retry-0.13.1.tgz": {
+      "package": "retry",
+      "version": "0.13.1",
+      "bytes": 6535,
+      "sha256": "6b12aa9240c43588c58ccf33301541272cd8a6736cf40924990c64a0ae969857",
+      "source": "registry"
+    },
+    "router-2.2.0.tgz": {
+      "package": "router",
+      "version": "2.2.0",
+      "bytes": 14251,
+      "sha256": "b144af37b39a9517f7a89f1d867e9c2cf29f13f4147d3e80c499fe6ffab69461",
+      "source": "registry"
+    },
+    "safe-buffer-5.2.1.tgz": {
+      "package": "safe-buffer",
+      "version": "5.2.1",
+      "bytes": 9936,
+      "sha256": "41a1bc962e5ff748eb0e633a46b20e8c9e74cd33a452642db8fad7185ac4cd55",
+      "source": "registry"
+    },
+    "safer-buffer-2.1.2.tgz": {
+      "package": "safer-buffer",
+      "version": "2.1.2",
+      "bytes": 12023,
+      "sha256": "271cc3c80a4d22d29f6ec8f0ff4c585b29ffcc84bf200d80cbd39e16a781f69d",
+      "source": "registry"
+    },
+    "scheduler-0.23.2.tgz": {
+      "package": "scheduler",
+      "version": "0.23.2",
+      "bytes": 17677,
+      "sha256": "bb915499306f1a198689fca2fe3dd3b8e68da35f1a48377249c67ac08ef2e290",
+      "source": "registry"
+    },
+    "send-1.2.1.tgz": {
+      "package": "send",
+      "version": "1.2.1",
+      "bytes": 10317,
+      "sha256": "fa254fb316dd23ddcb2beebd533b23788aec4cf6a3dba58af34150170435c472",
+      "source": "registry"
+    },
+    "serve-static-2.2.1.tgz": {
+      "package": "serve-static",
+      "version": "2.2.1",
+      "bytes": 5463,
+      "sha256": "36d4f72bb59372eb18202fee25ff3d8bf46655f0121830fbe32e32cbdc625f43",
+      "source": "registry"
+    },
+    "setprototypeof-1.2.0.tgz": {
+      "package": "setprototypeof",
+      "version": "1.2.0",
+      "bytes": 1958,
+      "sha256": "44c1d65703a2cb6a0b67b2fda9d64491d07c76298ab6bb6532f7a446d3993718",
+      "source": "registry"
+    },
+    "shebang-command-2.0.0.tgz": {
+      "package": "shebang-command",
+      "version": "2.0.0",
+      "bytes": 1510,
+      "sha256": "c8eed68b3087604198986c035cc7909d8a58a0f1b405181500d77eb79fed9363",
+      "source": "registry"
+    },
+    "shebang-regex-3.0.0.tgz": {
+      "package": "shebang-regex",
+      "version": "3.0.0",
+      "bytes": 1498,
+      "sha256": "7ca01a58fe2f32c1e6b79a4c1fa46b369de36a289d2ae2e8c1e843d810d7a74c",
+      "source": "registry"
+    },
+    "side-channel-1.1.1.tgz": {
+      "package": "side-channel",
+      "version": "1.1.1",
+      "bytes": 8083,
+      "sha256": "e6edbc8f203901612a3cd938f940ed520333923986d5427b95c87aa1882e7bd5",
+      "source": "registry"
+    },
+    "side-channel-list-1.0.1.tgz": {
+      "package": "side-channel-list",
+      "version": "1.0.1",
+      "bytes": 6135,
+      "sha256": "793c94ac215be772757045f8804406578b8cbc1bda7e1cde23011f9145af74f7",
+      "source": "registry"
+    },
+    "side-channel-map-1.0.1.tgz": {
+      "package": "side-channel-map",
+      "version": "1.0.1",
+      "bytes": 5280,
+      "sha256": "3b256b6421300bcc962d891b1588fd4b64e84e339b9c29f78c61b72f2a7116d6",
+      "source": "registry"
+    },
+    "side-channel-weakmap-1.0.2.tgz": {
+      "package": "side-channel-weakmap",
+      "version": "1.0.2",
+      "bytes": 5442,
+      "sha256": "3b2a54f0c5e7ad898c8f0ffda2a6805fb2cc5d68f53addf0b4a9ec0db9d0d06e",
+      "source": "registry"
+    },
+    "signature-v4-5.7.3.tgz": {
+      "package": "@smithy/signature-v4",
+      "version": "5.7.3",
+      "bytes": 21091,
+      "sha256": "f07d2e1a06b1c2c181ae4bffefc3ed16c20938df87e3b3e08df03e1a3c533c95",
+      "source": "registry"
+    },
+    "smithy-core-3.24.7.tgz": {
+      "package": "@smithy/core",
+      "version": "3.24.7",
+      "bytes": 292702,
+      "sha256": "3e6044f5a4afeaa31940f266d07acf279f477560c0ccf66cec6e663962be731f",
+      "source": "registry"
+    },
+    "smithy-credential-provider-imds-4.3.9.tgz": {
+      "package": "@smithy/credential-provider-imds",
+      "version": "4.3.9",
+      "bytes": 11987,
+      "sha256": "a805da72021ef8ff2ce8a477431736a1f07de772898c743badac58a0b6da88ac",
+      "source": "registry"
+    },
+    "smithy-fetch-http-handler-5.4.7.tgz": {
+      "package": "@smithy/fetch-http-handler",
+      "version": "5.4.7",
+      "bytes": 8431,
+      "sha256": "c7b445b00171a7d12c0ef89418c63eeb1908ab9550b1f39151ead2ae475d2d48",
+      "source": "registry"
+    },
+    "smithy-is-array-buffer-2.2.0.tgz": {
+      "package": "@smithy/is-array-buffer",
+      "version": "2.2.0",
+      "bytes": 5718,
+      "sha256": "34f42607b0756d7ac1251cbb89f24a92a7cb1511c6a23975ddd91fea2d6ef7bd",
+      "source": "registry"
+    },
+    "smithy-node-http-handler-4.11.3.tgz": {
+      "package": "@smithy/node-http-handler",
+      "version": "4.11.3",
+      "bytes": 26370,
+      "sha256": "00a594aa62c47f3d975b2b9728c7cefaab37650114ad540131fa996cc7973cae",
+      "source": "registry"
+    },
+    "smithy-node-http-handler-4.7.3.tgz": {
+      "package": "@smithy/node-http-handler",
+      "version": "4.7.3",
+      "bytes": 19518,
+      "sha256": "223414053762649d0bd135dbe9bc66a0b1b74727d523aff7da89a320be12d75f",
+      "source": "registry"
+    },
+    "smithy-node-http-handler-4.7.8.tgz": {
+      "package": "@smithy/node-http-handler",
+      "version": "4.7.8",
+      "bytes": 18444,
+      "sha256": "62d1085d864a25071a11ed212b17b58691b8c4900e5375c0e50a003e68656f08",
+      "source": "registry"
+    },
+    "smithy-signature-v4-5.4.7.tgz": {
+      "package": "@smithy/signature-v4",
+      "version": "5.4.7",
+      "bytes": 14942,
+      "sha256": "c257fbcc0dfdd2cf6e7ab07cf509dccacff3d444ff698dc5262fb5d0b5287900",
+      "source": "registry"
+    },
+    "smithy-types-4.14.4.tgz": {
+      "package": "@smithy/types",
+      "version": "4.14.4",
+      "bytes": 40573,
+      "sha256": "bcdc43f1753e2443f4807674b97225eccee2613a850ece8c01506740a44a30a6",
+      "source": "registry"
+    },
+    "smithy-util-buffer-from-2.2.0.tgz": {
+      "package": "@smithy/util-buffer-from",
+      "version": "2.2.0",
+      "bytes": 6039,
+      "sha256": "25141bd3368b188c51e4de6380f74143e11ae93006b90d661971b3684174b1f8",
+      "source": "registry"
+    },
+    "smithy-util-utf8-2.3.0.tgz": {
+      "package": "@smithy/util-utf8",
+      "version": "2.3.0",
+      "bytes": 6763,
+      "sha256": "2c71b36e1df92e710cf9a6a2aaffb9b07b0385609b87ddd4dcce39a3e7c12bdb",
+      "source": "registry"
+    },
+    "standard-schema-spec-1.1.0.tgz": {
+      "package": "@standard-schema/spec",
+      "version": "1.1.0",
+      "bytes": 4178,
+      "sha256": "a7cb7268be280ab518d450f8c3b07c86f23417225c0ab53691ed59b3067cceaf",
+      "source": "registry"
+    },
+    "statuses-2.0.2.tgz": {
+      "package": "statuses",
+      "version": "2.0.2",
+      "bytes": 4797,
+      "sha256": "ca800a24710488b568f4e73e8f570dd6b911c122cbf42b06930dee7c25949fe0",
+      "source": "registry"
+    },
+    "strnum-2.4.0.tgz": {
+      "package": "strnum",
+      "version": "2.4.0",
+      "bytes": 4760,
+      "sha256": "648ebac9d7cb402dce4e690e47a436cfdd3f547a03c86df7738523b0d435f997",
+      "source": "registry"
+    },
+    "toidentifier-1.0.1.tgz": {
+      "package": "toidentifier",
+      "version": "1.0.1",
+      "bytes": 2361,
+      "sha256": "675e2423d9c8531d39bde1a9141189732102b406391a9416b9cf04ffb5f1965d",
+      "source": "registry"
+    },
+    "ts-algebra-2.0.0.tgz": {
+      "package": "ts-algebra",
+      "version": "2.0.0",
+      "bytes": 18489,
+      "sha256": "31c6b194a42994ce63ca5953cf20099bdb14f2d950a4f1522b42017d0a90d753",
+      "source": "registry"
+    },
+    "tslib-2.8.1.tgz": {
+      "package": "tslib",
+      "version": "2.8.1",
+      "bytes": 18477,
+      "sha256": "66f635d5eeabae44807534976913a102cf615b9a045368359c9f79ae6ee2119e",
+      "source": "registry"
+    },
+    "type-is-2.1.0.tgz": {
+      "package": "type-is",
+      "version": "2.1.0",
+      "bytes": 6752,
+      "sha256": "9a53088d69cd488e0c2cb4fcee5a983089c0d492404cf212161c77501fb302fc",
+      "source": "registry"
+    },
+    "typebox-1.3.7.tgz": {
+      "package": "typebox",
+      "version": "1.3.7",
+      "bytes": 255224,
+      "sha256": "b1d0942560e64936ca9ce328949b5a6c8258e8d08511addb7eebb54cfda0863a",
+      "source": "registry"
+    },
+    "types-3.974.5.tgz": {
+      "package": "@aws-sdk/types",
+      "version": "3.974.5",
+      "bytes": 15089,
+      "sha256": "a400c9da3fff45f069bf7771c5f911896e9bcc6f2c6912ed652c76e636f2f79a",
+      "source": "registry"
+    },
+    "types-4.17.2.tgz": {
+      "package": "@smithy/types",
+      "version": "4.17.2",
+      "bytes": 82095,
+      "sha256": "5c5eddf4590b40b21894e8de6ed5facd33af5d0cc31a4316c9b3d4491ab42386",
+      "source": "registry"
+    },
+    "types-node-22.20.0.tgz": {
+      "package": "@types/node",
+      "version": "22.20.0",
+      "bytes": 437630,
+      "sha256": "822ce80cfc9781bcbd5e77d9615653f534074e306f8a9e1c80a350c3c7e6d608",
+      "source": "registry"
+    },
+    "types-node-26.4.0.tgz": {
+      "package": "@types/node",
+      "version": "26.4.0",
+      "bytes": 463495,
+      "sha256": "3895d35e1d82f47be0a6e6f43aacf1ee936935c10d4ef65ef39f625dc6a65505",
+      "source": "registry"
+    },
+    "types-retry-0.12.0.tgz": {
+      "package": "@types/retry",
+      "version": "0.12.0",
+      "bytes": 2939,
+      "sha256": "af6c1511b6708519463b35abf4d5bb3858edcb1c64b2a9c89e4741df72ae2ad8",
+      "source": "registry"
+    },
+    "undici-types-6.21.0.tgz": {
+      "package": "undici-types",
+      "version": "6.21.0",
+      "bytes": 21020,
+      "sha256": "cfa1a9a5e18988850e548f4f6b629c58da32dc32bebb116e58ea301e516fd16d",
+      "source": "registry"
+    },
+    "undici-types-8.3.0.tgz": {
+      "package": "undici-types",
+      "version": "8.3.0",
+      "bytes": 29207,
+      "sha256": "07a721cb2cd0dd798c24757de34d14e8b640ff8fddef85d662e00b392562a1f2",
+      "source": "registry"
+    },
+    "unpipe-1.0.0.tgz": {
+      "package": "unpipe",
+      "version": "1.0.0",
+      "bytes": 2093,
+      "sha256": "788d5b16e7888918f9b4e43b93a0701db877034d65256c89d96fe2a6ee317217",
+      "source": "registry"
+    },
+    "use-sync-external-store-1.2.0.tgz": {
+      "package": "use-sync-external-store",
+      "version": "1.2.0",
+      "bytes": 6959,
+      "sha256": "12f287ec5605eb6aea07b0b65768106f6b180ce7d76468c75029ccea6511f71c",
+      "source": "registry"
+    },
+    "vary-1.1.2.tgz": {
+      "package": "vary",
+      "version": "1.1.2",
+      "bytes": 3740,
+      "sha256": "4ac0fabcfc5803344aa0920a686071c47b5d081fa38e3159640cc2e5ca0e3e96",
+      "source": "registry"
+    },
+    "web-streams-polyfill-3.0.3.tgz": {
+      "package": "web-streams-polyfill",
+      "version": "3.0.3",
+      "bytes": 1232068,
+      "sha256": "e58b195b0eb1554a8c12d82f563aea6d327e8b71daa6f0d6ac1c58ee838d6a42",
+      "source": "registry"
+    },
+    "web-streams-polyfill-4.0.0-beta.3.tgz": {
+      "package": "web-streams-polyfill",
+      "version": "4.0.0-beta.3",
+      "bytes": 90751,
+      "sha256": "b0535132060a59848b5a0855d394c569c20a10749486145f3f3a74f1f979b3b0",
+      "source": "registry"
+    },
+    "which-2.0.2.tgz": {
+      "package": "which",
+      "version": "2.0.2",
+      "bytes": 3316,
+      "sha256": "42ec95a4e7c45d6e2201bde6eac1786c36464bcb75af8d6889e2affe06e4c67c",
+      "source": "registry"
+    },
+    "wrappy-1.0.2.tgz": {
+      "package": "wrappy",
+      "version": "1.0.2",
+      "bytes": 1668,
+      "sha256": "0e5a90474c6663ac77ce98768688f8ba5daacedecab3a2a67c0fb9138271fd48",
+      "source": "registry"
+    },
+    "ws-8.21.0.tgz": {
+      "package": "ws",
+      "version": "8.21.0",
+      "bytes": 35069,
+      "sha256": "12d163abbfb438afa6c2d77e874e4f8bc5b3e788411d9dedc547200bc6cc2d8c",
+      "source": "clean-alpha1-third-party"
+    },
+    "ws-8.21.3.tgz": {
+      "package": "ws",
+      "version": "8.21.3",
+      "bytes": 35016,
+      "sha256": "df3454ef205791ce50b5b9241762dcf9bfe1aa9f7f01d3057229be7dac0c2dc3",
+      "source": "registry"
+    },
+    "xml-builder-3.972.40.tgz": {
+      "package": "@aws-sdk/xml-builder",
+      "version": "3.972.40",
+      "bytes": 9761,
+      "sha256": "2f632bbd74225007cee0ae683284269f643889da03dfbd0f179f6ad9bf45e71a",
+      "source": "registry"
+    },
+    "xml-naming-0.1.0.tgz": {
+      "package": "xml-naming",
+      "version": "0.1.0",
+      "bytes": 5296,
+      "sha256": "19347cbcba429e9f240427ce4e5998efe30a47cb9131b5673fc2f0441f7f4f57",
+      "source": "registry"
+    },
+    "zod-4.4.3.tgz": {
+      "package": "zod",
+      "version": "4.4.3",
+      "bytes": 755238,
+      "sha256": "5e24234e4bbf29aeb3d122e42e8531a7991cb894d5a5eacc69f8c7d0d3f26554",
+      "source": "clean-alpha1-third-party"
+    },
+    "zod-4.5.4.tgz": {
+      "package": "zod",
+      "version": "4.5.4",
+      "bytes": 1062897,
+      "sha256": "9f0954bc97b03a23eed1768e8db2ff2362a2611071e3e82fd102b1b581832124",
+      "source": "registry"
+    },
+    "zod-to-json-schema-3.25.2.tgz": {
+      "package": "zod-to-json-schema",
+      "version": "3.25.2",
+      "bytes": 46169,
+      "sha256": "4082811e28f7f14e1336388fde4b1ee179c60a7c643080d5981af8a37fa28844",
+      "source": "registry"
+    }
+  }
+}

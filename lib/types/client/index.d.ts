@@ -1,5 +1,5 @@
 /** Browser half: Ollama Cloud setup inside Plugin configuration. */
-import type { ClientContext } from './shim.js';
+import type { Context as ClientContext } from '@deepseek-ai/cordis';
 import type { OllamaSettingsKey } from './locales.ts';
 declare module '@deepseek-ai/dsh-client-ui-slots' {
     interface SlotMap {

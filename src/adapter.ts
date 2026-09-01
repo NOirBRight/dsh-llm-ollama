@@ -10,9 +10,11 @@
 import { LlmAdapter } from '@deepseek-ai/dsh-llm'
 import type {
   GenerateOptions,
+  LlmImageRequestPricing,
   LlmModelInfo,
   LlmProviderInfo,
   LlmResolvedModelInfo,
+  PreparedAdapterCall,
   ResolvedRetryPolicy,
   StreamChunk,
 } from '@deepseek-ai/dsh-llm'
@@ -251,22 +253,21 @@ export class OllamaAdapter extends LlmAdapter {
     }
   }
 
-  /** Own the method so rc.2 Host can call it even when this class extends an older LlmAdapter. */
-  async prepareCall(provider: string, model: string, signal?: AbortSignal) {
+  /**
+   * Wrap the delegated alpha preparation with Ollama request policy and wire normalization.
+   * @param provider - provider route.
+   * @param model - configured model id.
+   * @param signal - optional cancellation signal.
+   * @returns prepared model metadata and an Ollama-normalizing stream.
+   */
+  override async prepareCall(provider: string, model: string, signal?: AbortSignal): Promise<PreparedAdapterCall> {
     const delegate = this.current()
-    const inner = typeof (delegate as { prepareCall?: unknown }).prepareCall === 'function'
-      ? await (delegate as unknown as { prepareCall: (provider: string, model: string, signal?: AbortSignal) => Promise<{
-        model: LlmResolvedModelInfo
-        stream: (options: GenerateOptions) => AsyncIterable<StreamChunk>
-      }> }).prepareCall(provider, model, signal)
-      : {
-        model: await this.resolveModel(provider, model, signal),
-        stream: (options: GenerateOptions) => delegate.stream(options),
-      }
+    const inner = await delegate.prepareCall(provider, model, signal)
+    const catalog = this.config.options().models.find(entry => entry.id === model)
     return {
-      model: inner.model,
+      model: applyOllamaReasoningMetadata(inner.model, model, catalog?.defaultEffort),
       stream: async function* (options: GenerateOptions) {
-        for await (const chunk of inner.stream(narrowOllamaEscalationSchemas(options)) as AsyncIterable<StreamChunk>) {
+        for await (const chunk of inner.stream(narrowOllamaEscalationSchemas(options))) {
           yield classifyOllamaTransientError(chunk)
         }
       },
@@ -274,13 +275,12 @@ export class OllamaAdapter extends LlmAdapter {
   }
 
   /**
-   * Declare neutral request-image pricing when a newer Host calls an adapter built against an older peer instance.
-   * The method omits `override` so the same source compiles against pre-alpha peer types.
+   * Ollama does not publish provider-owned image-request pricing.
    * @param _provider - provider route.
-   * @param _model - model id.
-   * @returns `undefined` so the Host uses heuristic image pricing.
+   * @param _model - exact model id.
+   * @returns undefined so the Host uses neutral image estimation.
    */
-  imageRequestPricing(_provider: string, _model: string): undefined {
+  override imageRequestPricing(_provider: string, _model: string): LlmImageRequestPricing | undefined {
     return undefined
   }
 }

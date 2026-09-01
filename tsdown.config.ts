@@ -16,6 +16,8 @@ const CLIENT_EXTERNALS = [
   '@deepseek-ai/dsh-client-ui-slots',
 ] as const
 
+const CLIENT_ALWAYS_BUNDLED = ['dsh-llm-providers-ui/sortable'] as const
+
 const isClientExternal = (id: string): boolean =>
   (CLIENT_EXTERNALS as readonly string[]).includes(id)
 
@@ -39,6 +41,7 @@ const host: UserConfig = {
       '@deepseek-ai/dsh-launch-environment',
       '@deepseek-ai/dsh-invariants',
       '@deepseek-ai/dsh-llm',
+      '@deepseek-ai/dsh-llm-pi-ai',
       '@deepseek-ai/dsh-settings',
       '@deepseek-ai/dsh-timeout',
     ],
@@ -56,7 +59,7 @@ const client: UserConfig = {
   clean: false,
   deps: {
     neverBundle: [...CLIENT_EXTERNALS],
-    alwaysBundle: (id: string) => !isClientExternal(id),
+    alwaysBundle: (id: string) => (CLIENT_ALWAYS_BUNDLED as readonly string[]).includes(id) || !isClientExternal(id),
   },
   plugins: [{
     name: 'dsh-client-bundle-purity',

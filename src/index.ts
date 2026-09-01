@@ -19,7 +19,6 @@ import type { RetryPolicyConfig } from '@deepseek-ai/dsh-llm'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
 import { deepEqualJson, installSettingsSection, settingsNamespace } from '@deepseek-ai/dsh-settings'
-import { ensureProviderOrderSettings } from 'dsh-llm-providers-ui'
 import type { SettingsPathOp } from '@deepseek-ai/dsh-settings'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import {
@@ -153,8 +152,6 @@ export interface Config {
   webRequestTimeoutMs?: number
   /** Provider-owned model-request retry policy; omission uses normal defaults. */
   retryPolicy?: RetryPolicyConfig
-  /** Permit trusted non-loopback clients to manage this provider remotely. */
-  remoteManagement?: boolean
 }
 
 const catalogModel: z<OllamaCatalogModel> = z.object({
@@ -178,7 +175,6 @@ export const Config: z<Config> = z.object({
   streamIdleTimeoutMs: z.number().min(Number.MIN_VALUE).max(MAX_TIMER_DELAY_MS).default(DEFAULT_STREAM_IDLE_TIMEOUT_MS),
   webRequestTimeoutMs: z.number().step(1).min(1).max(MAX_TIMER_DELAY_MS).default(DEFAULT_WEB_REQUEST_TIMEOUT_MS),
   retryPolicy: RetryPolicySchema,
-  remoteManagement: z.boolean().default(false),
 })
 
 /** One resolution's complete request facts. */
@@ -302,6 +298,9 @@ function usageFailure(error: unknown) {
 }
 
 export function apply(ctx: Context, config: Config): void {
+  if (Object.hasOwn(config, 'remoteManagement')) {
+    throw new Error('llm-ollama: remoteManagement is not supported by the alpha.1 Connection service')
+  }
   let current: () => Config = () => config
   let lastRaw: Config | undefined
   let lastGood: ResolvedOllamaOptions | undefined
@@ -370,7 +369,7 @@ export function apply(ctx: Context, config: Config): void {
     }
     return launchEnvironmentOf(ctx).get(ref)?.value
   }
-  ctx.llm.registerModelDiscovery(NS, request => discoverModels(request, storedApiKey))
+  ctx.llm.registerModelDiscovery(NS, (request, signal) => discoverModels(request, storedApiKey, signal))
 
   // Offer Ollama's web search/fetch to the web seam when the deployment mounts
   // it. Selection stays deployment policy: the base bundle pins the DeepSeek
@@ -389,107 +388,101 @@ export function apply(ctx: Context, config: Config): void {
     return () => { disposeSearch(); disposeFetch() }
   }, 'llm-ollama: web providers')
 
-  // The package channel owns provider management, discovery, usage, and
-  // revision-fenced settings writes. Its authority is deployment-configured.
+  // Connection authenticates this channel before dispatch.
   ctx.inject(['connection'], (connectionCtx) => {
-    connectionCtx.connection.rpc.handle(
-      OLLAMA_RPC_CHANNEL,
-      async (endpoint, payload, signal) => {
-        if (endpoint === OLLAMA_SETTINGS_READ_ENDPOINT) {
-          const settings = ctx.get('settings')
-          const credentials = ctx.get('credentials')
-          const descriptor = settings?.describe().find(item => item.ns === NS)
-          const decoded = decodeOllamaSettings(descriptor?.value)
-          if (descriptor === undefined || decoded === undefined || credentials === undefined) return settingsFailure('Ollama Cloud settings are unavailable')
-          const info = await credentials.describe(credentialRef(decoded.apiKeyEnv))
-          return { ok: true as const, value: { settings: decoded, revision: descriptor.revision, credential: { configured: info.configured, writable: info.writable } } }
-        }
-        if (endpoint === OLLAMA_CREDENTIAL_STATUS_ENDPOINT) {
-          const ref = decodeOllamaCredentialRef(payload)
-          const credentials = ctx.get('credentials')
-          const settings = ctx.get('settings')
-          const descriptor = settings?.describe().find(item => item.ns === NS)
-          const decoded = decodeOllamaSettings(descriptor?.value)
-          if (ref === undefined || credentials === undefined || decoded === undefined || ref !== decoded.apiKeyEnv) return settingsFailure('invalid Ollama Cloud credential request')
-          const info = await credentials.describe(credentialRef(ref))
+    const handler = async (endpoint: string, payload: unknown, signal: AbortSignal) => {
+      if (endpoint === OLLAMA_SETTINGS_READ_ENDPOINT) {
+        const settings = ctx.get('settings')
+        const credentials = ctx.get('credentials')
+        const descriptor = settings?.describe().find(item => item.ns === NS)
+        const decoded = decodeOllamaSettings(descriptor?.value)
+        if (descriptor === undefined || decoded === undefined || credentials === undefined) return settingsFailure('Ollama Cloud settings are unavailable')
+        const info = await credentials.describe(credentialRef(decoded.apiKeyEnv))
+        return { ok: true as const, value: { settings: decoded, revision: descriptor.revision, credential: { configured: info.configured, writable: info.writable } } }
+      }
+      if (endpoint === OLLAMA_CREDENTIAL_STATUS_ENDPOINT) {
+        const ref = decodeOllamaCredentialRef(payload)
+        const credentials = ctx.get('credentials')
+        const settings = ctx.get('settings')
+        const descriptor = settings?.describe().find(item => item.ns === NS)
+        const decoded = decodeOllamaSettings(descriptor?.value)
+        if (ref === undefined || credentials === undefined || decoded === undefined || ref !== decoded.apiKeyEnv) return settingsFailure('invalid Ollama Cloud credential request')
+        const info = await credentials.describe(credentialRef(ref))
+        return { ok: true as const, value: { configured: info.configured, writable: info.writable } }
+      }
+      if (endpoint === OLLAMA_CREDENTIAL_SET_ENDPOINT) {
+        const request = decodeOllamaCredentialSetRequest(payload)
+        const credentials = ctx.get('credentials')
+        const settings = ctx.get('settings')
+        const descriptor = settings?.describe().find(item => item.ns === NS)
+        const decoded = decodeOllamaSettings(descriptor?.value)
+        if (request === undefined || credentials === undefined || decoded === undefined || request.ref !== decoded.apiKeyEnv) return settingsFailure('invalid Ollama Cloud credential request')
+        try {
+          await credentials.set(credentialRef(request.ref), assertUsableApiKey(request.value, 'llm-ollama', request.ref))
+          const info = await credentials.describe(credentialRef(request.ref))
           return { ok: true as const, value: { configured: info.configured, writable: info.writable } }
+        } catch (error: unknown) {
+          return settingsFailure(error instanceof Error ? error.message : 'Ollama Cloud credential save failed')
         }
-        if (endpoint === OLLAMA_CREDENTIAL_SET_ENDPOINT) {
-          const request = decodeOllamaCredentialSetRequest(payload)
-          const credentials = ctx.get('credentials')
-          const settings = ctx.get('settings')
-          const descriptor = settings?.describe().find(item => item.ns === NS)
-          const decoded = decodeOllamaSettings(descriptor?.value)
-          if (request === undefined || credentials === undefined || decoded === undefined || request.ref !== decoded.apiKeyEnv) return settingsFailure('invalid Ollama Cloud credential request')
-          try {
-            await credentials.set(credentialRef(request.ref), assertUsableApiKey(request.value, 'llm-ollama', request.ref))
-            const info = await credentials.describe(credentialRef(request.ref))
-            return { ok: true as const, value: { configured: info.configured, writable: info.writable } }
-          } catch (error: unknown) {
-            return settingsFailure(error instanceof Error ? error.message : 'Ollama Cloud credential save failed')
+      }
+      if (endpoint === OLLAMA_DISCOVER_ENDPOINT) {
+        const request = decodeOllamaDiscoveryRequest(payload)
+        if (request === undefined) return discoveryFailure('invalid Ollama Cloud discovery request')
+        try {
+          const models = await discoverModels(request, storedApiKey, signal)
+          return { ok: true as const, value: { models } }
+        } catch (error: unknown) {
+          const message = error instanceof LlmError
+            ? error.message
+            : 'Ollama Cloud model discovery failed'
+          return discoveryFailure(message, request.baseURL)
+        }
+      }
+      if (endpoint === OLLAMA_SAVE_ENDPOINT) {
+        const request = decodeOllamaSaveRequest(payload)
+        if (request === undefined) return settingsFailure('invalid Ollama Cloud settings request')
+        const settings = ctx.get('settings')
+        if (settings === undefined) return settingsFailure('Ollama Cloud settings are unavailable')
+        try {
+          const before = settings.describe().find(descriptor => descriptor.ns === NS)
+          if (before === undefined) return settingsFailure('Ollama Cloud settings are unavailable')
+          const current = decodeOllamaSettings(before.value)
+          if (current === undefined) return settingsFailure('Ollama Cloud settings are invalid')
+          const ops: SettingsPathOp[] = []
+          if (!deepEqualJson(current.baseURL, request.baseURL)) {
+            ops.push({ op: 'set', path: ['baseURL'], value: request.baseURL })
           }
-        }
-        if (endpoint === OLLAMA_DISCOVER_ENDPOINT) {
-          const request = decodeOllamaDiscoveryRequest(payload)
-          if (request === undefined) return discoveryFailure('invalid Ollama Cloud discovery request')
-          try {
-            const models = await discoverModels({ ...request, signal }, storedApiKey)
-            return { ok: true as const, value: { models } }
-          } catch (error: unknown) {
-            const message = error instanceof LlmError
-              ? error.message
-              : 'Ollama Cloud model discovery failed'
-            return discoveryFailure(message, request.baseURL)
+          if (!deepEqualJson(current.models, request.models)) {
+            ops.push({ op: 'set', path: ['models'], value: request.models })
           }
-        }
-        if (endpoint === OLLAMA_SAVE_ENDPOINT) {
-          const request = decodeOllamaSaveRequest(payload)
-          if (request === undefined) return settingsFailure('invalid Ollama Cloud settings request')
-          const settings = ctx.get('settings')
-          if (settings === undefined) return settingsFailure('Ollama Cloud settings are unavailable')
-          try {
-            const before = settings.describe().find(descriptor => descriptor.ns === NS)
-            if (before === undefined) return settingsFailure('Ollama Cloud settings are unavailable')
-            const current = decodeOllamaSettings(before.value)
-            if (current === undefined) return settingsFailure('Ollama Cloud settings are invalid')
-            const ops: SettingsPathOp[] = []
-            if (!deepEqualJson(current.baseURL, request.baseURL)) {
-              ops.push({ op: 'set', path: ['baseURL'], value: request.baseURL })
-            }
-            if (!deepEqualJson(current.models, request.models)) {
-              ops.push({ op: 'set', path: ['models'], value: request.models })
-            }
-            if (ops.length > 0) await settings.mutate(NS, ops, request.expectedRevision)
-            const accepted = settings.describe().find(descriptor => descriptor.ns === NS)
-            const acceptedSettings = decodeOllamaSettings(accepted?.value)
-            if (accepted === undefined || acceptedSettings === undefined) {
-              return settingsFailure('Ollama Cloud settings could not be reloaded')
-            }
-            return { ok: true as const, value: { settings: acceptedSettings, revision: accepted.revision } }
-          } catch (error: unknown) {
-            const message = error instanceof Error && error.message.length > 0
-              ? error.message
-              : 'Ollama Cloud settings save failed'
-            return settingsFailure(message)
+          if (ops.length > 0) await settings.mutate(NS, ops, request.expectedRevision)
+          const accepted = settings.describe().find(descriptor => descriptor.ns === NS)
+          const acceptedSettings = decodeOllamaSettings(accepted?.value)
+          if (accepted === undefined || acceptedSettings === undefined) {
+            return settingsFailure('Ollama Cloud settings could not be reloaded')
           }
+          return { ok: true as const, value: { settings: acceptedSettings, revision: accepted.revision } }
+        } catch (error: unknown) {
+          const message = error instanceof Error && error.message.length > 0
+            ? error.message
+            : 'Ollama Cloud settings save failed'
+          return settingsFailure(message)
         }
-        if (endpoint === OLLAMA_USAGE_ENDPOINT) {
-          const request = decodeOllamaDiscoveryRequest(payload)
-          if (request === undefined) return settingsFailure('invalid Ollama Cloud usage request')
-          try {
-            const usage = await readOllamaUsage({ ...request, signal }, storedApiKey)
-            return { ok: true as const, value: { status: 'ok' as const, usage } }
-          } catch (error: unknown) {
-            return usageFailure(error)
-          }
+      }
+      if (endpoint === OLLAMA_USAGE_ENDPOINT) {
+        const request = decodeOllamaDiscoveryRequest(payload)
+        if (request === undefined) return settingsFailure('invalid Ollama Cloud usage request')
+        try {
+          const usage = await readOllamaUsage({ ...request, signal }, storedApiKey)
+          return { ok: true as const, value: { status: 'ok' as const, usage } }
+        } catch (error: unknown) {
+          return usageFailure(error)
         }
-        return settingsFailure(`unknown Ollama Cloud endpoint: ${endpoint}`)
-      },
-      { authority: config.remoteManagement === true ? 'trusted-host' : 'loopback' },
-    )
+      }
+      return settingsFailure(`unknown Ollama Cloud endpoint: ${endpoint}`)
+    }
+    connectionCtx.effect(() => connectionCtx.connection.rpc.handle(OLLAMA_RPC_CHANNEL, handler), 'llm-ollama: RPC channel')
   })
-
-  ensureProviderOrderSettings(ctx)
   installSettingsSection(ctx, NS, Config, config, {
     setSource: (source) => {
       current = source

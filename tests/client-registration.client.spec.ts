@@ -2,7 +2,7 @@
 
 import { Context, Service } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
-import type { SettingsScope, SettingsScopeSnapshot } from '../src/client/shim.ts'
+import type { SettingsScope, SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { OllamaSettingsView } from '../src/client-contract.ts'
 import { apply, inject } from '../src/client/index.ts'
 
@@ -27,6 +27,7 @@ function scope(): SettingsScope<OllamaSettingsView> {
   return {
     getSnapshot: () => snapshot,
     subscribe: () => () => undefined,
+    mutate: vi.fn(() => Promise.resolve()),
     set: vi.fn(() => Promise.resolve()),
     unset: vi.fn(() => Promise.resolve()),
   }
@@ -52,6 +53,10 @@ class FakeSlots extends Service {
 
   entries(name: string): readonly SlotEntry[] {
     return this.registered.filter(entry => entry.options['name'] === name)
+  }
+
+  subscribe(_name: string, _listener: () => void): () => void {
+    return () => undefined
   }
 }
 
@@ -92,7 +97,7 @@ describe('Ollama client plugin registration', () => {
     const fiber = ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
 
-    expect(slots.entries('settings.section').map(e => e.options.id)).toEqual(['providers'])
+    expect(slots.entries('settings.section')).toHaveLength(0) // owned by dsh-llm-providers-ui
     const entries = slots.entries('settings.provider.item')
     expect(entries).toHaveLength(1)
     expect(entries[0]?.options).toMatchObject({ key: 'llm-ollama' })
