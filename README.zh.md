@@ -8,10 +8,10 @@ DeepSeek Harness 的 Ollama Cloud 集成。聊天通过共享的 pi-ai adapter �
 
 ## 安装
 
-要求 DeepSeek Harness 0.1.2-alpha.1 或更高版本。直接从 GitHub 安装：
+要求 DeepSeek Harness 0.1.2-alpha.4。直接从 GitHub 安装：
 
 ~~~sh
-dsh plugin --profile web add github:NOirBRight/dsh-llm-ollama#v0.6.15
+dsh plugin --profile web add github:NOirBRight/dsh-llm-ollama#v0.6.16
 dsh web
 ~~~
 
@@ -19,7 +19,7 @@ dsh web
 
 ## Connection 身份验证与信任
 
-本插件通过官方 alpha1 Connection 服务的两参数 `rpc.handle(channel, handler)` API 注册设置、发现和用量 channel。不选择 authority；alpha1 Connection 对所有 Host RPC 方法和 WebSocket stream 统一执行已验证的浏览器会话策略。
+本插件通过官方 Alpha.4 Connection 服务的两参数 `rpc.handle(channel, handler)` API 注册设置、发现和用量 channel。不选择 authority；Alpha.4 Connection 对所有 Host RPC 方法和 WebSocket stream 统一执行已验证的浏览器会话策略。
 
 每个进程都会生成随机启动 token。DSH 只在 `GET /` 上接受该 token，将其交换为绑定 authority 的签名浏览器会话 cookie，然后重定向到干净的根 URL。缺少、过期、格式错误或 authority 不匹配的 cookie 会在 RPC 分发前返回 401；静态资源仍可公开访问。根交换之外的 query token 和 Authorization header token 均不接受。
 
@@ -154,14 +154,14 @@ Usage 映射成 Harness input/output 计数。pi-ai 会按配置的 context capa
 
 - 本插件仅贡献自己的卡片（`key: llm-ollama`）和 Host 上的 `llm` 路由；不安装页面或共享命名空间。加载顺序不影响归属。
 - 未安装 owner 时（Headless 或 Web 未装 `dsh-llm-providers-ui`）：Host 侧模型路由 `ollama-cloud` 仍可工作；Web 侧 Providers 页面与本卡片不显示，并在浏览器控制台提示缺少 owner。正式 Web 发版的组合测试会拒绝缺少 owner 的图。
-- 导航地球图标为 ``alpha.1`` 临时 DOM 适配器，仅由 `dsh-llm-providers-ui` 持有；本插件不含该适配。
+- 导航地球图标为 Alpha.4 临时 DOM 适配器，仅由 `dsh-llm-providers-ui` 持有；本插件不含该适配。
 
 请在 profile 中与 provider 插件一起显式安装 `dsh-llm-providers-ui`（见其 `cordis.patch.yml`）。
 
 
 ## 正式版安装（Latest）
 
-Ollama Cloud chat, model discovery, and Web Search/Fetch providers. 正式成品只支持 DeepSeek Harness 0.1.2-alpha.1；发布包只包含构建后的 Host/Client 产物，不包含兄弟仓库源码、本机路径或 link:/workspace: 依赖。
+Ollama Cloud chat, model discovery, and Web Search/Fetch providers. 正式成品只支持 DeepSeek Harness 0.1.2-alpha.4；发布包只包含构建后的 Host/Client 产物，不包含兄弟仓库源码、本机路径或 link:/workspace: 依赖。
 
 LLM Providers 页面、导航和共享排序由 dsh-llm-providers-ui 独占；本插件只提供卡片、模型和 Host 路由。Web 必须先装 Owner，headless 只使用 Host 路由时可以不装 Owner。
 
@@ -205,4 +205,4 @@ dsh plugin --profile web remove dsh-llm-ollama
 
 回滚：重新执行固定版本 v0.6.15 命令，确认插件列表后只重启一次 Web 服务。失败时查看 journalctl --user -u dsh-web.service 与 dsh plugin --profile web doctor，不要把源码 checkout 写入 production profile。
 
-Release 与完整性：[v0.6.15](https://github.com/NOirBRight/dsh-llm-ollama/releases/tag/v0.6.15) · [SHA256SUMS](https://github.com/NOirBRight/dsh-llm-ollama/releases/download/v0.6.15/SHA256SUMS)。
+Release 与完整性：[v0.6.16](https://github.com/NOirBRight/dsh-llm-ollama/releases/tag/v0.6.16) · [SHA256SUMS](https://github.com/NOirBRight/dsh-llm-ollama/releases/download/v0.6.16/SHA256SUMS)。

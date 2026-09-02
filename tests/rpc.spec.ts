@@ -210,7 +210,7 @@ describe('Ollama rich-discovery RPC', () => {
     const ctx = new Context()
     await ctx.plugin(LlmRuntime).await()
     const fiber = ctx.plugin({ inject: [...inject], Config, apply }, { remoteManagement: true } as never)
-    await expect(fiber.await()).rejects.toThrow('remoteManagement is not supported by the alpha.1 Connection service')
+    await expect(fiber.await()).rejects.toThrow('remoteManagement is not supported by the Alpha.4 Connection service')
     await ctx.fiber.dispose()
   })
 })

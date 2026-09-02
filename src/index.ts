@@ -18,7 +18,7 @@ import { assertUsableApiKey, LlmError, resolveRetryPolicy, RetryPolicySchema } f
 import type { RetryPolicyConfig } from '@deepseek-ai/dsh-llm'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
-import { deepEqualJson, installSettingsSection, settingsNamespace } from '@deepseek-ai/dsh-settings'
+import { deepEqualJson } from '@deepseek-ai/dsh-util-values'
 import type { SettingsPathOp } from '@deepseek-ai/dsh-settings'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import {
@@ -125,7 +125,7 @@ export const inject = ['llm']
 /** Preserve Ollama's historical normal retry count across host-line default changes. */
 const DEFAULT_MAX_RETRIES = 2
 
-const NS = settingsNamespace(OLLAMA_SETTINGS_NAMESPACE)
+const NS = OLLAMA_SETTINGS_NAMESPACE
 
 /**
  * Plugin config, validated by the same-named schemastery schema and doubling
@@ -299,7 +299,7 @@ function usageFailure(error: unknown) {
 
 export function apply(ctx: Context, config: Config): void {
   if (Object.hasOwn(config, 'remoteManagement')) {
-    throw new Error('llm-ollama: remoteManagement is not supported by the alpha.1 Connection service')
+    throw new Error('llm-ollama: remoteManagement is not supported by the Alpha.4 Connection service')
   }
   let current: () => Config = () => config
   let lastRaw: Config | undefined
@@ -483,10 +483,12 @@ export function apply(ctx: Context, config: Config): void {
     }
     connectionCtx.effect(() => connectionCtx.connection.rpc.handle(OLLAMA_RPC_CHANNEL, handler), 'llm-ollama: RPC channel')
   })
-  installSettingsSection(ctx, NS, Config, config, {
-    setSource: (source) => {
-      current = source
-    },
-    onChange: ensureRegistrationFacts,
+  ctx.inject(['settings'], (settingsCtx) => {
+    settingsCtx.settings.installSection(ctx, NS, Config, config, {
+      setSource: (source) => {
+        current = source
+      },
+      onChange: ensureRegistrationFacts,
+    })
   })
 }
