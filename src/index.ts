@@ -21,6 +21,7 @@ import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
 import { deepEqualJson } from '@deepseek-ai/dsh-util-values'
 import type { SettingsPathOp } from '@deepseek-ai/dsh-settings'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
+import { allowDshRuntime } from './compatibility.ts'
 import {
   DEFAULT_CONTEXT_WINDOW,
   DEFAULT_STREAM_IDLE_TIMEOUT_MS,
@@ -298,6 +299,8 @@ function usageFailure(error: unknown) {
 }
 
 export function apply(ctx: Context, config: Config): void {
+  if (!allowDshRuntime(ctx.logger, 'dsh-llm-ollama', ['@deepseek-ai/dsh-llm'])) return
+
   if (Object.hasOwn(config, 'remoteManagement')) {
     throw new Error('llm-ollama: remoteManagement is not supported by the Alpha.4 Connection service')
   }
