@@ -19,6 +19,7 @@ const ALPHA4_TAG = 'dsh-v0.1.2-alpha.4'
 const ALPHA4_COMMIT = '4e84901e6471b79ec0338099867ebb4606d12bb5'
 const OWNER_NAME = 'dsh-llm-providers-ui'
 const OWNER_VERSION = '0.1.3'
+const OWNER_RELEASE = 'https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/v0.1.3/dsh-llm-providers-ui-0.1.3.tgz'
 const FROZEN_OWNER_FILE = 'dsh-llm-providers-ui-0.1.3-2ea19427e9622253ae4621584e3d5fd4fcdb24b60ef72ca4e101ac2e267da595.tgz'
 const FROZEN_OWNER_SHA256 = '2ea19427e9622253ae4621584e3d5fd4fcdb24b60ef72ca4e101ac2e267da595'
 const FROZEN_OWNER_BYTES = 29675
@@ -300,7 +301,8 @@ function verifySourceMigration(manifest) {
       if (typeof spec !== 'string') fail(section + ' entry is not a string: ' + name)
       if (section === 'devDependencies' && name === OWNER_NAME
         && (spec === 'file:../dsh-llm-providers-ui/dsh-llm-providers-ui-0.1.3.tgz'
-          || spec === 'file:../dsh-llm-providers-ui/fixtures/alpha4/tarballs/dsh-llm-providers-ui-0.1.3.tgz')) continue
+          || spec === 'file:../dsh-llm-providers-ui/fixtures/alpha4/tarballs/dsh-llm-providers-ui-0.1.3.tgz'
+          || spec === OWNER_RELEASE)) continue
       if (/^(?:file:|link:|workspace:|npm:|github:|git\+|https?:|\/|\.\.?[\/]|~[\/])/iu.test(spec)) fail(section + ' uses a path or VCS source: ' + name + ' ' + spec)
     }
   }
@@ -310,7 +312,8 @@ function verifySourceMigration(manifest) {
     }
   }
   if (manifest.devDependencies?.[OWNER_NAME] !== 'file:../dsh-llm-providers-ui/dsh-llm-providers-ui-0.1.3.tgz'
-    && manifest.devDependencies?.[OWNER_NAME] !== 'file:../dsh-llm-providers-ui/fixtures/alpha4/tarballs/dsh-llm-providers-ui-0.1.3.tgz') fail('Providers UI must use the pinned Alpha.4 development tarball')
+    && manifest.devDependencies?.[OWNER_NAME] !== 'file:../dsh-llm-providers-ui/fixtures/alpha4/tarballs/dsh-llm-providers-ui-0.1.3.tgz'
+    && manifest.devDependencies?.[OWNER_NAME] !== OWNER_RELEASE) fail('Providers UI must use the pinned Alpha.4 development tarball')
   if (manifest.dependencies?.[OWNER_NAME] !== undefined || manifest.peerDependencies?.[OWNER_NAME] !== undefined) fail('Providers UI must not be a runtime or peer dependency')
   const card = readFileSync(join(ROOT, 'src/client/OllamaPluginCard.tsx'), 'utf8')
   if (!card.includes("from 'dsh-llm-providers-ui/sortable'")) fail('client does not import the public sortable subpath')
