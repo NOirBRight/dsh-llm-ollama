@@ -27,6 +27,16 @@ import {
   OLLAMA_USAGE_ENDPOINT,
 } from '../client-contract.ts'
 import type { OllamaDiscoveryRequest, OllamaSettingsView } from '../client-contract.ts'
+import { createOllamaUsageReader } from 'dsh-llm-providers-ui/usage-readers';
+import type { ProviderUsageReader } from 'dsh-llm-providers-ui/usage-readers';
+
+declare module '@deepseek-ai/cordis' {
+  interface Context {
+    providerDirectory: {
+      register(declaration: { key: string; role?: 'llm' | 'agent'; header?: 'shared' | 'legacy'; usage?: ProviderUsageReader }): () => void;
+    };
+  }
+}
 import { OllamaPluginCard } from './OllamaPluginCard.tsx'
 import type { OllamaPluginCardFace } from './OllamaPluginCard.tsx'
 import { OllamaModelPicker, OllamaModelPickerController } from './OllamaModelPicker.tsx'
@@ -182,6 +192,12 @@ export function apply(ctx: ClientContext): void {
       closeModelPicker: picker.close,
     }),
   }, OllamaPluginCard))
+  ctx.inject(['providerDirectory'], (ctx) => {
+    ctx.effect(
+      () => ctx.providerDirectory.register({ key: OLLAMA_SETTINGS_NAMESPACE, role: 'llm', header: 'shared', usage: createOllamaUsageReader() }),
+      'dsh-llm-ollama: provider directory',
+    )
+  })
   // Diagnostic when the Providers UI owner is not mounted (Web without dsh-llm-providers-ui).
   // The card is registered but the page will not appear; providers still work Host-side.
   ctx.effect(() => {
