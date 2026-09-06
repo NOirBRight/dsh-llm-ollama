@@ -27,16 +27,8 @@ import {
   OLLAMA_USAGE_ENDPOINT,
 } from '../client-contract.ts'
 import type { OllamaDiscoveryRequest, OllamaSettingsView } from '../client-contract.ts'
+import type {} from 'dsh-llm-providers-ui/client';
 import { createOllamaUsageReader } from 'dsh-llm-providers-ui/usage-readers';
-import type { ProviderUsageReader } from 'dsh-llm-providers-ui/usage-readers';
-
-declare module '@deepseek-ai/cordis' {
-  interface Context {
-    providerDirectory: {
-      register(declaration: { key: string; role?: 'llm' | 'agent'; header?: 'shared' | 'legacy'; usage?: ProviderUsageReader }): () => void;
-    };
-  }
-}
 import { OllamaPluginCard } from './OllamaPluginCard.tsx'
 import type { OllamaPluginCardFace } from './OllamaPluginCard.tsx'
 import { OllamaModelPicker, OllamaModelPickerController } from './OllamaModelPicker.tsx'
@@ -126,6 +118,7 @@ export function apply(ctx: ClientContext): void {
     if (!result.ok) throw new Error(result.error.message)
     const status = decodeOllamaCredentialStatus(result.value)
     if (status === undefined) throw new Error(t('requestFailed'))
+    ctx.get('providerDirectory')?.invalidateUsage(OLLAMA_SETTINGS_NAMESPACE)
   }
 
   const fetchUsage: OllamaPluginCardFace['fetchUsage'] = async (request: OllamaDiscoveryRequest) => {

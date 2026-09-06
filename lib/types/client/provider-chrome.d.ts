@@ -73,6 +73,6 @@ export declare function UsageUpdatedAt(props: {
 /** Join connection status and model count: "已登录 · 8 个模型". */
 export declare function formatProviderSummary(status: string, modelsLabel: string): string;
 /** Canonical shared header: delete per-provider fork, re-export built artifact. */
-export { ProviderCardHeader, providerUiCss } from 'dsh-llm-providers-ui/provider-ui';
-export type { ProviderCardHeaderProps, ProviderQuotaState } from 'dsh-llm-providers-ui/provider-ui';
+export { ProviderCardHeader, ProviderQuotaMeter, providerUiCss } from 'dsh-llm-providers-ui/provider-ui';
+export type { ProviderCardHeaderProps, ProviderQuotaMeterProps, ProviderQuotaState } from 'dsh-llm-providers-ui/provider-ui';
 //# sourceMappingURL=provider-chrome.d.ts.map

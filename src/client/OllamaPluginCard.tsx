@@ -20,7 +20,7 @@ import {
 } from '../reasoning.ts'
 import type { OllamaSettingsKey } from './locales.ts'
 import { BrandMark } from './BrandMark.tsx'
-import { ProviderCardHeader, UsageHeader, UsageResetAt, UsageSkeleton, UsageUpdatedAt, formatProviderSummary, formatUsageClock, providerUiCss, resetLabelOf } from './provider-chrome.tsx'
+import { ProviderCardHeader, ProviderQuotaMeter, UsageHeader, UsageSkeleton, UsageUpdatedAt, formatProviderSummary, formatUsageClock, providerUiCss, resetLabelOf } from './provider-chrome.tsx'
 import type { ProviderQuotaState } from 'dsh-llm-providers-ui/provider-ui';
 import { SortableList } from 'dsh-llm-providers-ui/sortable'
 import {
@@ -185,14 +185,6 @@ const disclosureStyle: CSSProperties = {
 // modelContentStyle, modelDetailStyle, capabilitiesStyle now from model-catalog-ui.tsx
 const statusStyle: CSSProperties = { margin: 0, fontSize: 13, color: 'var(--dsw-alias-label-secondary)' }
 const errorStyle: CSSProperties = { ...statusStyle, color: 'var(--dsw-alias-state-error-primary)' }
-const barTrackStyle: CSSProperties = {
-  boxSizing: 'border-box',
-  height: 14,
-  display: 'flex',
-  overflow: 'hidden',
-  borderRadius: 999,
-  background: 'color-mix(in srgb, var(--dsw-alias-label-primary) 14%, transparent)',
-}
 const usageListStyle: CSSProperties = {
   margin: 0,
   padding: 0,
@@ -338,7 +330,7 @@ function usageResetCopy(t: OllamaPluginCardFace['t']): { at: string, atDays: str
   return { at: t('usageResetAt'), atDays: t('usageResetAtDays') }
 }
 
-/** One quota window: an aggregate consumed percentage and solid meter. */
+/** One quota window: segmented remaining meter; honest native text when no percent metric. */
 
 function UsageBar({ label, usedText, window: quota, t, fallbackReset }: {
   label: string
@@ -347,36 +339,18 @@ function UsageBar({ label, usedText, window: quota, t, fallbackReset }: {
   t: OllamaPluginCardFace['t']
   fallbackReset?: string
 }): ReactNode {
-  const percent = Math.round(quota.usage * 1000) / 10
-  const fill = Math.min(100, Math.max(0, percent))
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+  const remaining = 100 * (1 - quota.usage)
+  if (!Number.isFinite(remaining) || remaining < 0 || remaining > 100) {
+    const percent = Math.round(quota.usage * 1000) / 10
+    return (
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
         <span style={labelStyle}>{label}</span>
         <span style={hintStyle}>{usedText} {percent}%</span>
       </div>
-      <div
-        style={barTrackStyle}
-        role="progressbar"
-        aria-label={label}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={Math.round(fill)}
-      >
-        <span
-          data-usage-fill="true"
-          style={{
-            width: String(fill) + '%',
-            height: '100%',
-            flex: 'none',
-            background: 'var(--dsw-alias-state-business-primary)',
-            transition: 'width 200ms ease',
-          }}
-        />
-      </div>
-      <UsageResetAt label={resetLabelOf(quota.resetsAt, usageResetCopy(t)) ?? fallbackReset} />
-    </div>
-  )
+    )
+  }
+  const detail = resetLabelOf(quota.resetsAt, usageResetCopy(t)) ?? fallbackReset
+  return <ProviderQuotaMeter remainingPercent={Math.round(remaining * 10) / 10} label={label} {...(detail === undefined ? {} : { detail })} />
 }
 
 /** Render the single-package Ollama Cloud contribution under Plugin configuration. */
@@ -411,6 +385,7 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
   const [lastUsage, setLastUsage] = useState<OllamaUsageView | undefined>(undefined)
   const [usageUpdatedAt, setUsageUpdatedAt] = useState<Date | undefined>(undefined)
   const [catalogOpen, setCatalogOpen] = useState(false)
+  const [modelSorting, setModelSorting] = useState(false)
   const [expandedModels, setExpandedModels] = useState<ReadonlySet<string>>(new Set())
   const dirty = source !== undefined && draft !== undefined && (!sameDraft(source, draft) || apiKey.length > 0)
 
@@ -801,14 +776,25 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
                         <span style={sectionTitleStyle}>{t('models')}</span>
                         <span style={hintStyle}>{customModels ? t('customized') : t('inherited')}</span>
                       </button>
-                      <button
-                        type="button"
-                        style={buttonStyle}
-                        disabled={fetching || invalid || snapshot.status !== 'ready'}
-                        onClick={() => { void fetchModels() }}
-                      >
-                        {t(fetching ? 'fetchingModels' : 'fetchModels')}
-                      </button>
+                      <span style={{ display: 'inline-flex', gap: 8 }}>
+                        <button
+                          type="button"
+                          style={buttonStyle}
+                          aria-pressed={modelSorting}
+                          disabled={disabled || draft.models.length < 2}
+                          onClick={() => { setModelSorting(current => !current) }}
+                        >
+                          {t(modelSorting ? 'doneSorting' : 'sortModels')}
+                        </button>
+                        <button
+                          type="button"
+                          style={buttonStyle}
+                          disabled={fetching || invalid || snapshot.status !== 'ready'}
+                          onClick={() => { void fetchModels() }}
+                        >
+                          {t(fetching ? 'fetchingModels' : 'fetchModels')}
+                        </button>
+                      </span>
                     </div>
                     {catalogOpen
                       ? (
@@ -817,6 +803,7 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
                             items={draft.models}
                             getId={model => model.rowId}
                             disabled={disabled}
+                            sorting={modelSorting}
                             dragLabel={(model, index) => {
                               const label = model.id.trim().length > 0 ? model.id.trim() : String(index + 1)
                               return t('dragModel') + ': ' + label
