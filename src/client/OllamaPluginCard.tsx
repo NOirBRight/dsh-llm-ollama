@@ -1,6 +1,6 @@
 /** Ollama Cloud connection and model-catalog card for Plugin configuration. */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import type { SettingsScope, SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { InjectFace, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
@@ -23,6 +23,8 @@ import { BrandMark } from './BrandMark.tsx'
 import { ProviderCardHeader, ProviderQuotaMeter, UsageHeader, UsageSkeleton, UsageUpdatedAt, formatUsageClock, providerUiCss, resetLabelOf } from './provider-chrome.tsx'
 import type { ProviderQuotaState } from 'dsh-llm-providers-ui/provider-ui';
 import { SortableList } from 'dsh-llm-providers-ui/sortable'
+import { headerQuotaFromCache, peekCachedUsage, rememberHeadlineQuota } from 'dsh-llm-providers-ui/usage-readers'
+
 import {
   CapabilitiesRow,
   CatalogRow,
@@ -384,6 +386,11 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
   const [usage, setUsage] = useState<UsageState>({ status: 'idle' })
   const [lastUsage, setLastUsage] = useState<OllamaUsageView | undefined>(undefined)
   const [usageUpdatedAt, setUsageUpdatedAt] = useState<Date | undefined>(undefined)
+  // Read generation: only the latest usage read may publish. A superseded read
+  // (save-new-key, credential change, unmount) must not resurrect old-account
+  // usage into state or the persisted headline cache.
+  const usageEpoch = useRef(0)
+  const mounted = useRef(true)
   const [catalogOpen, setCatalogOpen] = useState(false)
   const [modelSorting, setModelSorting] = useState(false)
   const [expandedModels, setExpandedModels] = useState<ReadonlySet<string>>(new Set())
@@ -399,10 +406,20 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
     setSourceRevision(snapshot.revision)
   }, [dirty, snapshot.revision, snapshot.status, snapshot.value, sourceRevision])
 
+  // Credential generation mirrors the usage epoch: a superseded credential read
+  // (save-new-key, unmount) must not overwrite fresher credential state. A shared
+  // counter would false-invalidate the mount reads, which overlap by design.
+  const credentialEpoch = useRef(0)
   const refreshCredential = async (): Promise<void> => {
+    const epoch = credentialEpoch.current + 1
+    credentialEpoch.current = epoch
+    const liveCredential = (): boolean => mounted.current && epoch === credentialEpoch.current
     try {
-      setCredential(await props.describeCredential())
+      const next = await props.describeCredential()
+      if (!liveCredential()) return
+      setCredential(next)
     } catch {
+      if (!liveCredential()) return
       setCredential(undefined)
     }
   }
@@ -502,14 +519,19 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
   }
 
   const loadUsage = async (): Promise<void> => {
+    const epoch = usageEpoch.current + 1
+    usageEpoch.current = epoch
+    const live = (): boolean => mounted.current && epoch === usageEpoch.current
     setUsage({ status: 'loading' })
     try {
       const read = await props.fetchUsage({
         ...draft === undefined ? {} : { baseURL: draft.baseURL.trim() },
         ...apiKey.trim().length === 0 ? {} : { apiKey: apiKey.trim() },
       })
+      if (!live()) return
       if (read.kind === 'ok') {
         setLastUsage(read.usage)
+        rememberHeadlineQuota('llm-ollama', 'Ollama Cloud', headlineQuotaOf(read.usage, t))
         setUsageUpdatedAt(new Date())
       }
       setUsage(
@@ -520,10 +542,17 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
             : { status: 'unsupported' },
       )
     } catch (error: unknown) {
+      if (!live()) return
       setUsage({ status: 'error', message: usageErrorOf(error, t) })
     }
   }
   // Header quota loads collapsed once settings are ready; idle status dedups so expansion never refires.
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
   useEffect(() => {
     if (snapshot.status !== 'ready' || usage.status !== 'idle') return
     void loadUsage()
@@ -586,6 +615,9 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
 
   const save = async (): Promise<void> => {
     if (draft === undefined || snapshot.value === undefined || invalid) return
+    // A new key may change the account: invalidate in-flight usage reads now so a
+    // late old-account resolve cannot publish or re-persist before the fresh read.
+    usageEpoch.current += 1
     setBusy(true)
     setFailure(undefined)
     setNotice(undefined)
@@ -604,6 +636,9 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
       setUsage({ status: 'idle' })
     } catch (error: unknown) {
       setFailure(messageOf(error, t('requestFailed')))
+      // A failed save starts no fresh read: release a stuck loading state back to
+      // idle so the next effect pass retries instead of hanging forever.
+      setUsage(current => (current.status === 'loading' ? { status: 'idle' } : current))
     } finally {
       setBusy(false)
     }
@@ -614,10 +649,19 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
   else if (draft !== undefined && modelFailure(draft.models)) validation = t('invalidModel')
   else if (keyInvalid) validation = t('invalidApiKey')
 
-  const headerCount = t('summaryModels').replace('{count}', String(draft?.models.length ?? 0))
-  const headerStatus = credential?.configured === true ? t('summaryOn') : t('summaryOff')
+  const headerModelCount = draft?.models.length
+  const headerCount = headerModelCount === undefined ? '' : t('summaryModels').replace('{count}', String(headerModelCount))
+  // Unknown credential is loading, not unconfigured: only an authoritative verdict earns On/Off.
+  const headerStatus = credential?.configured === true ? t('summaryOn') : credential?.configured === false ? t('summaryOff') : t('loading')
   const usageView = usage.status === 'ready' ? usage.usage : lastUsage
-  const headerQuota = credential?.configured === true ? headlineQuotaOf(usageView, t) : undefined
+  const liveQuota = credential?.configured === true ? headlineQuotaOf(usageView, t) : undefined
+  // Persisted fallback before fresh metadata: allowed while credential is unknown,
+  // withheld once known-false or the usage read settles error/unsupported/needs-restart.
+  const quotaWithheld = credential?.configured === false
+    || usage.status === 'error' || usage.status === 'unsupported' || usage.status === 'needs-restart'
+  // The verdict gates the entire header quota, not only the persisted fallback:
+  // stale local lastUsage must not look fresh on error/unsupported either.
+  const headerQuota = quotaWithheld ? undefined : (liveQuota ?? headerQuotaFromCache(peekCachedUsage('llm-ollama')))
 
   return (
     <li style={cardStyle} data-provider-card="" data-provider-role="llm">

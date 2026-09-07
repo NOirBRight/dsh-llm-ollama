@@ -57,6 +57,8 @@ Fetch available models opens the picker immediately and calls the authenticated 
 
 The card's Cloud usage section mirrors ollama.com/settings: the Host reads GET <baseURL>/usage with the stored (or one-shot) key and renders the session and weekly windows as consumed-percentage meters plus the week's per-model request counts. The credential never crosses to the browser. A self-hosted endpoint without the usage surface shows an unsupported note instead of an error.
 
+The collapsed header falls back to the last successful quota from the shared browser cache while its credential is configured; storing a new credential purges the cache in every bundle copy, even without providerDirectory.
+
 The model catalog starts collapsed and lists one row per model: a drag handle reorders rows (the order persists with the catalog), the chevron opens that row's context window, Default thinking, and capability flags, and the trash button removes it.
 
 ### Plugin configuration screenshots

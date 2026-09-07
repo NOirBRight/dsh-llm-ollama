@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { SettingsScope, SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { OllamaSettingsView } from '../src/client-contract.ts'
 import { apply, inject } from '../src/client/index.ts'
+import { clearProviderUsageCache, peekCachedUsage, rememberHeadlineQuota } from 'dsh-llm-providers-ui/usage-readers'
 
 const value: OllamaSettingsView = {
   apiKeyEnv: 'OLLAMA_API_KEY',
@@ -112,5 +113,32 @@ describe('Ollama client plugin registration', () => {
     expect(slots.entries('settings.provider.item')).toHaveLength(0)
     expect(slots.entries('settings.section')).toHaveLength(0)
     expect(slots.entries('shell.overlay')).toHaveLength(0)
+  })
+
+  it('purges persisted quota when credentials are stored without a provider directory', async () => {
+    rememberHeadlineQuota('llm-ollama', 'Ollama Cloud', { label: 'S', remainingPercent: 90 })
+    const ctx = new Context()
+    await ctx.plugin(FakeSlots).await()
+    const slots = ctx.get('slots') as FakeSlots
+    ctx.provide('locale', {
+      register: () => () => undefined,
+      bind: () => (key: string) => key,
+    } as never)
+    ctx.provide('settingsScope', { bind: () => scope() } as never)
+    ctx.provide('remote', { $on: () => () => undefined } as never)
+    ctx.provide('connection', {
+      rpc: {
+        call: vi.fn(async (_channel: string, endpoint: string) => endpoint === 'credential/set'
+          ? { ok: true, value: { configured: true, writable: true } }
+          : { ok: true, value: { models: [] } }),
+      },
+    } as never)
+    const fiber = ctx.plugin({ inject: [...inject], apply })
+    await fiber.await()
+    const face = (slots.entries('settings.provider.item')[0] as { inject?: () => { saveCredential: (apiKey: string) => Promise<unknown> } }).inject?.()
+    await face?.saveCredential('new-key')
+    expect(peekCachedUsage('llm-ollama')).toBeUndefined()
+    clearProviderUsageCache()
+    await fiber.dispose()
   })
 })

@@ -28,7 +28,7 @@ import {
 } from '../client-contract.ts'
 import type { OllamaDiscoveryRequest, OllamaSettingsView } from '../client-contract.ts'
 import type {} from 'dsh-llm-providers-ui/client';
-import { createOllamaUsageReader } from 'dsh-llm-providers-ui/usage-readers';
+import { createOllamaUsageReader, dropPersistedUsageKeys } from 'dsh-llm-providers-ui/usage-readers';
 import { OllamaPluginCard } from './OllamaPluginCard.tsx'
 import type { OllamaPluginCardFace } from './OllamaPluginCard.tsx'
 import { OllamaModelPicker, OllamaModelPickerController } from './OllamaModelPicker.tsx'
@@ -113,6 +113,7 @@ export function apply(ctx: ClientContext): void {
     if (!result.ok) throw new Error(result.error.message)
     const status = decodeOllamaCredentialStatus(result.value)
     if (status === undefined) throw new Error(t('requestFailed'))
+    dropPersistedUsageKeys([OLLAMA_SETTINGS_NAMESPACE])
     ctx.get('providerDirectory')?.invalidateUsage(OLLAMA_SETTINGS_NAMESPACE)
   }
 
