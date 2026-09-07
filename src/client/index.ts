@@ -38,11 +38,6 @@ import type { OllamaSettingsKey } from './locales.ts'
 
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
-  interface SlotMap {
-    'settings.provider.item': { kind: 'keyed'; scope: 'root' }
-  }
-}
-declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
     /** Ollama Cloud Plugin configuration copy. */
     'settings.ollama-cloud': OllamaSettingsKey

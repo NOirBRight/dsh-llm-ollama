@@ -8,10 +8,10 @@
   },
   "ownerArtifact": {
     "package": "dsh-llm-providers-ui",
-    "version": "0.1.5",
-    "file": "dsh-llm-providers-ui-0.1.5-8835d6bb27fd637e071ccebf3a752425f2a0396f2489001a97bfbd54b1e3a7de.tgz",
-    "bytes": 34359,
-    "sha256": "8835d6bb27fd637e071ccebf3a752425f2a0396f2489001a97bfbd54b1e3a7de"
+    "version": "0.1.10",
+    "file": "dsh-llm-providers-ui-0.1.10-1ec6b3fdcb2b204307acc3dbad7ec391ccb15531b4d5dafa0a6938599990ead9.tgz",
+    "bytes": 77406,
+    "sha256": "1ec6b3fdcb2b204307acc3dbad7ec391ccb15531b4d5dafa0a6938599990ead9"
   },
   "graph": {
     "officialAlpha4Packages": [
@@ -2936,11 +2936,11 @@
       "sha256": "51f51d886af1428713bf52b4e795afa43e2b43956b8483c9a92590f4c5a7b296",
       "source": "registry"
     },
-    "dsh-llm-providers-ui-0.1.5-8835d6bb27fd637e071ccebf3a752425f2a0396f2489001a97bfbd54b1e3a7de.tgz": {
+    "dsh-llm-providers-ui-0.1.10-1ec6b3fdcb2b204307acc3dbad7ec391ccb15531b4d5dafa0a6938599990ead9.tgz": {
       "package": "dsh-llm-providers-ui",
-      "version": "0.1.5",
-      "bytes": 34359,
-      "sha256": "8835d6bb27fd637e071ccebf3a752425f2a0396f2489001a97bfbd54b1e3a7de",
+      "version": "0.1.10",
+      "bytes": 77406,
+      "sha256": "1ec6b3fdcb2b204307acc3dbad7ec391ccb15531b4d5dafa0a6938599990ead9",
       "source": "frozen-owner"
     }
   }

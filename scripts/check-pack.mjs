@@ -19,11 +19,11 @@ const RC1_VERSION = '0.1.2-rc.1'
 const ALPHA4_TAG = 'dsh-v0.1.2-alpha.4'
 const ALPHA4_COMMIT = '4e84901e6471b79ec0338099867ebb4606d12bb5'
 const OWNER_NAME = 'dsh-llm-providers-ui'
-const OWNER_VERSION = '0.1.5'
-const OWNER_RELEASE = 'https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/v0.1.5/dsh-llm-providers-ui-0.1.5.tgz'
-const FROZEN_OWNER_FILE = 'dsh-llm-providers-ui-0.1.5-8835d6bb27fd637e071ccebf3a752425f2a0396f2489001a97bfbd54b1e3a7de.tgz'
-const FROZEN_OWNER_SHA256 = '8835d6bb27fd637e071ccebf3a752425f2a0396f2489001a97bfbd54b1e3a7de'
-const FROZEN_OWNER_BYTES = 34359
+const OWNER_VERSION = '0.1.10'
+const OWNER_RELEASE = 'https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/v0.1.10/dsh-llm-providers-ui-0.1.10.tgz'
+const FROZEN_OWNER_FILE = 'dsh-llm-providers-ui-0.1.10-1ec6b3fdcb2b204307acc3dbad7ec391ccb15531b4d5dafa0a6938599990ead9.tgz'
+const FROZEN_OWNER_SHA256 = '1ec6b3fdcb2b204307acc3dbad7ec391ccb15531b4d5dafa0a6938599990ead9'
+const FROZEN_OWNER_BYTES = 77406
 const INVALID_REGISTRY = 'http://127.0.0.1:9/'
 const DEPENDENCY_SECTIONS = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies']
 
@@ -312,8 +312,8 @@ function verifySourceMigration(manifest) {
       if (name.startsWith('@deepseek-ai/dsh-') && manifest[section][name] !== ALPHA4_VERSION && !(satisfiesRange(ALPHA4_VERSION, manifest[section][name]) && satisfiesRange(RC1_VERSION, manifest[section][name]))) fail(name + ' must include both Alpha.4 and rc.1')
     }
   }
-  if (manifest.devDependencies?.[OWNER_NAME] !== 'file:../dsh-llm-providers-ui/dsh-llm-providers-ui-0.1.5.tgz'
-    && manifest.devDependencies?.[OWNER_NAME] !== 'file:../dsh-llm-providers-ui/fixtures/alpha4/tarballs/dsh-llm-providers-ui-0.1.5.tgz'
+  if (manifest.devDependencies?.[OWNER_NAME] !== 'file:../dsh-llm-providers-ui/dsh-llm-providers-ui-0.1.10.tgz'
+    && manifest.devDependencies?.[OWNER_NAME] !== 'file:../dsh-llm-providers-ui/fixtures/alpha4/tarballs/dsh-llm-providers-ui-0.1.10.tgz'
     && manifest.devDependencies?.[OWNER_NAME] !== OWNER_RELEASE) fail('Providers UI must use the pinned Alpha.4 development tarball')
   if (manifest.dependencies?.[OWNER_NAME] !== undefined || manifest.peerDependencies?.[OWNER_NAME] !== undefined) fail('Providers UI must not be a runtime or peer dependency')
   const card = readFileSync(join(ROOT, 'src/client/OllamaPluginCard.tsx'), 'utf8')
