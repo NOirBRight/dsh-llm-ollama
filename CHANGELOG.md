@@ -1,4 +1,10 @@
 # Changelog
+
+## [0.6.19] - 2026-09-09
+
+- Pin GLM-5.3 / GLM-5.3 Flash to vendor `low` / `high` / `max` (default `max`) instead of the generic five-level map.
+- Do not advertise Codex five-level effort for Mistral Large 3; it has no reasoning grades.
+
 ## [0.6.18] - 2026-09-07
 
 ### Changed
