@@ -102,14 +102,26 @@ describe('readOllamaUsage', () => {
     expect((failure as { code?: string }).code).toBe(OLLAMA_USAGE_UNSUPPORTED)
   })
 
-  it('marks a 401 as a credential failure naming the key', async () => {
-    const server = await mockServer([{ kind: 'json', status: 401, body: '{"error":"invalid credentials"}' }])
+  it.each([401, 403])('marks a %i as a credential failure naming the key', async (status) => {
+    const server = await mockServer([{ kind: 'json', status, body: '{"error":"invalid credentials"}' }])
 
     const failure = await readOllamaUsage({ baseURL: server.url, apiKey: 'bad' })
       .catch((error: unknown) => error) as Error & { code?: string }
 
     expect(failure.code).toBe(INVALID_CREDENTIAL_CODE)
     expect(failure.message).toContain('check the API key')
+  })
+
+  it('leaves an unreachable endpoint and a 5xx as read failures, never credential failures', async () => {
+    // Port 9 is this repository's unreachable-endpoint idiom; nothing listens there.
+    const unreachable = await readOllamaUsage({ baseURL: 'http://127.0.0.1:9/api' })
+      .catch((error: unknown) => error) as Error & { code?: string }
+    expect(unreachable.code).toBe(OLLAMA_USAGE_FAILED)
+
+    const server = await mockServer([{ kind: 'json', status: 500, body: '{}' }])
+    const broke = await readOllamaUsage({ baseURL: server.url, apiKey: 'one-shot-key' })
+      .catch((error: unknown) => error) as Error & { code?: string }
+    expect(broke.code).toBe(OLLAMA_USAGE_FAILED)
   })
 
   it('refuses a malformed reply', async () => {

@@ -261,15 +261,26 @@ describe('Ollama rich-discovery RPC', () => {
     })
 
     // An endpoint that refuses the session is the same credential failure.
-    const refused = await mockServer([{ kind: 'json', status: 401, body: '{"error":"invalid credentials"}' }])
-    const rejected = await handler(
+    for (const status of [401, 403]) {
+      const refused = await mockServer([{ kind: 'json', status, body: '{"error":"invalid credentials"}' }])
+      const rejected = await handler(
+        OLLAMA_USAGE_ENDPOINT,
+        { baseURL: refused.url, apiKey: 'bad-key' },
+        new AbortController().signal,
+      )
+      expect(rejected).toMatchObject({ ok: false, error: { code: 'INVALID_CREDENTIAL' } })
+    }
+
+    // A non-credential provider failure keeps its own code, never the
+    // credential code: a dropped network must not discard a working
+    // account's cached quota.
+    const unreachable = await handler(
       OLLAMA_USAGE_ENDPOINT,
-      { baseURL: refused.url, apiKey: 'bad-key' },
+      { baseURL: 'http://127.0.0.1:9/api', apiKey: 'one-shot-key' },
       new AbortController().signal,
     )
-    expect(rejected).toMatchObject({ ok: false, error: { code: 'INVALID_CREDENTIAL' } })
+    expect(unreachable).toMatchObject({ ok: false, error: { code: OLLAMA_USAGE_FAILED } })
 
-    // A non-credential provider failure keeps its own code.
     const failing = await mockServer([{ kind: 'json', status: 500, body: '{}' }])
     const broke = await handler(
       OLLAMA_USAGE_ENDPOINT,

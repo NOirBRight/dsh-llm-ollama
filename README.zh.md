@@ -21,7 +21,7 @@ DeepSeek Harness 的 Ollama Cloud 集成。聊天通过共享的 pi-ai adapter �
 
 ~~~sh
 dsh plugin --profile web add --force \
-  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/v0.1.5/dsh-llm-providers-ui-0.1.5.tgz
+  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/v0.1.12-015rc1/dsh-llm-providers-ui-0.1.12.tgz
 dsh plugin --profile web add --force \
   https://github.com/NOirBRight/dsh-llm-ollama/releases/download/v0.6.17/dsh-llm-ollama-0.6.17.tgz
 dsh web
@@ -180,7 +180,7 @@ Owner（Latest）：
 
 ~~~sh
 dsh plugin --profile web add --force \
-  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/latest/download/dsh-llm-providers-ui-0.1.5.tgz
+  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/v0.1.12-015rc1/dsh-llm-providers-ui-0.1.12.tgz
 ~~~
 
 本 Provider（Latest）：
@@ -194,7 +194,7 @@ dsh plugin --profile web add --force \
 
 ~~~sh
 dsh plugin --profile web add --force \
-  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/v0.1.5/dsh-llm-providers-ui-0.1.5.tgz
+  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/v0.1.12-015rc1/dsh-llm-providers-ui-0.1.12.tgz
 dsh plugin --profile web add --force \
   https://github.com/NOirBRight/dsh-llm-ollama/releases/download/v0.6.17/dsh-llm-ollama-0.6.17.tgz
 ~~~
