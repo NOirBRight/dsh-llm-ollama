@@ -23,7 +23,7 @@ export declare const en: {
     readonly usageWeekly: "Weekly usage";
     readonly usageMonthly: "Monthly usage";
     readonly usageUsed: "Used";
-    readonly usageModels: "Models used this week";
+    readonly usageModels: "Models used";
     readonly usageRequests: "requests";
     readonly usageUnsupported: "This endpoint does not report cloud usage.";
     readonly usageNeedsRestart: "Usage appears after the running host reloads this plugin (restart dsh).";

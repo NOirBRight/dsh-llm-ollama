@@ -5,6 +5,7 @@ import type { CSSProperties, ReactNode } from 'react'
 import type { SettingsScope, SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { InjectFace, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-settings-plugins/client'
+import { OLLAMA_SETTINGS_NAMESPACE } from '../client-contract.ts'
 import type {
   OllamaCatalogModelConfig,
   OllamaDiscoveryRequest,
@@ -118,6 +119,11 @@ type UsageState =
   | { status: 'unsupported' }
   | { status: 'needs-restart' }
   | { status: 'error', message: string }
+
+/** Ollama Cloud window lengths, used only as the reset caption when the API omits a reset time. */
+const OLLAMA_SESSION_HOURS = 5
+const OLLAMA_WEEKLY_DAYS = 7
+const OLLAMA_MONTHLY_DAYS = 30
 
 const cardStyle: CSSProperties = {
   overflow: 'visible',
@@ -533,7 +539,7 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
       if (!live()) return
       if (read.kind === 'ok') {
         setLastUsage(read.usage)
-        rememberHeadlineQuota('llm-ollama', 'Ollama Cloud', headlineQuotaOf(read.usage, t))
+        rememberHeadlineQuota(OLLAMA_SETTINGS_NAMESPACE, 'Ollama Cloud', headlineQuotaOf(read.usage, t))
         setUsageUpdatedAt(new Date())
       }
       setUsage(
@@ -663,7 +669,7 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
     || usage.status === 'error' || usage.status === 'unsupported' || usage.status === 'needs-restart'
   // The verdict gates the entire header quota, not only the persisted fallback:
   // stale local lastUsage must not look fresh on error/unsupported either.
-  const headerQuota = quotaWithheld ? undefined : (liveQuota ?? headerQuotaFromCache(peekCachedUsage('llm-ollama')))
+  const headerQuota = quotaWithheld ? undefined : (liveQuota ?? headerQuotaFromCache(peekCachedUsage(OLLAMA_SETTINGS_NAMESPACE)))
 
   return (
     <li style={cardStyle} data-provider-card="" data-provider-role="llm">
@@ -769,7 +775,7 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
                                 usedText={t('usageUsed')}
                                 window={bars.monthly}
                                 t={t}
-                                fallbackReset={t('usageResetEveryDays').replace('{count}', '30')}
+                                fallbackReset={t('usageResetEveryDays').replace('{count}', String(OLLAMA_MONTHLY_DAYS))}
                               />
                             )}
                           {bars.session === undefined
@@ -780,7 +786,7 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
                                 usedText={t('usageUsed')}
                                 window={bars.session}
                                 t={t}
-                                fallbackReset={t('usageResetEveryHours').replace('{count}', '5')}
+                                fallbackReset={t('usageResetEveryHours').replace('{count}', String(OLLAMA_SESSION_HOURS))}
                               />
                             )}
                           {bars.weekly === undefined
@@ -791,7 +797,7 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
                                 usedText={t('usageUsed')}
                                 window={bars.weekly}
                                 t={t}
-                                fallbackReset={t('usageResetEveryDays').replace('{count}', '7')}
+                                fallbackReset={t('usageResetEveryDays').replace('{count}', String(OLLAMA_WEEKLY_DAYS))}
                               />
                             )}
                           {primaryWindow !== undefined && primaryWindow.models.length > 0
