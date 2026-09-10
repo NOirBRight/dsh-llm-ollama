@@ -125,6 +125,7 @@ export function createOllamaPiAiProfile(
     retryPolicy: connection.retryPolicy,
     piProvider,
     configuredMaxTokens,
+    modelErrors: new Map(),
   }
   return profile
 }
