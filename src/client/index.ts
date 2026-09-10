@@ -49,6 +49,9 @@ export const name = 'dsh-llm-ollama-client'
 /** Client services required by the Plugin configuration contribution. */
 export const inject = ['slots', 'locale', 'connection']
 
+/** How long the Providers UI owner may take to register `settings.section` before the missing-owner diagnostic reports. */
+export const MISSING_OWNER_GRACE_MS = 15_000
+
 /** Register localized Ollama Cloud configuration under Plugin configuration. */
 
 export function apply(ctx: ClientContext): void {
@@ -191,15 +194,22 @@ export function apply(ctx: ClientContext): void {
   // The card is registered but the page will not appear; providers still work Host-side.
   ctx.effect(() => {
     let warned = false
+    const hasProvidersSection = (): boolean =>
+      ctx.slots.entries('settings.section').some(entry => (entry.options as { id?: string }).id === 'providers')
     const check = (): void => {
-      const hasProvidersSection = ctx.slots.entries('settings.section').some(entry => (entry.options as { id?: string }).id === 'providers')
-      if (!hasProvidersSection && !warned) {
+      if (!hasProvidersSection() && !warned) {
         warned = true
         console.warn('[dsh-llm-providers-ui] LLM Providers page missing for card llm-ollama: install dsh-llm-providers-ui to show the card. Host route remains active.')
       }
     }
-    const timer = setTimeout(check, 0)
-    const stop = ctx.slots.subscribe('settings.section', check)
+    // The owner registers the section only once the settings snapshot has arrived and the page is
+    // visible, so an immediate check always precedes that registration; the grace period covers it.
+    const timer = setTimeout(check, MISSING_OWNER_GRACE_MS)
+    const stop = ctx.slots.subscribe('settings.section', () => {
+      if (warned || !hasProvidersSection()) return
+      warned = true
+      clearTimeout(timer)
+    })
     return () => {
       clearTimeout(timer)
       stop()

@@ -4,7 +4,7 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
 import type { SettingsScope, SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { OllamaSettingsView } from '../src/client-contract.ts'
-import { apply, inject } from '../src/client/index.ts'
+import { apply, inject, MISSING_OWNER_GRACE_MS } from '../src/client/index.ts'
 import { clearProviderUsageCache, peekCachedUsage, rememberHeadlineQuota } from 'dsh-llm-providers-ui/usage-readers'
 
 const value: OllamaSettingsView = {
@@ -56,9 +56,15 @@ class FakeSlots extends Service {
     return this.registered.filter(entry => entry.options['name'] === name)
   }
 
-  subscribe(_name: string, _listener: () => void): () => void {
-    return () => undefined
+  subscribe(_name: string, listener: () => void): () => void {
+    this.listeners.push(listener)
+    return () => { this.listeners.splice(this.listeners.indexOf(listener), 1) }
   }
+
+  private readonly listeners: Array<() => void> = []
+
+  /** Emit a slot change, as the owner's registration does. */
+  notify(): void { for (const listener of [...this.listeners]) listener() }
 }
 
 async function bench(usageReply: unknown = { ok: true, value: { models: [] } }) {
@@ -114,6 +120,38 @@ describe('Ollama client plugin registration', () => {
     expect(slots.entries('settings.provider.item')).toHaveLength(0)
     expect(slots.entries('settings.section')).toHaveLength(0)
     expect(slots.entries('shell.overlay')).toHaveLength(0)
+  })
+
+  it('defers the missing owner warning past the grace period', async () => {
+    vi.useFakeTimers()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    try {
+      const { ctx, slots } = await bench()
+      const fiber = ctx.plugin({ inject: [...inject], apply })
+      await fiber.await()
+
+      await vi.advanceTimersByTimeAsync(MISSING_OWNER_GRACE_MS - 1)
+      expect(warn).not.toHaveBeenCalled()
+      await vi.advanceTimersByTimeAsync(1)
+      expect(warn).toHaveBeenCalledTimes(1)
+      await fiber.dispose()
+
+      const late = await bench()
+      const lateFiber = late.ctx.plugin({ inject: [...inject], apply })
+      await lateFiber.await()
+      late.slots.register({ name: 'settings.section', id: 'other' }, undefined)
+      late.slots.notify()
+      await vi.advanceTimersByTimeAsync(MISSING_OWNER_GRACE_MS - 1)
+      expect(warn).toHaveBeenCalledTimes(1)
+      late.slots.register({ name: 'settings.section', id: 'providers' }, undefined)
+      late.slots.notify()
+      await vi.advanceTimersByTimeAsync(MISSING_OWNER_GRACE_MS)
+      expect(warn).toHaveBeenCalledTimes(1)
+      await lateFiber.dispose()
+    } finally {
+      warn.mockRestore()
+      vi.useRealTimers()
+    }
   })
 
   it('decodes a monthly-only usage reply into the card view', async () => {
