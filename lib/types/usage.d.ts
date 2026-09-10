@@ -3,8 +3,10 @@
  *
  * Ollama exposes the settings page's "Cloud usage" panel as
  * `GET <base>/usage` (the native API base already ends in `/api`). The
- * reply carries the session and weekly windows as consumed fractions plus
- * per-model request counts; nothing secret. The credential travels only on
+ * reply carries the metered windows as consumed fractions plus per-model
+ * request counts; nothing secret. Current account tiers answer `limits.monthly`
+ * (with a separate `activity` block), older ones answered `limits.session` and
+ * `limits.weekly`, so all three keys are read. The credential travels only on
  * this Host-to-Ollama hop — the browser receives the parsed snapshot.
  *
  * A self-hosted endpoint answers 404, which the card renders as "unsupported"

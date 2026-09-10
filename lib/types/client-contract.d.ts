@@ -115,7 +115,7 @@ export interface OllamaUsageModelCount {
     /** Requests accounted to this model in the window. */
     requestCount: number;
 }
-/** One metered quota window (session or weekly). */
+/** One metered quota window (session, weekly, or monthly). */
 export interface OllamaUsageWindow {
     /** Consumed fraction of the window; 0.891 renders as "89.1%". */
     usage: number;
@@ -132,6 +132,8 @@ export interface OllamaUsageView {
     session?: OllamaUsageWindow;
     /** Rolling weekly window, when the endpoint reports one. */
     weekly?: OllamaUsageWindow;
+    /** Monthly window, the shape ollama.com reports for the current account tiers. */
+    monthly?: OllamaUsageWindow;
 }
 /**
  * Usage answer crossing the plugin RPC: a snapshot, or the word that the

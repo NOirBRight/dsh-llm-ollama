@@ -126,7 +126,36 @@ describe('parseOllamaUsage', () => {
     expect(usage.session).toBeUndefined()
   })
 
+  it('reads the monthly window ollama.com reports for current tiers', () => {
+    // Captured live reply shape: limits.monthly plus a separate activity block.
+    const usage = parseOllamaUsage({
+      activity: {
+        cost: '0.00000',
+        period: {
+          type: 'last_4_weeks',
+          starting_at: '2026-08-17T00:00:00Z',
+          ending_at: '2026-09-10T13:33:30.549198499Z',
+        },
+        models: [],
+      },
+      limits: {
+        monthly: { usage: 0.25, models: [{ name: 'qwen3-coder', request_count: 4 }] },
+      },
+    }, 'https://ollama.com/api/usage')
+
+    expect(usage.monthly?.usage).toBe(0.25)
+    expect(usage.monthly?.models).toEqual([{ name: 'qwen3-coder', requestCount: 4 }])
+    expect(usage.session).toBeUndefined()
+    expect(usage.weekly).toBeUndefined()
+  })
+
   it('refuses a reply with no readable window', () => {
     expect(() => parseOllamaUsage({ activity: {} }, 'https://ollama.com/api/usage')).toThrowError(/malformed/)
+  })
+
+  it('names the observed limit keys so an unknown shape is diagnosable', () => {
+    expect(() => parseOllamaUsage({ limits: { hourly: { usage: 1 } } }, 'https://ollama.com/api/usage'))
+      .toThrowError(/limits keys: hourly/)
+    expect(() => parseOllamaUsage({}, 'https://ollama.com/api/usage')).toThrowError(/limits keys: none/)
   })
 })

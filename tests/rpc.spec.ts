@@ -193,6 +193,28 @@ describe('Ollama rich-discovery RPC', () => {
     })
     expect(server.headers[0]?.authorization).toBe('Bearer one-shot-key')
 
+    // Current account tiers answer limits.monthly with a separate activity block.
+    const monthly = await mockServer([{
+      kind: 'json',
+      status: 200,
+      body: JSON.stringify({
+        activity: { cost: '0.00000', period: { type: 'last_4_weeks' }, models: [] },
+        limits: { monthly: { usage: 0.25, models: [] } },
+      }),
+    }])
+    const monthlyResult = await handler(
+      OLLAMA_USAGE_ENDPOINT,
+      { baseURL: monthly.url, apiKey: 'one-shot-key' },
+      new AbortController().signal,
+    )
+    expect(monthlyResult).toEqual({
+      ok: true,
+      value: {
+        status: 'ok',
+        usage: { fetchedAt: expect.any(String), monthly: { usage: 0.25, models: [] } },
+      },
+    })
+
     const unsupported = await mockServer([{ kind: 'json', status: 404, body: '{}' }])
     const declined = await handler(
       OLLAMA_USAGE_ENDPOINT,

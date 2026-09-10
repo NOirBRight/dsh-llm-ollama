@@ -358,13 +358,15 @@ function UsageBar({ label, usedText, window: quota, t, fallbackReset }: {
 /** Render the single-package Ollama Cloud contribution under Plugin configuration. */
 /** Headline remaining quota from real auth values; missing renders no meter, never zero. */
 function headlineQuotaOf(view: OllamaUsageView | undefined, t: OllamaPluginCardFace['t']): ProviderQuotaState | undefined {
-  const window = view?.weekly ?? view?.session;
+  const window = view?.monthly ?? view?.weekly ?? view?.session;
   if (window === undefined) return undefined;
   const remaining = 100 * (1 - window.usage);
   if (!Number.isFinite(remaining) || remaining < 0 || remaining > 100) return undefined;
   return {
     remainingPercent: Math.round(remaining * 10) / 10,
-    label: view?.weekly !== undefined ? t('usageWeekly') : t('usageSession'),
+    label: view?.monthly !== undefined
+      ? t('usageMonthly')
+      : view?.weekly !== undefined ? t('usageWeekly') : t('usageSession'),
     ...(resetLabelOf(window.resetsAt, usageResetCopy(t)) ?? undefined) === undefined ? {} : { detail: resetLabelOf(window.resetsAt, usageResetCopy(t)) as string },
   };
 }
@@ -749,13 +751,27 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
                       if (usage.status === 'loading' || usage.status === 'idle') {
                         const known = lastUsage === undefined
                           ? 2
-                          : Number(lastUsage.session !== undefined) + Number(lastUsage.weekly !== undefined)
+                          : Number(lastUsage.session !== undefined)
+                            + Number(lastUsage.weekly !== undefined)
+                            + Number(lastUsage.monthly !== undefined)
                         return <UsageSkeleton rows={known > 0 ? known : 2} />
                       }
                       const bars = usage.status === 'ready' ? usage.usage : lastUsage
                       if (bars !== undefined) {
+                        const primaryWindow = bars.monthly ?? bars.weekly ?? bars.session
                         return (
                         <>
+                          {bars.monthly === undefined
+                            ? null
+                            : (
+                              <UsageBar
+                                label={t('usageMonthly')}
+                                usedText={t('usageUsed')}
+                                window={bars.monthly}
+                                t={t}
+                                fallbackReset={t('usageResetEveryDays').replace('{count}', '30')}
+                              />
+                            )}
                           {bars.session === undefined
                             ? null
                             : (
@@ -778,12 +794,12 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
                                 fallbackReset={t('usageResetEveryDays').replace('{count}', '7')}
                               />
                             )}
-                          {bars.weekly !== undefined && bars.weekly.models.length > 0
+                          {primaryWindow !== undefined && primaryWindow.models.length > 0
                             ? (
                               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                                 <span style={labelStyle}>{t('usageModels')}</span>
                                 <ul style={usageListStyle} aria-label={t('usageModels')}>
-                                  {bars.weekly.models.map(model => (
+                                  {primaryWindow.models.map(model => (
                                     <li
                                       key={model.name}
                                       style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}

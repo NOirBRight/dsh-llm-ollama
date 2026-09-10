@@ -21,6 +21,7 @@ export declare const en: {
     readonly usageLoading: "Reading usage…";
     readonly usageSession: "Session usage";
     readonly usageWeekly: "Weekly usage";
+    readonly usageMonthly: "Monthly usage";
     readonly usageUsed: "Used";
     readonly usageModels: "Models used this week";
     readonly usageRequests: "requests";
