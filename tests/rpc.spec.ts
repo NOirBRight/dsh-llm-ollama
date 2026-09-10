@@ -9,6 +9,7 @@ import {
   OLLAMA_USAGE_ENDPOINT,
 } from '../src/client-contract.ts'
 import type { OllamaSettingsView } from '../src/client-contract.ts'
+import { OLLAMA_USAGE_FAILED } from '../src/usage.ts'
 import { closeMockServers, mockServer } from './mock-server.ts'
 
 afterEach(async () => { await closeMockServers() })
@@ -225,6 +226,63 @@ describe('Ollama rich-discovery RPC', () => {
 
     await fiber.dispose()
     expect(dispose).toHaveBeenCalledTimes(1)
+    await ctx.fiber.dispose()
+  })
+
+  it('answers a usage failure with the wire code the browser quota cache routes on', async () => {
+    type Handler = (
+      endpoint: string,
+      payload: unknown,
+      signal: AbortSignal,
+    ) => Promise<{ ok: boolean; value?: unknown; error?: { code?: string, message?: string } }>
+    const ctx = new Context()
+    await ctx.plugin(LlmRuntime).await()
+    const dispose = vi.fn(() => Promise.resolve())
+    const handle = vi.fn((_channel: string, _handler: Handler) => dispose)
+    ctx.provide('connection', { rpc: { handle } } as never)
+    ctx.provide('credentials', {
+      resolve: vi.fn(() => Promise.reject(new Error('the credential store is unreadable'))),
+    } as never)
+    const fiber = ctx.plugin({ inject: [...inject], Config, apply }, {})
+    await fiber.await()
+    const handler = handle.mock.calls[0]?.[1]
+    if (handler === undefined) throw new Error('Ollama RPC was not registered')
+
+    // A credential the Host cannot resolve is a credential failure, not an
+    // internal error: the shared quota cache drops the entry on this code.
+    const unresolvable = await handler(
+      OLLAMA_USAGE_ENDPOINT,
+      { baseURL: 'https://ollama.example.test/api' },
+      new AbortController().signal,
+    )
+    expect(unresolvable).toEqual({
+      ok: false,
+      error: { code: 'INVALID_CREDENTIAL', message: 'the credential store is unreadable', details: {} },
+    })
+
+    // An endpoint that refuses the session is the same credential failure.
+    const refused = await mockServer([{ kind: 'json', status: 401, body: '{"error":"invalid credentials"}' }])
+    const rejected = await handler(
+      OLLAMA_USAGE_ENDPOINT,
+      { baseURL: refused.url, apiKey: 'bad-key' },
+      new AbortController().signal,
+    )
+    expect(rejected).toMatchObject({ ok: false, error: { code: 'INVALID_CREDENTIAL' } })
+
+    // A non-credential provider failure keeps its own code.
+    const failing = await mockServer([{ kind: 'json', status: 500, body: '{}' }])
+    const broke = await handler(
+      OLLAMA_USAGE_ENDPOINT,
+      { baseURL: failing.url, apiKey: 'one-shot-key' },
+      new AbortController().signal,
+    )
+    expect(broke).toMatchObject({ ok: false, error: { code: OLLAMA_USAGE_FAILED } })
+
+    // A failure that is not an LlmError stays internal.
+    const invalid = await handler(OLLAMA_USAGE_ENDPOINT, 'not-a-request', new AbortController().signal)
+    expect(invalid).toMatchObject({ ok: false, error: { code: 'internal' } })
+
+    await fiber.dispose()
     await ctx.fiber.dispose()
   })
 

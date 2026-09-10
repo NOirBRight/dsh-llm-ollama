@@ -277,6 +277,27 @@ describe('OllamaPluginCard', () => {
     expect(details.style.overflowY).toBe('')
   })
 
+  it('labels a monthly-only snapshot with the neutral monthly window name', async () => {
+    const fetchUsage = vi.fn(() => Promise.resolve({
+      kind: 'ok' as const,
+      usage: {
+        fetchedAt: '2026-08-16T00:00:00.000Z',
+        monthly: { usage: 0.25, models: [{ name: 'qwen3-coder', requestCount: 4 }] },
+      },
+    }))
+    render(<OllamaPluginCard {...props({ fetchUsage })} />)
+
+    fireEvent.click(screen.getByRole('button', { name: `${en.expand}: ${en.title}` }))
+
+    await waitFor(() => { expect(screen.getByRole('meter', { name: en.usageMonthly })).toBeTruthy() })
+    expect(screen.getByRole('meter', { name: en.usageMonthly }).getAttribute('aria-valuenow')).toBe('75')
+    expect(screen.queryByRole('meter', { name: en.usageSession })).toBeNull()
+    expect(screen.queryByRole('meter', { name: en.usageWeekly })).toBeNull()
+    // The monthly window is the primary one, so it carries the per-model counts.
+    expect(screen.getByText('qwen3-coder')).toBeTruthy()
+    expect(screen.getByText(`4 ${en.usageRequests}`)).toBeTruthy()
+  })
+
   it('explains when the endpoint has no usage surface', async () => {
     render(<OllamaPluginCard {...props()} />)
 

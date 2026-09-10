@@ -61,7 +61,7 @@ class FakeSlots extends Service {
   }
 }
 
-async function bench() {
+async function bench(usageReply: unknown = { ok: true, value: { models: [] } }) {
   const ctx = new Context()
   await ctx.plugin(FakeSlots).await()
   const slots = ctx.get('slots') as FakeSlots
@@ -82,7 +82,8 @@ async function bench() {
       },
     },
     rpc: {
-      call: vi.fn(() => Promise.resolve({ ok: true, value: { models: [] } })),
+      call: vi.fn((_channel: string, endpoint: string) =>
+        Promise.resolve(endpoint === 'usage/read' ? usageReply : { ok: true, value: { models: [] } })),
     },
   } as never)
   return { ctx, slots }
@@ -113,6 +114,23 @@ describe('Ollama client plugin registration', () => {
     expect(slots.entries('settings.provider.item')).toHaveLength(0)
     expect(slots.entries('settings.section')).toHaveLength(0)
     expect(slots.entries('shell.overlay')).toHaveLength(0)
+  })
+
+  it('decodes a monthly-only usage reply into the card view', async () => {
+    const usage = {
+      fetchedAt: '2026-09-01T00:00:00.000Z',
+      monthly: { usage: 0.25, models: [{ name: 'qwen3-coder', requestCount: 4 }] },
+    }
+    const { ctx, slots } = await bench({ ok: true, value: { status: 'ok', usage } })
+    const fiber = ctx.plugin({ inject: [...inject], apply })
+    await fiber.await()
+    const face = (slots.entries('settings.provider.item')[0] as {
+      inject?: () => { fetchUsage: (request: { baseURL?: string }) => Promise<unknown> }
+    }).inject?.()
+
+    await expect(face?.fetchUsage({ baseURL: 'https://ollama.com/api' }))
+      .resolves.toEqual({ kind: 'ok', usage })
+    await fiber.dispose()
   })
 
   it('purges persisted quota when credentials are stored without a provider directory', async () => {

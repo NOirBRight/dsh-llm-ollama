@@ -14,7 +14,13 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type {} from '@deepseek-ai/dsh-client-connection'
 import type {} from '@deepseek-ai/dsh-web'
-import { assertUsableApiKey, LlmError, resolveRetryPolicy, RetryPolicySchema } from '@deepseek-ai/dsh-llm'
+import {
+  assertUsableApiKey,
+  INVALID_CREDENTIAL_CODE,
+  LlmError,
+  resolveRetryPolicy,
+  RetryPolicySchema,
+} from '@deepseek-ai/dsh-llm'
 import type { RetryPolicyConfig } from '@deepseek-ai/dsh-llm'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
@@ -276,26 +282,36 @@ function discoveryFailure(message: string, baseURL?: string) {
   }
 }
 
-function settingsFailure(message: string) {
+/**
+ * Refuse one Host endpoint. The code defaults to `internal` and callers pass a
+ * provider's own code when the failure class is known to the browser.
+ */
+function settingsFailure(message: string, code = 'internal') {
   return {
     ok: false as const,
     error: {
-      code: 'internal' as const,
+      code,
       message,
       details: {},
     },
   }
 }
 
-/** Fold one usage-read failure: "unsupported" is a legitimate answer, the rest are errors. */
+/**
+ * Fold one usage-read failure: "unsupported" is a legitimate answer, the rest
+ * are errors. An LlmError keeps its own code, so a credential the Host cannot
+ * use reaches the browser as INVALID_CREDENTIAL and the shared quota cache
+ * drops the entry instead of retaining the previous account's numbers.
+ */
 function usageFailure(error: unknown) {
-  if (error instanceof LlmError && error.code === OLLAMA_USAGE_UNSUPPORTED) {
+  if (!(error instanceof LlmError)) return settingsFailure('Ollama Cloud usage read failed')
+  if (error.code === OLLAMA_USAGE_UNSUPPORTED) {
     return { ok: true as const, value: { status: 'unsupported' as const } }
   }
-  const message = error instanceof LlmError && error.message.length > 0
-    ? error.message
-    : 'Ollama Cloud usage read failed'
-  return settingsFailure(message)
+  return settingsFailure(
+    error.message.length > 0 ? error.message : 'Ollama Cloud usage read failed',
+    error.code,
+  )
 }
 
 export function apply(ctx: Context, config: Config): void {
@@ -393,6 +409,22 @@ export function apply(ctx: Context, config: Config): void {
 
   // Connection authenticates this channel before dispatch.
   ctx.inject(['connection'], (connectionCtx) => {
+    // The browser's shared quota cache drops its entry on INVALID_CREDENTIAL: a
+    // credential the Host cannot resolve is that same answer, never an internal
+    // read error that would leave the previous account's numbers on screen.
+    const usageApiKey = async (): Promise<string | undefined> => {
+      try {
+        return await storedApiKey()
+      } catch (error: unknown) {
+        throw new LlmError(
+          error instanceof Error && error.message.length > 0
+            ? error.message
+            : 'Ollama Cloud credential lookup failed',
+          INVALID_CREDENTIAL_CODE,
+          { cause: error },
+        )
+      }
+    }
     const handler = async (endpoint: string, payload: unknown, signal: AbortSignal) => {
       if (endpoint === OLLAMA_SETTINGS_READ_ENDPOINT) {
         const settings = ctx.get('settings')
@@ -476,7 +508,7 @@ export function apply(ctx: Context, config: Config): void {
         const request = decodeOllamaDiscoveryRequest(payload)
         if (request === undefined) return settingsFailure('invalid Ollama Cloud usage request')
         try {
-          const usage = await readOllamaUsage({ ...request, signal }, storedApiKey)
+          const usage = await readOllamaUsage({ ...request, signal }, usageApiKey)
           return { ok: true as const, value: { status: 'ok' as const, usage } }
         } catch (error: unknown) {
           return usageFailure(error)

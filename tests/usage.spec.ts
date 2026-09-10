@@ -67,6 +67,24 @@ describe('readOllamaUsage', () => {
     expect(server.headers[1]?.authorization).toBe('Bearer stored-key')
   })
 
+  it('reads the monthly window over HTTP for the current account tiers', async () => {
+    const server = await mockServer([{
+      kind: 'json',
+      status: 200,
+      body: JSON.stringify({
+        activity: { cost: '0.00000', models: [] },
+        limits: { monthly: { usage: 0.25, models: [{ name: 'qwen3-coder', request_count: 4 }] } },
+      }),
+    }])
+
+    const usage = await readOllamaUsage({ baseURL: server.url, apiKey: 'one-shot-key' })
+
+    expect(usage.monthly?.usage).toBe(0.25)
+    expect(usage.monthly?.models).toEqual([{ name: 'qwen3-coder', requestCount: 4 }])
+    expect(usage.session).toBeUndefined()
+    expect(usage.weekly).toBeUndefined()
+  })
+
   it('reads unauthenticated when no key exists anywhere', async () => {
     const server = await mockServer([{ kind: 'json', status: 200, body: cloudReply }])
 
@@ -147,6 +165,19 @@ describe('parseOllamaUsage', () => {
     expect(usage.monthly?.models).toEqual([{ name: 'qwen3-coder', requestCount: 4 }])
     expect(usage.session).toBeUndefined()
     expect(usage.weekly).toBeUndefined()
+  })
+
+  it('keeps every window the endpoint reports together', () => {
+    const usage = parseOllamaUsage({
+      limits: {
+        session: { usage: 0.1, models: [] },
+        weekly: { usage: 0.2, models: [] },
+        monthly: { usage: 0.3, models: [] },
+      },
+    }, 'https://ollama.com/api/usage')
+
+    expect(Object.keys(usage)).toEqual(['fetchedAt', 'session', 'weekly', 'monthly'])
+    expect([usage.session?.usage, usage.weekly?.usage, usage.monthly?.usage]).toEqual([0.1, 0.2, 0.3])
   })
 
   it('refuses a reply with no readable window', () => {

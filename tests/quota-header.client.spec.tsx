@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { OllamaPluginCard } from '../src/client/OllamaPluginCard.tsx'
 import type { OllamaPluginCardProps } from '../src/client/OllamaPluginCard.tsx'
-import { en } from '../src/client/locales.ts'
+import { en, zh } from '../src/client/locales.ts'
 import { clearProviderUsageCache, peekCachedUsage, rememberHeadlineQuota } from 'dsh-llm-providers-ui/usage-readers'
 import type { OllamaSettingsView } from '../src/client-contract.ts'
 
@@ -65,6 +65,23 @@ describe('OllamaPluginCard collapsed quota', () => {
     await screen.findByRole('button', { name: en.usageRefresh })
     expect(screen.getAllByRole('meter', { name: en.usageWeekly }).length).toBeGreaterThanOrEqual(2)
     expect(fetchUsage).toHaveBeenCalledTimes(1)
+  })
+
+  it('labels a monthly-only quota with the same neutral window name in the header and the cache', async () => {
+    const fetchUsage = vi.fn(() => Promise.resolve({
+      kind: 'ok' as const,
+      usage: { fetchedAt: '2026-09-01T00:00:00.000Z', monthly: { usage: 0.25, models: [] } },
+    }))
+    render(<OllamaPluginCard {...props({ t: (key: keyof typeof en) => zh[key], fetchUsage })} />)
+
+    const meter = await screen.findByRole('meter', { name: zh.usageMonthly })
+    expect(meter.getAttribute('aria-valuenow')).toBe('75')
+    expect(screen.queryByRole('meter', { name: zh.usageWeekly })).toBeNull()
+    expect(screen.queryByRole('meter', { name: zh.usageSession })).toBeNull()
+    // The collapsed headline reuses the window name as its short label.
+    expect(peekCachedUsage('llm-ollama')?.windows).toEqual([
+      expect.objectContaining({ label: zh.usageMonthly, shortLabel: zh.usageMonthly }),
+    ])
   })
 
   it('reports a usage read failure truthfully with a collapsed unavailable dash', async () => {
