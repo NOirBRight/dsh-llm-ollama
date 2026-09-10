@@ -43,13 +43,13 @@ dsh web
 
 Fetch available models 会立即打开 picker，并通过已验证的 Connection RPC 发送未保存 endpoint 和一次性 key。Host 读取 /api/tags、按原生 id 去重，并最多并发六个 /api/show 请求 enrich 模型。原生元数据会提供 /v1/models 不提供的 context window 及 vision、thinking、tools 标志。Picker 从当前草稿选择初始化，保留 current-only 模型，并在应用时替换草稿目录。
 
-卡片的「云端用量」区与 ollama.com/settings 一致：Host 用已存（或一次性）key 读取 GET <baseURL>/usage，把 Session 和每周窗口渲染成已用百分比进度条，并列出本周各模型的请求数。凭据不会传到浏览器。没有用量接口的自建端点会显示「不支持」提示而不是报错。
+卡片的「云端用量」区与 ollama.com/settings 一致：Host 用已存（或一次性）key 读取 GET <baseURL>/usage，把端点报告的各个窗口（每月 / Session / 每周）渲染成已用百分比进度条，并列出该窗口各模型的请求数。凭据不会传到浏览器。没有用量接口的自建端点会显示「不支持」提示而不是报错。
 
 模型目录默认折叠，展开后一行一个模型：左侧把手可拖动排序（顺序随目录一起保存），右侧箭头展开该行的上下文窗口、最大输出和能力开关，垃圾桶按钮删除该行。
 
 ### 插件配置截图
 
-云端用量与完整的每周模型活动列表：
+云端各窗口用量，以及该窗口的模型活动列表：
 
 ![Ollama Cloud 连接与云端用量](docs/images/ollama-cloud-usage.png)
 

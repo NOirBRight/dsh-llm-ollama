@@ -55,7 +55,7 @@ Open Settings → LLM Providers → Ollama Cloud. The card manages settings and 
 
 Fetch available models opens the picker immediately and calls the authenticated Connection RPC with the unsaved endpoint and one-shot key. The Host reads /api/tags, deduplicates native ids, and enriches up to six models concurrently through /api/show. The native metadata supplies context windows plus vision, thinking, and tools flags that /v1/models does not expose. The picker starts from the current draft selection, preserves current-only models, and replaces the draft catalog when applied.
 
-The card's Cloud usage section mirrors ollama.com/settings: the Host reads GET <baseURL>/usage with the stored (or one-shot) key and renders the session and weekly windows as consumed-percentage meters plus the week's per-model request counts. The credential never crosses to the browser. A self-hosted endpoint without the usage surface shows an unsupported note instead of an error.
+The card's Cloud usage section mirrors ollama.com/settings: the Host reads GET <baseURL>/usage with the stored (or one-shot) key and renders each window the endpoint reports (monthly, session, weekly) as consumed-percentage meters plus that window's per-model request counts. The credential never crosses to the browser. A self-hosted endpoint without the usage surface shows an unsupported note instead of an error.
 
 The collapsed header falls back to the last successful quota from the shared browser cache while its credential is configured; storing a new credential purges the cache in every bundle copy, even without providerDirectory.
 
@@ -63,7 +63,7 @@ The model catalog starts collapsed and lists one row per model: a drag handle re
 
 ### Plugin configuration screenshots
 
-Cloud usage and the complete weekly model activity list:
+Cloud usage for every window the endpoint reports, with that window's model activity list:
 
 ![Ollama Cloud connection and usage](docs/images/ollama-cloud-usage.png)
 
