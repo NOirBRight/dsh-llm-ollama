@@ -22,7 +22,7 @@ const OWNER_NAME = 'dsh-llm-providers-ui'
 /** Providers UI version the frozen owner artifact and the dev dependency both pin. */
 const OWNER_VERSION = '0.1.12'
 /** Release tag the frozen owner artifact was taken from. */
-const OWNER_TAG = 'v0.1.12-015rc1'
+const OWNER_TAG = 'v0.1.12-015rc1d'
 const OWNER_RELEASE = 'https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/' + OWNER_TAG + '/dsh-llm-providers-ui-' + OWNER_VERSION + '.tgz'
 const FROZEN_OWNER_FILE = 'dsh-llm-providers-ui-' + OWNER_VERSION + '-9b747610d755f751f8602256b531d8f03b7885cb19e2c61bedf7cea72d01115d.tgz'
 const FROZEN_OWNER_SHA256 = '9b747610d755f751f8602256b531d8f03b7885cb19e2c61bedf7cea72d01115d'
