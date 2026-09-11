@@ -4,6 +4,10 @@
 
 - Pin GLM-5.3 / GLM-5.3 Flash to vendor `low` / `high` / `max` (default `max`) instead of the generic five-level map.
 - Do not advertise Codex five-level effort for Mistral Large 3; it has no reasoning grades.
+- Read the monthly usage window ollama.com reports for current account tiers alongside session and weekly.
+- Host usage reads that cannot resolve a usable credential answer `INVALID_CREDENTIAL` so the shared quota cache can evict stale readings.
+- Migrate the host plane to DeepSeek Harness `0.1.5-rc.1`; verified runtimes now include `0.1.5-rc.1` alongside Alpha.4 and `0.1.2-rc.1`.
+- Development dependency and install guidance point at the `dsh-llm-providers-ui` `v0.1.12-015rc1d` candidate tarball.
 
 ## [0.6.18] - 2026-09-07
 
