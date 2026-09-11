@@ -40,6 +40,7 @@ const GENERIC = pin({ off: 'none', low: 'low', medium: 'medium', high: 'high', m
 
 /** Cloud families with documented real thinking controls. */
 export type OllamaReasoningFamily =
+  | 'glm-5.3'
   | 'glm-5.2'
   | 'glm-5.1'
   | 'deepseek-v4-pro'
@@ -55,6 +56,7 @@ export type OllamaReasoningFamily =
   | 'kimi-k3'
   | 'kimi-k2.6'
   | 'qwen3.5'
+  | 'mistral-large-3'
   | 'generic'
 
 interface FamilyPolicy {
@@ -62,7 +64,8 @@ interface FamilyPolicy {
   defaultEffort?: ModelThinkingLevel
 }
 
-const FAMILIES: Record<Exclude<OllamaReasoningFamily, 'generic'>, FamilyPolicy> = {
+const FAMILIES: Record<Exclude<OllamaReasoningFamily, 'generic' | 'mistral-large-3'>, FamilyPolicy> = {
+  'glm-5.3': { levels: LOW_HIGH_MAX, defaultEffort: 'max' },
   'glm-5.2': { levels: OFF_HIGH_MAX, defaultEffort: 'max' },
   'glm-5.1': { levels: OFF_HIGH, defaultEffort: 'high' },
   'deepseek-v4-pro': { levels: OFF_LOW_HIGH_MAX, defaultEffort: 'high' },
@@ -109,6 +112,7 @@ export function isGptOssModel(model: string): boolean {
 export function ollamaReasoningFamily(model: string): OllamaReasoningFamily {
   const id = ollamaModelBasename(model).toLowerCase()
   if (named(id, 'gpt-oss')) return 'gpt-oss'
+  if (named(id, 'glm-5.3') || id.startsWith('glm-5.3-')) return 'glm-5.3'
   if (named(id, 'glm-5.2')) return 'glm-5.2'
   if (named(id, 'glm-5.1')) return 'glm-5.1'
   if (named(id, 'deepseek-v4-pro')) return 'deepseek-v4-pro'
@@ -123,12 +127,13 @@ export function ollamaReasoningFamily(model: string): OllamaReasoningFamily {
   if (id === 'kimi-k2.6' || id.startsWith('kimi-k2.6-') || id.startsWith('kimi-k2.6:')) return 'kimi-k2.6'
   if (named(id, 'kimi-k3')) return 'kimi-k3'
   if (named(id, 'qwen3.5')) return 'qwen3.5'
+  if (named(id, 'mistral-large-3')) return 'mistral-large-3'
   return 'generic'
 }
 
 function policyFor(model: string): FamilyPolicy {
   const family = ollamaReasoningFamily(model)
-  if (family === 'generic') return { levels: GENERIC }
+  if (family === 'generic' || family === 'mistral-large-3') return { levels: GENERIC }
   return FAMILIES[family]
 }
 
@@ -138,6 +143,7 @@ function policyFor(model: string): FamilyPolicy {
  */
 export function ollamaThinkingLevelMap(model: OllamaCatalogModelConfig): ThinkingLevelMap | undefined {
   if (model.thinking !== true) return undefined
+  if (ollamaReasoningFamily(model.id) === 'mistral-large-3') return undefined
   return policyFor(model.id).levels
 }
 
@@ -147,6 +153,7 @@ export function ollamaThinkingLevelMap(model: OllamaCatalogModelConfig): Thinkin
  * @returns a supported selector id, or undefined for unknown families.
  */
 export function ollamaDefaultEffort(model: string): ModelThinkingLevel | undefined {
+  if (ollamaReasoningFamily(model) === 'mistral-large-3') return undefined
   return policyFor(model).defaultEffort
 }
 

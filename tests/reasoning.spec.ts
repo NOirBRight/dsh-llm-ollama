@@ -23,6 +23,8 @@ describe('ollamaReasoningFamily', () => {
   it('matches Cloud ids including tags and registry prefixes', () => {
     expect(ollamaReasoningFamily('registry.example/gpt-oss:20b')).toBe('gpt-oss')
     expect(ollamaReasoningFamily('glm-5.2')).toBe('glm-5.2')
+    expect(ollamaReasoningFamily('glm-5.3')).toBe('glm-5.3')
+    expect(ollamaReasoningFamily('glm-5.3-flash')).toBe('glm-5.3')
     expect(ollamaReasoningFamily('deepseek-v4-pro:0813')).toBe('deepseek-v4-pro')
     expect(ollamaReasoningFamily('deepseek-v4-flash:preview')).toBe('deepseek-v4-flash')
     expect(ollamaReasoningFamily('gemma4:31b')).toBe('gemma4')
@@ -32,7 +34,7 @@ describe('ollamaReasoningFamily', () => {
     expect(ollamaReasoningFamily('kimi-k3')).toBe('kimi-k3')
     expect(ollamaReasoningFamily('qwen3.5:397b')).toBe('qwen3.5')
     expect(ollamaReasoningFamily('qwen3')).toBe('generic')
-    expect(ollamaReasoningFamily('mistral-large-3:675b')).toBe('generic')
+    expect(ollamaReasoningFamily('mistral-large-3:675b')).toBe('mistral-large-3')
   })
 
   it('keeps the GPT-OSS detector aligned with the family classifier', () => {
@@ -53,6 +55,15 @@ describe('ollamaThinkingLevelMap', () => {
       off: 'none',
       minimal: null,
       low: null,
+      medium: null,
+      high: 'high',
+      xhigh: null,
+      max: 'max',
+    })
+    expect(ollamaThinkingLevelMap({ id: 'glm-5.3-flash', thinking: true })).toEqual({
+      off: null,
+      minimal: null,
+      low: 'low',
       medium: null,
       high: 'high',
       xhigh: null,
@@ -113,12 +124,15 @@ describe('ollamaThinkingLevelMap', () => {
       xhigh: null,
       max: 'max',
     })
+    expect(ollamaThinkingLevelMap({ id: 'mistral-large-3:675b', thinking: true })).toBeUndefined()
   })
 })
 
 describe('ollamaDefaultEffort', () => {
   it('uses vendor defaults for known families and none for unknown ones', () => {
     expect(ollamaDefaultEffort('glm-5.2')).toBe('max')
+    expect(ollamaDefaultEffort('glm-5.3')).toBe('max')
+    expect(ollamaDefaultEffort('glm-5.3-flash')).toBe('max')
     expect(ollamaDefaultEffort('deepseek-v4-pro:0813')).toBe('high')
     expect(ollamaDefaultEffort('deepseek-v4-flash:0731')).toBe('high')
     expect(ollamaDefaultEffort('gpt-oss:20b')).toBe('medium')
@@ -127,6 +141,7 @@ describe('ollamaDefaultEffort', () => {
     expect(ollamaDefaultEffort('kimi-k3')).toBe('max')
     expect(ollamaDefaultEffort('minimax-m3')).toBe('high')
     expect(ollamaDefaultEffort('qwen3')).toBeUndefined()
+    expect(ollamaDefaultEffort('mistral-large-3:675b')).toBeUndefined()
   })
 })
 

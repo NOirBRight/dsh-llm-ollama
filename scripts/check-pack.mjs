@@ -5,22 +5,34 @@ import { createServer } from 'node:http'
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, lstatSync, mkdtempSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, rmdirSync, unlinkSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join, relative, resolve, sep } from 'node:path'
+import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)))
-const FIXTURE_ROOT = join(ROOT, 'fixtures', 'alpha1')
+const FIXTURE_ROOT = join(ROOT, 'fixtures', 'alpha4')
 const TARBALL_ROOT = join(FIXTURE_ROOT, 'tarballs')
 const PROVENANCE_PATH = join(FIXTURE_ROOT, 'PROVENANCE.json')
 const LOCKFILE_PATH = join(ROOT, 'pnpm-lock.yaml')
 const PACKAGE_NAME = 'dsh-llm-ollama'
-const ALPHA1_VERSION = '0.1.2-alpha.1'
-const ALPHA1_TAG = 'dsh-v0.1.2-alpha.1'
-const ALPHA1_COMMIT = 'cd5ef8148158c3a752a658978873241fdf8e2bbc'
+const ALPHA4_VERSION = '0.1.2-alpha.4'
+const RC1_VERSION = '0.1.2-rc.1'
+const ALPHA4_TAG = 'dsh-v0.1.2-alpha.4'
+const ALPHA4_COMMIT = '4e84901e6471b79ec0338099867ebb4606d12bb5'
 const OWNER_NAME = 'dsh-llm-providers-ui'
-const OWNER_VERSION = '0.1.1'
-const FROZEN_OWNER_FILE = 'dsh-llm-providers-ui-0.1.1-35cfc1b816dc3f9c176d10b67fdf0fc450fbaf9ae6d47d3253709de278165a39.tgz'
-const FROZEN_OWNER_SHA256 = '35cfc1b816dc3f9c176d10b67fdf0fc450fbaf9ae6d47d3253709de278165a39'
-const FROZEN_OWNER_BYTES = 29120
+/** Providers UI version the frozen owner artifact and the dev dependency both pin. */
+const OWNER_VERSION = '0.1.12'
+/** Release tag the frozen owner artifact was taken from. */
+const OWNER_TAG = 'v0.1.12-015rc1d'
+const OWNER_RELEASE = 'https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/' + OWNER_TAG + '/dsh-llm-providers-ui-' + OWNER_VERSION + '.tgz'
+const FROZEN_OWNER_FILE = 'dsh-llm-providers-ui-' + OWNER_VERSION + '-c16667922b863563ddb0bbfb88682ee942d643dcdc431051e36bef69280b844e.tgz'
+const FROZEN_OWNER_SHA256 = 'c16667922b863563ddb0bbfb88682ee942d643dcdc431051e36bef69280b844e'
+const FROZEN_OWNER_BYTES = 95966
+/** Development-dependency specs the Providers UI owner may be pinned to: the sibling checkout, its fixture copy, or the release URL. */
+const OWNER_DEV_SPECS = [
+  'file:../dsh-llm-providers-ui/dsh-llm-providers-ui-' + OWNER_VERSION + '.tgz',
+  'file:../dsh-llm-providers-ui/fixtures/alpha4/tarballs/dsh-llm-providers-ui-' + OWNER_VERSION + '.tgz',
+  OWNER_RELEASE,
+]
 const INVALID_REGISTRY = 'http://127.0.0.1:9/'
 const DEPENDENCY_SECTIONS = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies']
 
@@ -294,25 +306,27 @@ function assertStaticClosure(packageRoot, manifest, label) {
 }
 
 function verifySourceMigration(manifest) {
+  if (!OWNER_TAG.includes(OWNER_VERSION)) fail('Providers UI release tag does not name the pinned version: ' + OWNER_TAG)
   for (const section of DEPENDENCY_SECTIONS) {
     for (const [name, spec] of Object.entries(manifest[section] ?? {})) {
       if (typeof spec !== 'string') fail(section + ' entry is not a string: ' + name)
+      if (section === 'devDependencies' && name === OWNER_NAME && OWNER_DEV_SPECS.includes(spec)) continue
       if (/^(?:file:|link:|workspace:|npm:|github:|git\+|https?:|\/|\.\.?[\/]|~[\/])/iu.test(spec)) fail(section + ' uses a path or VCS source: ' + name + ' ' + spec)
     }
   }
   for (const section of ['dependencies', 'peerDependencies', 'optionalDependencies']) {
     for (const name of Object.keys(manifest[section] ?? {})) {
-      if (name.startsWith('@deepseek-ai/dsh-') && manifest[section][name] !== ALPHA1_VERSION) fail(name + ' must use exact alpha.1 version')
+      if (name.startsWith('@deepseek-ai/dsh-') && manifest[section][name] !== ALPHA4_VERSION && !(satisfiesRange(ALPHA4_VERSION, manifest[section][name]) && satisfiesRange(RC1_VERSION, manifest[section][name]))) fail(name + ' must include both Alpha.4 and rc.1')
     }
   }
-  if (manifest.devDependencies?.[OWNER_NAME] !== '^0.1.1') fail('Providers UI must remain a semantic ^0.1.1 development dependency')
+  if (!OWNER_DEV_SPECS.includes(manifest.devDependencies?.[OWNER_NAME])) fail('Providers UI must use the frozen owner artifact as its development dependency')
   if (manifest.dependencies?.[OWNER_NAME] !== undefined || manifest.peerDependencies?.[OWNER_NAME] !== undefined) fail('Providers UI must not be a runtime or peer dependency')
   const card = readFileSync(join(ROOT, 'src/client/OllamaPluginCard.tsx'), 'utf8')
   if (!card.includes("from 'dsh-llm-providers-ui/sortable'")) fail('client does not import the public sortable subpath')
   const tsdown = readFileSync(join(ROOT, 'tsdown.config.ts'), 'utf8')
   if (!tsdown.includes("'dsh-llm-providers-ui/sortable'") || !/alwaysBundle\s*:/u.test(tsdown)) fail('tsdown does not bundle the sortable owner code')
   const adapter = readFileSync(join(ROOT, 'src/adapter.ts'), 'utf8')
-  if (!adapter.includes('delegate.prepareCall(provider, model, signal)')) fail('adapter does not delegate prepareCall with the alpha.1 signature')
+  if (!adapter.includes('delegate.prepareCall(provider, model, signal)')) fail('adapter does not delegate prepareCall with the alpha.4 signature')
   const discovery = readFileSync(join(ROOT, 'src/discovery.ts'), 'utf8')
   if (discovery.includes('request.signal') || !discovery.includes('signal?: AbortSignal')) fail('discovery callback signal contract is not preserved')
   if (JSON.stringify(manifest.exports).includes('"./src/*"')) fail('package exports source files')
@@ -437,7 +451,7 @@ function findStaticDependency(byIdentity, parent, name, spec) {
   const target = dependencyTarget(name, spec)
   const candidates = [...byIdentity.values()].filter(item => item.manifest.name === target.name)
   if (String(spec).startsWith('workspace:')) {
-    if (target.name.startsWith('@deepseek-ai/dsh-')) return byIdentity.get(target.name + '@' + ALPHA1_VERSION)
+    if (target.name.startsWith('@deepseek-ai/dsh-')) return byIdentity.get(target.name + '@' + ALPHA4_VERSION)
     return candidates[0]
   }
   return candidates.find(item => satisfiesRange(item.manifest.version, target.range))
@@ -472,7 +486,7 @@ function readOptionalPlatformGaps(provenance, byIdentity) {
 function checkProvenance() {
   const provenance = readJson(PROVENANCE_PATH)
   if (provenance.source?.repository !== 'https://github.com/deepseek-ai/deepseek-harness.git') fail('provenance repository is not DeepSeek Harness')
-  if (provenance.source?.tag !== ALPHA1_TAG || provenance.source?.commit !== ALPHA1_COMMIT || provenance.source?.packagesBuiltFromThisCheckout !== true) fail('provenance does not identify the exact clean alpha.1 source')
+  if (provenance.source?.tag !== ALPHA4_TAG || provenance.source?.commit !== ALPHA4_COMMIT || provenance.source?.packagesBuiltFromThisCheckout !== true) fail('provenance does not identify the exact clean alpha.4 source')
   const ownerPin = provenance.ownerArtifact
   if (ownerPin?.package !== OWNER_NAME
     || ownerPin?.version !== OWNER_VERSION
@@ -504,16 +518,16 @@ function checkProvenance() {
     const manifest = archiveManifest(archive)
     assertNoWorkspaceSpecifier(manifest, file + ' package.json')
     if (record.package !== manifest.name || record.version !== manifest.version || record.bytes !== bytes.length || record.sha256 !== sha256(bytes)) fail('provenance bytes or identity mismatch: ' + file)
-    if (!['clean-alpha1', 'clean-alpha1-third-party', 'registry', 'frozen-owner'].includes(record.source)) fail('provenance source is not static: ' + file)
+    if (!['clean-alpha4', 'clean-alpha4-third-party', 'registry', 'frozen-owner'].includes(record.source)) fail('provenance source is not static: ' + file)
     const id = manifest.name + '@' + manifest.version
     if (byIdentity.has(id)) fail('duplicate fixture identity: ' + id)
     byIdentity.set(id, { file, manifest, record })
     if (manifest.name.startsWith('@deepseek-ai/dsh-')) {
-      if (manifest.version !== ALPHA1_VERSION || record.source !== 'clean-alpha1') fail('non-alpha official fixture: ' + id)
+      if (manifest.version !== ALPHA4_VERSION || record.source !== 'clean-alpha4') fail('non-alpha official fixture: ' + id)
     }
   }
-  const official = [...byIdentity.values()].filter(item => item.record.source === 'clean-alpha1').map(item => item.manifest.name).sort()
-  const listedOfficial = [...(provenance.graph?.officialAlpha1Packages ?? [])].sort()
+  const official = [...byIdentity.values()].filter(item => item.record.source === 'clean-alpha4').map(item => item.manifest.name).sort()
+  const listedOfficial = [...(provenance.graph?.officialAlpha4Packages ?? [])].sort()
   if (JSON.stringify(official) !== JSON.stringify(listedOfficial)) fail('provenance official package graph is stale')
   const versions = new Map()
   for (const item of byIdentity.values()) {
@@ -532,10 +546,27 @@ function checkProvenance() {
     if (!list.every(version => byIdentity.has(name + '@' + version))) fail('multi-version graph names a missing archive: ' + name)
   }
   const declaredGaps = readOptionalPlatformGaps(provenance, byIdentity)
+  const reachable = new Set()
+  const walk = manifest => {
+    for (const section of ['dependencies', 'optionalDependencies', 'peerDependencies']) {
+      for (const [name, spec] of Object.entries(manifest[section] ?? {})) {
+        const candidate = findStaticDependency(byIdentity, manifest.name + '@' + manifest.version, name, spec)
+        if (candidate === undefined) continue
+        const id = candidate.manifest.name + '@' + candidate.manifest.version
+        if (reachable.has(id)) continue
+        reachable.add(id)
+        walk(candidate.manifest)
+      }
+    }
+  }
+  walk(readJson(join(ROOT, 'package.json')))
+  const ownerRecord = [...byIdentity.values()].find(item => item.manifest.name === OWNER_NAME && item.manifest.version === OWNER_VERSION)
+  if (ownerRecord !== undefined) walk(ownerRecord.manifest)
+  const relevantGaps = new Map([...declaredGaps].filter(([key]) => reachable.has(key.split(' -> ', 1)[0])))
   const observedGaps = new Set()
   const nonOptionalMissing = []
   const undeclaredOptionalMissing = []
-  for (const item of byIdentity.values()) {
+  for (const item of [...byIdentity.values()].filter(item => reachable.has(item.manifest.name + '@' + item.manifest.version))) {
     for (const section of ['dependencies', 'optionalDependencies', 'peerDependencies']) {
       for (const [name, spec] of Object.entries(item.manifest[section] ?? {})) {
         const parent = item.manifest.name + '@' + item.manifest.version
@@ -543,23 +574,23 @@ function checkProvenance() {
         const key = edgeKey(parent, section, name, spec)
         const candidate = findStaticDependency(byIdentity, parent, name, spec)
         if (candidate === undefined) {
-          if (optional && declaredGaps.has(key)) observedGaps.add(key)
+          if (optional && relevantGaps.has(key)) observedGaps.add(key)
           else if (optional) undeclaredOptionalMissing.push(key)
           else nonOptionalMissing.push(key)
           continue
         }
-        if (declaredGaps.has(key)) fail('declared optional platform gap has an available archive: ' + key)
-        if (String(spec).startsWith('workspace:') && name.startsWith('@deepseek-ai/dsh-') && candidate.manifest.version !== ALPHA1_VERSION) fail('workspace dependency is not alpha.1: ' + parent + ' -> ' + name + '@' + candidate.manifest.version)
+        if (relevantGaps.has(key)) fail('declared optional platform gap has an available archive: ' + key)
+        if (String(spec).startsWith('workspace:') && name.startsWith('@deepseek-ai/dsh-') && candidate.manifest.version !== ALPHA4_VERSION) fail('workspace dependency is not alpha.4: ' + parent + ' -> ' + name + '@' + candidate.manifest.version)
       }
     }
   }
   if (nonOptionalMissing.length > 0) fail('nonoptional missing versioned edges: ' + nonOptionalMissing.join('; '))
   if (undeclaredOptionalMissing.length > 0) fail('optional edge is not an explicit platform gap: ' + undeclaredOptionalMissing.join('; '))
-  const staleGaps = [...declaredGaps.keys()].filter(key => !observedGaps.has(key))
+  const staleGaps = [...relevantGaps.keys()].filter(key => !observedGaps.has(key))
   if (staleGaps.length > 0) fail('declared optional platform gaps are not missing: ' + staleGaps.join('; '))
-  console.log('static fixture provenance verified: ' + files.length + ' archives, ' + official.length + ' clean alpha.1 packages')
+  console.log('static fixture provenance verified: ' + files.length + ' archives, ' + official.length + ' clean alpha.4 packages')
   console.log('zero nonoptional missing versioned edges; optional platform gaps documented: ' + String(observedGaps.size))
-  return { provenance, byIdentity, optionalPlatformGaps: declaredGaps }
+  return { provenance, byIdentity, optionalPlatformGaps: relevantGaps }
 }
 
 
@@ -643,7 +674,14 @@ async function startFixtureRegistry(records) {
     const filename = basename(item.path)
     list.push({ ...item, filename, bytes, integrity: sha512Integrity(bytes), sha1: createHash('sha1').update(bytes).digest('hex') })
     byName.set(item.manifest.name, list)
-    byTarball.set(filename, list[list.length - 1])
+    const record = list[list.length - 1]
+    byTarball.set(filename, record)
+    // pnpm canonicalizes registry tarball names to the package stem. Serve
+    // both the archive filename and that canonical spelling.
+    const stem = item.manifest.name.startsWith('@')
+      ? item.manifest.name.slice(item.manifest.name.indexOf('/') + 1)
+      : item.manifest.name
+    byTarball.set(stem + '-' + item.manifest.version + '.tgz', record)
   }
   let registryUrl = ''
   const server = createServer((request, response) => {
@@ -654,6 +692,7 @@ async function startFixtureRegistry(records) {
       if (decoded.includes(marker)) {
         const filename = decoded.slice(decoded.lastIndexOf(marker) + marker.length)
         const item = byTarball.get(filename)
+        if (item !== undefined && process.env.DSH_DEBUG_PACK === '1') console.error('fixture request', filename, item.manifest.name + '@' + item.manifest.version, sha512Integrity(item.bytes))
         if (item === undefined) { response.statusCode = 404; response.end('fixture archive not found'); return }
         served.add(item.manifest.name + '@' + item.manifest.version)
         response.setHeader('content-type', 'application/octet-stream')
@@ -764,9 +803,12 @@ function assertInstalledVersionPlane(directory, label) {
   const packages = installedPackages(directory)
   const dsh = packages.filter(item => item.manifest.name.startsWith('@deepseek-ai/dsh-'))
   if (dsh.length === 0) fail(label + ' installed no DSH package')
-  for (const item of dsh) if (item.manifest.version !== ALPHA1_VERSION) fail(label + ' installed non-alpha DSH package: ' + item.manifest.name + '@' + item.manifest.version)
+  for (const item of dsh) if (item.manifest.version !== ALPHA4_VERSION) fail(label + ' installed non-alpha DSH package: ' + item.manifest.name + '@' + item.manifest.version)
   const cordis = packages.filter(item => item.manifest.name === '@deepseek-ai/cordis')
-  if (cordis.length === 0 || new Set(cordis.map(item => item.path)).size !== 1 || cordis[0].manifest.version !== '4.0.1') fail(label + ' installed an invalid Cordis identity')
+  if (cordis.length === 0 || new Set(cordis.map(item => item.path)).size !== 1 || cordis[0].manifest.version !== '4.0.2') {
+    console.error(label + ' Cordis candidates:', cordis.map(item => ({ path: item.path, version: item.manifest.version })))
+    fail(label + ' installed an invalid Cordis identity')
+  }
 }
 
 function targetRoot(directory) {
@@ -870,7 +912,10 @@ async function main() {
   const manifest = readJson(join(ROOT, 'package.json'))
   verifySourceMigration(manifest)
   const { byIdentity, optionalPlatformGaps } = checkProvenance()
-  const work = mkdtempSync(join(ROOT, '.pack-gate-'))
+  // Keep the consumer outside this repository's workspace. Otherwise pnpm
+  // discovers the root workspace and installs the owner's devDependencies,
+  // defeating the isolated tarball consumer check.
+  const work = mkdtempSync(join(tmpdir(), 'dsh-llm-ollama-pack-gate-'))
   let registry
   let primaryError
   try {

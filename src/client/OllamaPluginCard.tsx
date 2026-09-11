@@ -1,10 +1,11 @@
 /** Ollama Cloud connection and model-catalog card for Plugin configuration. */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import type { SettingsScope, SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { InjectFace, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-settings-plugins/client'
+import { OLLAMA_SETTINGS_NAMESPACE } from '../client-contract.ts'
 import type {
   OllamaCatalogModelConfig,
   OllamaDiscoveryRequest,
@@ -20,8 +21,11 @@ import {
 } from '../reasoning.ts'
 import type { OllamaSettingsKey } from './locales.ts'
 import { BrandMark } from './BrandMark.tsx'
-import { ProviderCardHeader, UsageHeader, UsageResetAt, UsageSkeleton, UsageUpdatedAt, formatProviderSummary, formatUsageClock, providerHeaderStyle, resetLabelOf } from './provider-chrome.tsx'
+import { ProviderCardHeader, ProviderQuotaMeter, UsageHeader, UsageSkeleton, UsageUpdatedAt, formatUsageClock, providerUiCss, resetLabelOf } from './provider-chrome.tsx'
+import type { ProviderQuotaState } from 'dsh-llm-providers-ui/provider-ui';
 import { SortableList } from 'dsh-llm-providers-ui/sortable'
+import { headerQuotaFromCache, peekCachedUsage, rememberHeadlineQuota } from 'dsh-llm-providers-ui/usage-readers'
+
 import {
   CapabilitiesRow,
   CatalogRow,
@@ -116,13 +120,14 @@ type UsageState =
   | { status: 'needs-restart' }
   | { status: 'error', message: string }
 
+/** Ollama Cloud window lengths, used only as the reset caption when the API omits a reset time. */
+const OLLAMA_SESSION_HOURS = 5
+const OLLAMA_WEEKLY_DAYS = 7
+const OLLAMA_MONTHLY_DAYS = 30
+
 const cardStyle: CSSProperties = {
-  overflow: 'hidden',
-  border: '1px solid var(--dsw-alias-border-l2)',
-  borderRadius: 10,
-  background: 'var(--dsw-alias-bg-module-platform)',
+  overflow: 'visible',
 }
-const headerStyle = providerHeaderStyle
 const bodyStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
@@ -188,14 +193,6 @@ const disclosureStyle: CSSProperties = {
 // modelContentStyle, modelDetailStyle, capabilitiesStyle now from model-catalog-ui.tsx
 const statusStyle: CSSProperties = { margin: 0, fontSize: 13, color: 'var(--dsw-alias-label-secondary)' }
 const errorStyle: CSSProperties = { ...statusStyle, color: 'var(--dsw-alias-state-error-primary)' }
-const barTrackStyle: CSSProperties = {
-  boxSizing: 'border-box',
-  height: 14,
-  display: 'flex',
-  overflow: 'hidden',
-  borderRadius: 999,
-  background: 'color-mix(in srgb, var(--dsw-alias-label-primary) 14%, transparent)',
-}
 const usageListStyle: CSSProperties = {
   margin: 0,
   padding: 0,
@@ -341,7 +338,7 @@ function usageResetCopy(t: OllamaPluginCardFace['t']): { at: string, atDays: str
   return { at: t('usageResetAt'), atDays: t('usageResetAtDays') }
 }
 
-/** One quota window: an aggregate consumed percentage and solid meter. */
+/** One quota window: segmented remaining meter; honest native text when no percent metric. */
 
 function UsageBar({ label, usedText, window: quota, t, fallbackReset }: {
   label: string
@@ -350,39 +347,36 @@ function UsageBar({ label, usedText, window: quota, t, fallbackReset }: {
   t: OllamaPluginCardFace['t']
   fallbackReset?: string
 }): ReactNode {
-  const percent = Math.round(quota.usage * 1000) / 10
-  const fill = Math.min(100, Math.max(0, percent))
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+  const remaining = 100 * (1 - quota.usage)
+  if (!Number.isFinite(remaining) || remaining < 0 || remaining > 100) {
+    const percent = Math.round(quota.usage * 1000) / 10
+    return (
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
         <span style={labelStyle}>{label}</span>
         <span style={hintStyle}>{usedText} {percent}%</span>
       </div>
-      <div
-        style={barTrackStyle}
-        role="progressbar"
-        aria-label={label}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={Math.round(fill)}
-      >
-        <span
-          data-usage-fill="true"
-          style={{
-            width: String(fill) + '%',
-            height: '100%',
-            flex: 'none',
-            background: 'var(--dsw-alias-state-business-primary)',
-            transition: 'width 200ms ease',
-          }}
-        />
-      </div>
-      <UsageResetAt label={resetLabelOf(quota.resetsAt, usageResetCopy(t)) ?? fallbackReset} />
-    </div>
-  )
+    )
+  }
+  const detail = resetLabelOf(quota.resetsAt, usageResetCopy(t)) ?? fallbackReset
+  return <ProviderQuotaMeter remainingPercent={Math.round(remaining * 10) / 10} label={label} {...(detail === undefined ? {} : { detail })} />
 }
 
 /** Render the single-package Ollama Cloud contribution under Plugin configuration. */
+/** Headline remaining quota from real auth values; missing renders no meter, never zero. */
+function headlineQuotaOf(view: OllamaUsageView | undefined, t: OllamaPluginCardFace['t']): ProviderQuotaState | undefined {
+  const window = view?.monthly ?? view?.weekly ?? view?.session;
+  if (window === undefined) return undefined;
+  const remaining = 100 * (1 - window.usage);
+  if (!Number.isFinite(remaining) || remaining < 0 || remaining > 100) return undefined;
+  return {
+    remainingPercent: Math.round(remaining * 10) / 10,
+    label: view?.monthly !== undefined
+      ? t('usageMonthly')
+      : view?.weekly !== undefined ? t('usageWeekly') : t('usageSession'),
+    ...(resetLabelOf(window.resetsAt, usageResetCopy(t)) ?? undefined) === undefined ? {} : { detail: resetLabelOf(window.resetsAt, usageResetCopy(t)) as string },
+  };
+}
+
 export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
   const { t } = props
   const snapshot = props.useOllamaSettings((value: SettingsScopeSnapshot<OllamaSettingsView>) => value)
@@ -400,7 +394,13 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
   const [usage, setUsage] = useState<UsageState>({ status: 'idle' })
   const [lastUsage, setLastUsage] = useState<OllamaUsageView | undefined>(undefined)
   const [usageUpdatedAt, setUsageUpdatedAt] = useState<Date | undefined>(undefined)
+  // Read generation: only the latest usage read may publish. A superseded read
+  // (save-new-key, credential change, unmount) must not resurrect old-account
+  // usage into state or the persisted headline cache.
+  const usageEpoch = useRef(0)
+  const mounted = useRef(true)
   const [catalogOpen, setCatalogOpen] = useState(false)
+  const [modelSorting, setModelSorting] = useState(false)
   const [expandedModels, setExpandedModels] = useState<ReadonlySet<string>>(new Set())
   const dirty = source !== undefined && draft !== undefined && (!sameDraft(source, draft) || apiKey.length > 0)
 
@@ -414,10 +414,20 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
     setSourceRevision(snapshot.revision)
   }, [dirty, snapshot.revision, snapshot.status, snapshot.value, sourceRevision])
 
+  // Credential generation mirrors the usage epoch: a superseded credential read
+  // (save-new-key, unmount) must not overwrite fresher credential state. A shared
+  // counter would false-invalidate the mount reads, which overlap by design.
+  const credentialEpoch = useRef(0)
   const refreshCredential = async (): Promise<void> => {
+    const epoch = credentialEpoch.current + 1
+    credentialEpoch.current = epoch
+    const liveCredential = (): boolean => mounted.current && epoch === credentialEpoch.current
     try {
-      setCredential(await props.describeCredential())
+      const next = await props.describeCredential()
+      if (!liveCredential()) return
+      setCredential(next)
     } catch {
+      if (!liveCredential()) return
       setCredential(undefined)
     }
   }
@@ -429,10 +439,11 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
 
   if (snapshot.status === 'unavailable') {
     return (
-      <li style={cardStyle}>
+      <li style={cardStyle} data-provider-card="" data-provider-role="llm">
+        <style>{providerUiCss}</style>
         <button
           type="button"
-          style={headerStyle}
+          data-provider-card-header=""
           aria-expanded={open}
           aria-label={t(open ? 'collapse' : 'expand') + ': ' + t('title')}
           onClick={() => { setOpen(!open) }}
@@ -440,13 +451,15 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
           <ProviderCardHeader
             title={t('title')}
             mark={<BrandMark />}
-            summary={formatProviderSummary(t('summaryOff'), t('summaryModels').replace('{count}', '0'))}
+            summary={t('summaryModels').replace('{count}', '0')}
+            status={t('summaryOff')}
             open={open}
+            role="llm"
           />
         </button>
         {open
           ? (
-            <div style={bodyStyle}>
+            <div style={bodyStyle} data-provider-body="">
               <p style={statusStyle} role="status">{t('remoteAccess')}</p>
             </div>
           )
@@ -514,14 +527,19 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
   }
 
   const loadUsage = async (): Promise<void> => {
+    const epoch = usageEpoch.current + 1
+    usageEpoch.current = epoch
+    const live = (): boolean => mounted.current && epoch === usageEpoch.current
     setUsage({ status: 'loading' })
     try {
       const read = await props.fetchUsage({
         ...draft === undefined ? {} : { baseURL: draft.baseURL.trim() },
         ...apiKey.trim().length === 0 ? {} : { apiKey: apiKey.trim() },
       })
+      if (!live()) return
       if (read.kind === 'ok') {
         setLastUsage(read.usage)
+        rememberHeadlineQuota(OLLAMA_SETTINGS_NAMESPACE, 'Ollama Cloud', headlineQuotaOf(read.usage, t))
         setUsageUpdatedAt(new Date())
       }
       setUsage(
@@ -532,14 +550,21 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
             : { status: 'unsupported' },
       )
     } catch (error: unknown) {
+      if (!live()) return
       setUsage({ status: 'error', message: usageErrorOf(error, t) })
     }
   }
+  // Header quota loads collapsed once settings are ready; idle status dedups so expansion never refires.
   useEffect(() => {
-    if (!open || snapshot.status !== 'ready') return
-    setUsage({ status: 'loading' })
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
+  useEffect(() => {
+    if (snapshot.status !== 'ready' || usage.status !== 'idle') return
     void loadUsage()
-  }, [open, snapshot.status])
+  }, [snapshot.status, usage.status])
 
   const fetchModels = async (): Promise<void> => {
     if (draft === undefined) return
@@ -598,6 +623,9 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
 
   const save = async (): Promise<void> => {
     if (draft === undefined || snapshot.value === undefined || invalid) return
+    // A new key may change the account: invalidate in-flight usage reads now so a
+    // late old-account resolve cannot publish or re-persist before the fresh read.
+    usageEpoch.current += 1
     setBusy(true)
     setFailure(undefined)
     setNotice(undefined)
@@ -616,6 +644,9 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
       setUsage({ status: 'idle' })
     } catch (error: unknown) {
       setFailure(messageOf(error, t('requestFailed')))
+      // A failed save starts no fresh read: release a stuck loading state back to
+      // idle so the next effect pass retries instead of hanging forever.
+      setUsage(current => (current.status === 'loading' ? { status: 'idle' } : current))
     } finally {
       setBusy(false)
     }
@@ -626,16 +657,26 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
   else if (draft !== undefined && modelFailure(draft.models)) validation = t('invalidModel')
   else if (keyInvalid) validation = t('invalidApiKey')
 
-  const headerSummary = formatProviderSummary(
-    credential?.configured === true ? t('summaryOn') : t('summaryOff'),
-    t('summaryModels').replace('{count}', String(draft?.models.length ?? 0)),
-  )
+  const headerModelCount = draft?.models.length
+  const headerCount = headerModelCount === undefined ? '' : t('summaryModels').replace('{count}', String(headerModelCount))
+  // Unknown credential is loading, not unconfigured: only an authoritative verdict earns On/Off.
+  const headerStatus = credential?.configured === true ? t('summaryOn') : credential?.configured === false ? t('summaryOff') : t('loading')
+  const usageView = usage.status === 'ready' ? usage.usage : lastUsage
+  const liveQuota = credential?.configured === true ? headlineQuotaOf(usageView, t) : undefined
+  // Persisted fallback before fresh metadata: allowed while credential is unknown,
+  // withheld once known-false or the usage read settles error/unsupported/needs-restart.
+  const quotaWithheld = credential?.configured === false
+    || usage.status === 'error' || usage.status === 'unsupported' || usage.status === 'needs-restart'
+  // The verdict gates the entire header quota, not only the persisted fallback:
+  // stale local lastUsage must not look fresh on error/unsupported either.
+  const headerQuota = quotaWithheld ? undefined : (liveQuota ?? headerQuotaFromCache(peekCachedUsage(OLLAMA_SETTINGS_NAMESPACE)))
 
   return (
-    <li style={cardStyle}>
+    <li style={cardStyle} data-provider-card="" data-provider-role="llm">
+      <style>{providerUiCss}</style>
       <button
         type="button"
-        style={headerStyle}
+        data-provider-card-header=""
         aria-expanded={open}
         aria-label={t(open ? 'collapse' : 'expand') + ': ' + title}
         onClick={() => { setOpen(!open) }}
@@ -643,15 +684,23 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
         <ProviderCardHeader
           title={title}
           mark={<BrandMark />}
-          summary={headerSummary}
+          summary={headerCount}
+          status={headerStatus}
           open={open}
           unsaved={dirty}
           unsavedLabel={t('unsaved')}
+          role="llm"
+          {...(headerQuota === undefined
+            ? (credential?.configured === true && (usage.status === 'error' || usage.status === 'unsupported' || usage.status === 'needs-restart')
+              // Query attempted but no usable quota: unavailable dash, never a fabricated percent.
+              ? { quota: { label: t('usage') } }
+              : {})
+            : { quota: headerQuota })}
         />
       </button>
       {open
         ? (
-          <div style={bodyStyle}>
+          <div style={bodyStyle} data-provider-body="">
             <p style={hintStyle}>{t('description')}</p>
             {snapshot.status === 'loading' ? <p style={statusStyle}>{t('loading')}</p> : null}
             {snapshot.status === 'ready' && !snapshot.writable ? <p style={statusStyle}>{t('readOnly')}</p> : null}
@@ -708,13 +757,27 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
                       if (usage.status === 'loading' || usage.status === 'idle') {
                         const known = lastUsage === undefined
                           ? 2
-                          : Number(lastUsage.session !== undefined) + Number(lastUsage.weekly !== undefined)
+                          : Number(lastUsage.session !== undefined)
+                            + Number(lastUsage.weekly !== undefined)
+                            + Number(lastUsage.monthly !== undefined)
                         return <UsageSkeleton rows={known > 0 ? known : 2} />
                       }
                       const bars = usage.status === 'ready' ? usage.usage : lastUsage
                       if (bars !== undefined) {
+                        const primaryWindow = bars.monthly ?? bars.weekly ?? bars.session
                         return (
                         <>
+                          {bars.monthly === undefined
+                            ? null
+                            : (
+                              <UsageBar
+                                label={t('usageMonthly')}
+                                usedText={t('usageUsed')}
+                                window={bars.monthly}
+                                t={t}
+                                fallbackReset={t('usageResetEveryDays').replace('{count}', String(OLLAMA_MONTHLY_DAYS))}
+                              />
+                            )}
                           {bars.session === undefined
                             ? null
                             : (
@@ -723,7 +786,7 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
                                 usedText={t('usageUsed')}
                                 window={bars.session}
                                 t={t}
-                                fallbackReset={t('usageResetEveryHours').replace('{count}', '5')}
+                                fallbackReset={t('usageResetEveryHours').replace('{count}', String(OLLAMA_SESSION_HOURS))}
                               />
                             )}
                           {bars.weekly === undefined
@@ -734,15 +797,15 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
                                 usedText={t('usageUsed')}
                                 window={bars.weekly}
                                 t={t}
-                                fallbackReset={t('usageResetEveryDays').replace('{count}', '7')}
+                                fallbackReset={t('usageResetEveryDays').replace('{count}', String(OLLAMA_WEEKLY_DAYS))}
                               />
                             )}
-                          {bars.weekly !== undefined && bars.weekly.models.length > 0
+                          {primaryWindow !== undefined && primaryWindow.models.length > 0
                             ? (
                               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                                 <span style={labelStyle}>{t('usageModels')}</span>
                                 <ul style={usageListStyle} aria-label={t('usageModels')}>
-                                  {bars.weekly.models.map(model => (
+                                  {primaryWindow.models.map(model => (
                                     <li
                                       key={model.name}
                                       style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}
@@ -784,14 +847,25 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
                         <span style={sectionTitleStyle}>{t('models')}</span>
                         <span style={hintStyle}>{customModels ? t('customized') : t('inherited')}</span>
                       </button>
-                      <button
-                        type="button"
-                        style={buttonStyle}
-                        disabled={fetching || invalid || snapshot.status !== 'ready'}
-                        onClick={() => { void fetchModels() }}
-                      >
-                        {t(fetching ? 'fetchingModels' : 'fetchModels')}
-                      </button>
+                      <span style={{ display: 'inline-flex', gap: 8 }}>
+                        <button
+                          type="button"
+                          style={buttonStyle}
+                          aria-pressed={modelSorting}
+                          disabled={disabled || draft.models.length < 2}
+                          onClick={() => { setModelSorting(current => !current) }}
+                        >
+                          {t(modelSorting ? 'doneSorting' : 'sortModels')}
+                        </button>
+                        <button
+                          type="button"
+                          style={buttonStyle}
+                          disabled={fetching || invalid || snapshot.status !== 'ready'}
+                          onClick={() => { void fetchModels() }}
+                        >
+                          {t(fetching ? 'fetchingModels' : 'fetchModels')}
+                        </button>
+                      </span>
                     </div>
                     {catalogOpen
                       ? (
@@ -800,9 +874,19 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
                             items={draft.models}
                             getId={model => model.rowId}
                             disabled={disabled}
+                            sorting={modelSorting}
                             dragLabel={(model, index) => {
                               const label = model.id.trim().length > 0 ? model.id.trim() : String(index + 1)
                               return t('dragModel') + ': ' + label
+                            }}
+                            moveButtons
+                            moveUpLabel={(model, index) => {
+                              const label = model.id.trim().length > 0 ? model.id.trim() : String(index + 1)
+                              return t('moveUp') + ': ' + label
+                            }}
+                            moveDownLabel={(model, index) => {
+                              const label = model.id.trim().length > 0 ? model.id.trim() : String(index + 1)
+                              return t('moveDown') + ': ' + label
                             }}
                             onReorder={(models) => { patchDraft({ models }) }}
                             renderItem={(model, index) => {
@@ -810,7 +894,7 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
                               const expanded = expandedModels.has(key)
                               const label = model.id.trim().length > 0 ? model.id.trim() : String(index + 1)
                               return (
-                                <div data-model-row={label} style={modelContentStyle}>
+                                <div data-model-row={label} data-provider-model="" style={modelContentStyle}>
                                   <input
                                     style={rowInputStyle}
                                     value={model.id}

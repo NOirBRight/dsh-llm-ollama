@@ -260,21 +260,42 @@ describe('OllamaPluginCard', () => {
 
     fireEvent.click(screen.getByRole('button', { name: `${en.expand}: ${en.title}` }))
 
-    await waitFor(() => { expect(screen.getByText(`${en.usageUsed} 89.1%`)).toBeTruthy() })
-    expect(screen.getByText(`${en.usageUsed} 18.8%`)).toBeTruthy()
+    await waitFor(() => { expect(screen.getByRole('meter', { name: en.usageWeekly })).toBeTruthy() })
+    expect(screen.getByRole('meter', { name: en.usageWeekly }).getAttribute('aria-valuenow')).toBe('10.9')
+    expect(screen.getByRole('meter', { name: en.usageSession }).getAttribute('aria-valuenow')).toBe('81.2')
     expect(screen.getByText(en.usageModels)).toBeTruthy()
     expect(screen.getByText('glm-5.2')).toBeTruthy()
     expect(screen.getByText(`4133 ${en.usageRequests}`)).toBeTruthy()
     expect(screen.getByText(`264 ${en.usageRequests}`)).toBeTruthy()
     expect(fetchUsage).toHaveBeenCalledWith({ baseURL: 'https://ollama.com/api' })
-    expect(screen.getByRole('progressbar', { name: en.usageWeekly }).getAttribute('aria-valuenow')).toBe('89')
 
     expect(screen.queryByRole('tooltip')).toBeNull()
-    expect(screen.getByRole('progressbar', { name: en.usageSession }).querySelectorAll('[data-usage-segment]')).toHaveLength(0)
+    expect(screen.queryByRole('progressbar')).toBeNull()
 
     const details = screen.getByRole('list', { name: en.usageModels })
     expect(details.style.maxHeight).toBe('')
     expect(details.style.overflowY).toBe('')
+  })
+
+  it('labels a monthly-only snapshot with the neutral monthly window name', async () => {
+    const fetchUsage = vi.fn(() => Promise.resolve({
+      kind: 'ok' as const,
+      usage: {
+        fetchedAt: '2026-08-16T00:00:00.000Z',
+        monthly: { usage: 0.25, models: [{ name: 'qwen3-coder', requestCount: 4 }] },
+      },
+    }))
+    render(<OllamaPluginCard {...props({ fetchUsage })} />)
+
+    fireEvent.click(screen.getByRole('button', { name: `${en.expand}: ${en.title}` }))
+
+    await waitFor(() => { expect(screen.getByRole('meter', { name: en.usageMonthly })).toBeTruthy() })
+    expect(screen.getByRole('meter', { name: en.usageMonthly }).getAttribute('aria-valuenow')).toBe('75')
+    expect(screen.queryByRole('meter', { name: en.usageSession })).toBeNull()
+    expect(screen.queryByRole('meter', { name: en.usageWeekly })).toBeNull()
+    // The monthly window is the primary one, so it carries the per-model counts.
+    expect(screen.getByText('qwen3-coder')).toBeTruthy()
+    expect(screen.getByText(`4 ${en.usageRequests}`)).toBeTruthy()
   })
 
   it('explains when the endpoint has no usage surface', async () => {
@@ -298,7 +319,7 @@ describe('OllamaPluginCard', () => {
 
     await waitFor(() => { expect(screen.getByText(en.usageUnreachable)).toBeTruthy() })
     fireEvent.click(screen.getByRole('button', { name: en.usageRefresh }))
-    await waitFor(() => { expect(screen.getByText(`${en.usageUsed} 10%`)).toBeTruthy() })
+    await waitFor(() => { expect(screen.getByRole('meter', { name: en.usageWeekly }).getAttribute('aria-valuenow')).toBe('90') })
     expect(fetchUsage).toHaveBeenCalledTimes(2)
   })
 
@@ -323,6 +344,11 @@ describe('OllamaPluginCard', () => {
 
     fireEvent.click(screen.getByRole('button', { name: `${en.expand}: ${en.title}` }))
     fireEvent.click(screen.getByRole('button', { name: en.models }))
+    fireEvent.change(screen.getByLabelText(`${en.modelId} 1`) as HTMLInputElement, { target: { value: 'alpha-edited' } })
+    expect(screen.queryByRole('button', { name: `${en.moveUp}: alpha-edited` })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: en.sortModels }))
+    expect(screen.getByRole('button', { name: en.doneSorting })).toBeTruthy()
+    expect((screen.getByLabelText(`${en.modelId} 1`) as HTMLInputElement).value).toBe('alpha-edited')
 
     const rows = Array.from(container.querySelectorAll<HTMLElement>('[data-model-row]'))
     for (const [index, row] of rows.entries()) {
@@ -333,15 +359,15 @@ describe('OllamaPluginCard', () => {
       })
     }
 
-    fireEvent.pointerDown(screen.getByLabelText(`${en.dragModel}: alpha`), {
+    fireEvent.pointerDown(screen.getByLabelText(`${en.dragModel}: alpha-edited`), {
       button: 0, pointerId: 1, clientX: 10, clientY: 10,
     })
     fireEvent.pointerMove(window, { pointerId: 1, clientX: 10, clientY: 140 })
 
     // The preview order changes before release: sibling cards move out of the
     // way while a floating ghost follows the pointer.
-    expect(Array.from(container.querySelectorAll('[data-model-row]')).map(row => row.getAttribute('data-model-row'))).toEqual([
-      'bravo', 'charlie', 'alpha',
+    expect(Array.from(container.querySelectorAll('[data-sortable-row="true"]:not([data-sortable-ghost="true"]) [data-model-row]')).map(row => row.getAttribute('data-model-row'))).toEqual([
+      'bravo', 'charlie', 'alpha-edited',
     ])
     expect(document.querySelector('[data-sortable-ghost="true"]')).not.toBeNull()
 
@@ -349,7 +375,7 @@ describe('OllamaPluginCard', () => {
     fireEvent.click(screen.getByRole('button', { name: en.save }))
     await waitFor(() => { expect(saveConfiguration).toHaveBeenCalledTimes(1) })
     expect(saveConfiguration).toHaveBeenCalledWith(expect.objectContaining({
-      models: [{ id: 'bravo' }, { id: 'charlie' }, { id: 'alpha' }],
+      models: [{ id: 'bravo' }, { id: 'charlie' }, { id: 'alpha-edited' }],
     }))
   })
 })

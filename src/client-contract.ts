@@ -140,7 +140,7 @@ export interface OllamaUsageModelCount {
   requestCount: number
 }
 
-/** One metered quota window (session or weekly). */
+/** One metered quota window (session, weekly, or monthly). */
 export interface OllamaUsageWindow {
   /** Consumed fraction of the window; 0.891 renders as "89.1%". */
   usage: number
@@ -158,6 +158,8 @@ export interface OllamaUsageView {
   session?: OllamaUsageWindow
   /** Rolling weekly window, when the endpoint reports one. */
   weekly?: OllamaUsageWindow
+  /** Monthly window, the shape ollama.com reports for the current account tiers. */
+  monthly?: OllamaUsageWindow
 }
 
 /**
@@ -326,13 +328,16 @@ export function decodeOllamaUsageView(value: unknown): OllamaUsageView | undefin
   if (typeof value['fetchedAt'] !== 'string' || value['fetchedAt'].length === 0) return undefined
   const session = value['session'] === undefined ? undefined : decodeOllamaUsageWindow(value['session'])
   const weekly = value['weekly'] === undefined ? undefined : decodeOllamaUsageWindow(value['weekly'])
+  const monthly = value['monthly'] === undefined ? undefined : decodeOllamaUsageWindow(value['monthly'])
   if (value['session'] !== undefined && session === undefined) return undefined
   if (value['weekly'] !== undefined && weekly === undefined) return undefined
-  if (session === undefined && weekly === undefined) return undefined
+  if (value['monthly'] !== undefined && monthly === undefined) return undefined
+  if (session === undefined && weekly === undefined && monthly === undefined) return undefined
   return {
     fetchedAt: value['fetchedAt'],
     ...session === undefined ? {} : { session },
     ...weekly === undefined ? {} : { weekly },
+    ...monthly === undefined ? {} : { monthly },
   }
 }
 

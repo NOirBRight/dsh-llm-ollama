@@ -67,6 +67,24 @@ describe('readOllamaUsage', () => {
     expect(server.headers[1]?.authorization).toBe('Bearer stored-key')
   })
 
+  it('reads the monthly window over HTTP for the current account tiers', async () => {
+    const server = await mockServer([{
+      kind: 'json',
+      status: 200,
+      body: JSON.stringify({
+        activity: { cost: '0.00000', models: [] },
+        limits: { monthly: { usage: 0.25, models: [{ name: 'qwen3-coder', request_count: 4 }] } },
+      }),
+    }])
+
+    const usage = await readOllamaUsage({ baseURL: server.url, apiKey: 'one-shot-key' })
+
+    expect(usage.monthly?.usage).toBe(0.25)
+    expect(usage.monthly?.models).toEqual([{ name: 'qwen3-coder', requestCount: 4 }])
+    expect(usage.session).toBeUndefined()
+    expect(usage.weekly).toBeUndefined()
+  })
+
   it('reads unauthenticated when no key exists anywhere', async () => {
     const server = await mockServer([{ kind: 'json', status: 200, body: cloudReply }])
 
@@ -84,14 +102,26 @@ describe('readOllamaUsage', () => {
     expect((failure as { code?: string }).code).toBe(OLLAMA_USAGE_UNSUPPORTED)
   })
 
-  it('marks a 401 as a credential failure naming the key', async () => {
-    const server = await mockServer([{ kind: 'json', status: 401, body: '{"error":"invalid credentials"}' }])
+  it.each([401, 403])('marks a %i as a credential failure naming the key', async (status) => {
+    const server = await mockServer([{ kind: 'json', status, body: '{"error":"invalid credentials"}' }])
 
     const failure = await readOllamaUsage({ baseURL: server.url, apiKey: 'bad' })
       .catch((error: unknown) => error) as Error & { code?: string }
 
     expect(failure.code).toBe(INVALID_CREDENTIAL_CODE)
     expect(failure.message).toContain('check the API key')
+  })
+
+  it('leaves an unreachable endpoint and a 5xx as read failures, never credential failures', async () => {
+    // Port 9 is this repository's unreachable-endpoint idiom; nothing listens there.
+    const unreachable = await readOllamaUsage({ baseURL: 'http://127.0.0.1:9/api' })
+      .catch((error: unknown) => error) as Error & { code?: string }
+    expect(unreachable.code).toBe(OLLAMA_USAGE_FAILED)
+
+    const server = await mockServer([{ kind: 'json', status: 500, body: '{}' }])
+    const broke = await readOllamaUsage({ baseURL: server.url, apiKey: 'one-shot-key' })
+      .catch((error: unknown) => error) as Error & { code?: string }
+    expect(broke.code).toBe(OLLAMA_USAGE_FAILED)
   })
 
   it('refuses a malformed reply', async () => {
@@ -126,7 +156,49 @@ describe('parseOllamaUsage', () => {
     expect(usage.session).toBeUndefined()
   })
 
+  it('reads the monthly window ollama.com reports for current tiers', () => {
+    // Captured live reply shape: limits.monthly plus a separate activity block.
+    const usage = parseOllamaUsage({
+      activity: {
+        cost: '0.00000',
+        period: {
+          type: 'last_4_weeks',
+          starting_at: '2026-08-17T00:00:00Z',
+          ending_at: '2026-09-10T13:33:30.549198499Z',
+        },
+        models: [],
+      },
+      limits: {
+        monthly: { usage: 0.25, models: [{ name: 'qwen3-coder', request_count: 4 }] },
+      },
+    }, 'https://ollama.com/api/usage')
+
+    expect(usage.monthly?.usage).toBe(0.25)
+    expect(usage.monthly?.models).toEqual([{ name: 'qwen3-coder', requestCount: 4 }])
+    expect(usage.session).toBeUndefined()
+    expect(usage.weekly).toBeUndefined()
+  })
+
+  it('keeps every window the endpoint reports together', () => {
+    const usage = parseOllamaUsage({
+      limits: {
+        session: { usage: 0.1, models: [] },
+        weekly: { usage: 0.2, models: [] },
+        monthly: { usage: 0.3, models: [] },
+      },
+    }, 'https://ollama.com/api/usage')
+
+    expect(Object.keys(usage)).toEqual(['fetchedAt', 'session', 'weekly', 'monthly'])
+    expect([usage.session?.usage, usage.weekly?.usage, usage.monthly?.usage]).toEqual([0.1, 0.2, 0.3])
+  })
+
   it('refuses a reply with no readable window', () => {
     expect(() => parseOllamaUsage({ activity: {} }, 'https://ollama.com/api/usage')).toThrowError(/malformed/)
+  })
+
+  it('names the observed limit keys so an unknown shape is diagnosable', () => {
+    expect(() => parseOllamaUsage({ limits: { hourly: { usage: 1 } } }, 'https://ollama.com/api/usage'))
+      .toThrowError(/limits keys: hourly/)
+    expect(() => parseOllamaUsage({}, 'https://ollama.com/api/usage')).toThrowError(/limits keys: none/)
   })
 })

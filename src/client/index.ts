@@ -27,6 +27,8 @@ import {
   OLLAMA_USAGE_ENDPOINT,
 } from '../client-contract.ts'
 import type { OllamaDiscoveryRequest, OllamaSettingsView } from '../client-contract.ts'
+import type {} from 'dsh-llm-providers-ui/client';
+import { createOllamaUsageReader, dropPersistedUsageKeys } from 'dsh-llm-providers-ui/usage-readers';
 import { OllamaPluginCard } from './OllamaPluginCard.tsx'
 import type { OllamaPluginCardFace } from './OllamaPluginCard.tsx'
 import { OllamaModelPicker, OllamaModelPickerController } from './OllamaModelPicker.tsx'
@@ -35,11 +37,6 @@ import { en, zh } from './locales.ts'
 import type { OllamaSettingsKey } from './locales.ts'
 
 
-declare module '@deepseek-ai/dsh-client-ui-slots' {
-  interface SlotMap {
-    'settings.provider.item': { kind: 'keyed'; scope: 'root' }
-  }
-}
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
     /** Ollama Cloud Plugin configuration copy. */
@@ -51,6 +48,9 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 export const name = 'dsh-llm-ollama-client'
 /** Client services required by the Plugin configuration contribution. */
 export const inject = ['slots', 'locale', 'connection']
+
+/** How long the Providers UI owner may take to register `settings.section` before the missing-owner diagnostic reports. */
+export const MISSING_OWNER_GRACE_MS = 15_000
 
 /** Register localized Ollama Cloud configuration under Plugin configuration. */
 
@@ -116,6 +116,8 @@ export function apply(ctx: ClientContext): void {
     if (!result.ok) throw new Error(result.error.message)
     const status = decodeOllamaCredentialStatus(result.value)
     if (status === undefined) throw new Error(t('requestFailed'))
+    dropPersistedUsageKeys([OLLAMA_SETTINGS_NAMESPACE])
+    ctx.get('providerDirectory')?.invalidateUsage(OLLAMA_SETTINGS_NAMESPACE)
   }
 
   const fetchUsage: OllamaPluginCardFace['fetchUsage'] = async (request: OllamaDiscoveryRequest) => {
@@ -182,19 +184,32 @@ export function apply(ctx: ClientContext): void {
       closeModelPicker: picker.close,
     }),
   }, OllamaPluginCard))
+  ctx.inject(['providerDirectory'], (ctx) => {
+    ctx.effect(
+      () => ctx.providerDirectory.register({ key: OLLAMA_SETTINGS_NAMESPACE, role: 'llm', header: 'shared', usage: createOllamaUsageReader() }),
+      'dsh-llm-ollama: provider directory',
+    )
+  })
   // Diagnostic when the Providers UI owner is not mounted (Web without dsh-llm-providers-ui).
   // The card is registered but the page will not appear; providers still work Host-side.
   ctx.effect(() => {
     let warned = false
+    const hasProvidersSection = (): boolean =>
+      ctx.slots.entries('settings.section').some(entry => (entry.options as { id?: string }).id === 'providers')
     const check = (): void => {
-      const hasProvidersSection = ctx.slots.entries('settings.section').some(entry => (entry.options as { id?: string }).id === 'providers')
-      if (!hasProvidersSection && !warned) {
+      if (!hasProvidersSection() && !warned) {
         warned = true
         console.warn('[dsh-llm-providers-ui] LLM Providers page missing for card llm-ollama: install dsh-llm-providers-ui to show the card. Host route remains active.')
       }
     }
-    const timer = setTimeout(check, 0)
-    const stop = ctx.slots.subscribe('settings.section', check)
+    // The owner registers the section only once the settings snapshot has arrived and the page is
+    // visible, so an immediate check always precedes that registration; the grace period covers it.
+    const timer = setTimeout(check, MISSING_OWNER_GRACE_MS)
+    const stop = ctx.slots.subscribe('settings.section', () => {
+      if (warned || !hasProvidersSection()) return
+      warned = true
+      clearTimeout(timer)
+    })
     return () => {
       clearTimeout(timer)
       stop()

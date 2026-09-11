@@ -3,8 +3,10 @@
  *
  * Ollama exposes the settings page's "Cloud usage" panel as
  * `GET <base>/usage` (the native API base already ends in `/api`). The
- * reply carries the session and weekly windows as consumed fractions plus
- * per-model request counts; nothing secret. The credential travels only on
+ * reply carries the metered windows as consumed fractions plus per-model
+ * request counts; nothing secret. Current account tiers answer `limits.monthly`
+ * (with a separate `activity` block), older ones answered `limits.session` and
+ * `limits.weekly`, so all three keys are read. The credential travels only on
  * this Host-to-Ollama hop — the browser receives the parsed snapshot.
  *
  * A self-hosted endpoint answers 404, which the card renders as "unsupported"
@@ -51,6 +53,9 @@ export interface OllamaUsageRequest {
 interface WireUsageResponse {
   limits?: unknown
 }
+
+/** Metered windows read from `limits`; the tier decides which keys appear. */
+const USAGE_WINDOW_KEYS = ['session', 'weekly', 'monthly'] as const
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -125,15 +130,23 @@ function parseWindow(value: unknown, now: number): OllamaUsageWindow | undefined
  */
 export function parseOllamaUsage(value: unknown, url: string, now = Date.now()): OllamaUsageView {
   const limits = isRecord(value) ? (value as WireUsageResponse).limits : undefined
-  const session = isRecord(limits) ? parseWindow((limits as Record<string, unknown>)['session'], now) : undefined
-  const weekly = isRecord(limits) ? parseWindow((limits as Record<string, unknown>)['weekly'], now) : undefined
-  if (session === undefined && weekly === undefined) {
-    throw new LlmError(`${url} returned a malformed usage response`, OLLAMA_USAGE_FAILED)
+  const windows: Partial<Record<(typeof USAGE_WINDOW_KEYS)[number], OllamaUsageWindow>> = {}
+  if (isRecord(limits)) {
+    for (const key of USAGE_WINDOW_KEYS) {
+      const window = parseWindow((limits as Record<string, unknown>)[key], now)
+      if (window !== undefined) windows[key] = window
+    }
+  }
+  if (Object.keys(windows).length === 0) {
+    const observed = isRecord(limits) ? Object.keys(limits) : []
+    throw new LlmError(
+      `${url} returned a malformed usage response (limits keys: ${observed.length === 0 ? 'none' : observed.join(', ')})`,
+      OLLAMA_USAGE_FAILED,
+    )
   }
   return {
     fetchedAt: new Date().toISOString(),
-    ...session === undefined ? {} : { session },
-    ...weekly === undefined ? {} : { weekly },
+    ...windows,
   }
 }
 

@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.6.19] - 2026-09-09
+
+- Pin GLM-5.3 / GLM-5.3 Flash to vendor `low` / `high` / `max` (default `max`) instead of the generic five-level map.
+- Do not advertise Codex five-level effort for Mistral Large 3; it has no reasoning grades.
+- Read the monthly usage window ollama.com reports for current account tiers alongside session and weekly.
+- Host usage reads that cannot resolve a usable credential answer `INVALID_CREDENTIAL` so the shared quota cache can evict stale readings.
+- Migrate the host plane to DeepSeek Harness `0.1.5-rc.1`; verified runtimes now include `0.1.5-rc.1` alongside Alpha.4 and `0.1.2-rc.1`.
+- Development dependency and install guidance point at the `dsh-llm-providers-ui` `v0.1.12-015rc1d` candidate tarball.
+
+## [0.6.18] - 2026-09-07
+
+### Changed
+
+- Adopt the shared provider-ui header from `dsh-llm-providers-ui` 0.1.10; remove the per-provider header fork.
+- Header quota loads collapsed once settings are ready with idle dedup so expansion never refires; a failed read shows a truthful unavailable dash, never a fabricated percent.
+- Development dependency now points at the final `dsh-llm-providers-ui` 0.1.10 release URL with pinned integrity.
+
+## [0.6.17] - 2026-09-03
+
+### Changed
+
+- DSH compatibility declarations cover the verified Alpha.4 and rc.1 runtimes.
+- Unknown runtimes warn once and use the normal best-effort mount path; only reproduced failures may be blocklisted.
+
+
 ## 0.6.14
 
 - Settings → LLM Providers: drag cards to reorder; chat picker follows `llm-providers.order` via dsh-llm-providers-ui.

@@ -53,6 +53,5 @@ export interface OllamaPluginCardFace {
 }
 /** Props delivered by the Plugin configuration item slot. */
 export type OllamaPluginCardProps = PropsRuntime<'settings.provider.item'> & InjectFace<OllamaPluginCardFace>;
-/** Render the single-package Ollama Cloud contribution under Plugin configuration. */
 export declare function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode;
 //# sourceMappingURL=OllamaPluginCard.d.ts.map

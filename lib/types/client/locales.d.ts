@@ -21,8 +21,9 @@ export declare const en: {
     readonly usageLoading: "Reading usage…";
     readonly usageSession: "Session usage";
     readonly usageWeekly: "Weekly usage";
+    readonly usageMonthly: "Monthly usage";
     readonly usageUsed: "Used";
-    readonly usageModels: "Models used this week";
+    readonly usageModels: "Models used";
     readonly usageRequests: "requests";
     readonly usageUnsupported: "This endpoint does not report cloud usage.";
     readonly usageNeedsRestart: "Usage appears after the running host reloads this plugin (restart dsh).";
@@ -39,6 +40,10 @@ export declare const en: {
     readonly summaryOff: "Not configured";
     readonly modelDetails: "Details";
     readonly dragModel: "Drag to reorder";
+    readonly sortModels: "Sort";
+    readonly doneSorting: "Done";
+    readonly moveUp: "Move up";
+    readonly moveDown: "Move down";
     readonly fetchModels: "Fetch available models";
     readonly fetchingModels: "Fetching models…";
     readonly fetchEmpty: "The endpoint returned no models.";
