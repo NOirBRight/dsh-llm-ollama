@@ -298,7 +298,7 @@ function assertStaticClosure(packageRoot, manifest, label) {
       if (specifier.startsWith('node:')) continue
       if (specifier.includes('/src/') || specifier.includes('/source/')) fail(label + ' imports a source-plane path: ' + specifier)
       const name = packageName(specifier)
-      if (name === OWNER_NAME) fail(label + ' retains a Providers UI runtime import: ' + specifier)
+      if (name === OWNER_NAME && specifier !== 'dsh-llm-providers-ui/sortable' && specifier !== 'dsh-llm-providers-ui/usage-readers') fail(label + ' retains a Providers UI runtime import: ' + specifier)
       if (!declared.has(name)) fail(label + ' contains undeclared runtime import: ' + specifier)
     }
   }
@@ -323,8 +323,10 @@ function verifySourceMigration(manifest) {
   if (manifest.dependencies?.[OWNER_NAME] !== undefined || manifest.peerDependencies?.[OWNER_NAME] !== undefined) fail('Providers UI must not be a runtime or peer dependency')
   const card = readFileSync(join(ROOT, 'src/client/OllamaPluginCard.tsx'), 'utf8')
   if (!card.includes("from 'dsh-llm-providers-ui/sortable'")) fail('client does not import the public sortable subpath')
+  const index = readFileSync(join(ROOT, 'src/client/index.ts'), 'utf8')
+  if (!index.includes("from 'dsh-llm-providers-ui/usage-readers'")) fail('client does not import the public usage-readers subpath')
   const tsdown = readFileSync(join(ROOT, 'tsdown.config.ts'), 'utf8')
-  if (!tsdown.includes("'dsh-llm-providers-ui/sortable'") || !/alwaysBundle\s*:/u.test(tsdown)) fail('tsdown does not bundle the sortable owner code')
+  if (!tsdown.includes("'dsh-llm-providers-ui/sortable'") || !tsdown.includes("'dsh-llm-providers-ui/usage-readers'") || !/alwaysBundle\s*:/u.test(tsdown)) fail('tsdown does not bundle the sortable and usage-readers owner code')
   const adapter = readFileSync(join(ROOT, 'src/adapter.ts'), 'utf8')
   if (!adapter.includes('delegate.prepareCall(provider, model, signal)')) fail('adapter does not delegate prepareCall with the alpha.4 signature')
   const discovery = readFileSync(join(ROOT, 'src/discovery.ts'), 'utf8')
@@ -841,7 +843,7 @@ function runPublicSmokes(directory, kind) {
     "await import('dsh-llm-ollama/client')",
     "const row = registrations.find(item => item.id === 'dsh-llm-ollama')",
     "if (row === undefined || typeof row.factory !== 'function') throw new Error('client did not register a ModuleLoader factory')",
-    "const result = row.factory(specifier => { if (specifier === 'dsh-llm-providers-ui/sortable') throw new Error('client kept a Providers UI runtime import'); return {} })",
+    "const result = row.factory(specifier => { if (specifier === 'dsh-llm-providers-ui/sortable' || specifier === 'dsh-llm-providers-ui/usage-readers') throw new Error('client kept a Providers UI runtime import'); return {} })",
     "if (typeof result.apply !== 'function') throw new Error('client factory exports are incomplete')",
     "let rejected = false; try { await import('dsh-llm-ollama/src/index.ts') } catch { rejected = true }; if (!rejected) throw new Error('source plane is importable')",
   ].join('\n') + '\n'
