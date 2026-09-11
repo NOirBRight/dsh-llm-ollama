@@ -24,9 +24,9 @@ const OWNER_VERSION = '0.1.12'
 /** Release tag the frozen owner artifact was taken from. */
 const OWNER_TAG = 'v0.1.12-015rc1d'
 const OWNER_RELEASE = 'https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/' + OWNER_TAG + '/dsh-llm-providers-ui-' + OWNER_VERSION + '.tgz'
-const FROZEN_OWNER_FILE = 'dsh-llm-providers-ui-' + OWNER_VERSION + '-9b747610d755f751f8602256b531d8f03b7885cb19e2c61bedf7cea72d01115d.tgz'
-const FROZEN_OWNER_SHA256 = '9b747610d755f751f8602256b531d8f03b7885cb19e2c61bedf7cea72d01115d'
-const FROZEN_OWNER_BYTES = 95566
+const FROZEN_OWNER_FILE = 'dsh-llm-providers-ui-' + OWNER_VERSION + '-c16667922b863563ddb0bbfb88682ee942d643dcdc431051e36bef69280b844e.tgz'
+const FROZEN_OWNER_SHA256 = 'c16667922b863563ddb0bbfb88682ee942d643dcdc431051e36bef69280b844e'
+const FROZEN_OWNER_BYTES = 95966
 /** Development-dependency specs the Providers UI owner may be pinned to: the sibling checkout, its fixture copy, or the release URL. */
 const OWNER_DEV_SPECS = [
   'file:../dsh-llm-providers-ui/dsh-llm-providers-ui-' + OWNER_VERSION + '.tgz',

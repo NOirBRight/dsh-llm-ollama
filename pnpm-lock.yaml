@@ -1651,9 +1651,9 @@ packages:
 frozenOwner:
   package: dsh-llm-providers-ui
   version: 0.1.12
-  file: dsh-llm-providers-ui-0.1.12-9b747610d755f751f8602256b531d8f03b7885cb19e2c61bedf7cea72d01115d.tgz
-  bytes: 95566
-  sha256: 9b747610d755f751f8602256b531d8f03b7885cb19e2c61bedf7cea72d01115d
+  file: dsh-llm-providers-ui-0.1.12-c16667922b863563ddb0bbfb88682ee942d643dcdc431051e36bef69280b844e.tgz
+  bytes: 95966
+  sha256: c16667922b863563ddb0bbfb88682ee942d643dcdc431051e36bef69280b844e
 
 snapshots:
 
