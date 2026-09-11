@@ -10,7 +10,6 @@ import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
-import { createOllamaUsageReader } from 'dsh-llm-providers-ui/usage-readers'
 
 /** Register this card and its quota reader on the shared Provider directory. */
 function installProviderDirectory(ctx: ClientContext): void {
