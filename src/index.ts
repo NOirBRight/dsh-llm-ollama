@@ -17,6 +17,7 @@ import type {} from '@deepseek-ai/dsh-web'
 import {
   assertUsableApiKey,
   INVALID_CREDENTIAL_CODE,
+  isHarnessError,
   LlmError,
   resolveRetryPolicy,
   RetryPolicySchema,
@@ -133,6 +134,15 @@ export const inject = ['llm']
 const DEFAULT_MAX_RETRIES = 2
 
 const NS = OLLAMA_SETTINGS_NAMESPACE
+
+/**
+ * Failure codes meaning this account has no usable credential, wherever they
+ * were raised: this route's own verdict, the missing-credential class a
+ * credential provider answers with, and the auth class a provider adapter
+ * classifies for a refused 401/403 session. Any other code is a failure of the
+ * read, not a verdict on the credential.
+ */
+const CREDENTIAL_FAILURE_CODES: readonly string[] = [INVALID_CREDENTIAL_CODE, 'MISSING_CREDENTIAL', 'AUTH']
 
 /**
  * Plugin config, validated by the same-named schemastery schema and doubling
@@ -409,17 +419,18 @@ export function apply(ctx: Context, config: Config): void {
 
   // Connection authenticates this channel before dispatch.
   ctx.inject(['connection'], (connectionCtx) => {
-    // The browser's shared quota cache drops its entry on INVALID_CREDENTIAL: a
-    // credential the Host cannot resolve is that same answer, never an internal
-    // read error that would leave the previous account's numbers on screen.
+    // The browser's shared quota cache drops its entry on INVALID_CREDENTIAL, so
+    // only a credential verdict is remapped to that code. Every other lookup
+    // failure — an unreadable store, a transient environment read — is rethrown
+    // unchanged: it says nothing about whether the credential still works, so it
+    // must not discard a cached quota.
     const usageApiKey = async (): Promise<string | undefined> => {
       try {
         return await storedApiKey()
       } catch (error: unknown) {
+        if (!isHarnessError(error) || !CREDENTIAL_FAILURE_CODES.includes(error.code)) throw error
         throw new LlmError(
-          error instanceof Error && error.message.length > 0
-            ? error.message
-            : 'Ollama Cloud credential lookup failed',
+          error.message.length > 0 ? error.message : 'Ollama Cloud credential lookup failed',
           INVALID_CREDENTIAL_CODE,
           { cause: error },
         )

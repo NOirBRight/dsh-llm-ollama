@@ -19,11 +19,20 @@ const RC1_VERSION = '0.1.2-rc.1'
 const ALPHA4_TAG = 'dsh-v0.1.2-alpha.4'
 const ALPHA4_COMMIT = '4e84901e6471b79ec0338099867ebb4606d12bb5'
 const OWNER_NAME = 'dsh-llm-providers-ui'
-const OWNER_VERSION = '0.1.10'
-const OWNER_RELEASE = 'https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/v0.1.12-015rc1/dsh-llm-providers-ui-0.1.12.tgz'
-const FROZEN_OWNER_FILE = 'dsh-llm-providers-ui-0.1.10-1ec6b3fdcb2b204307acc3dbad7ec391ccb15531b4d5dafa0a6938599990ead9.tgz'
-const FROZEN_OWNER_SHA256 = '1ec6b3fdcb2b204307acc3dbad7ec391ccb15531b4d5dafa0a6938599990ead9'
-const FROZEN_OWNER_BYTES = 77406
+/** Providers UI version the frozen owner artifact and the dev dependency both pin. */
+const OWNER_VERSION = '0.1.12'
+/** Release tag the frozen owner artifact was taken from. */
+const OWNER_TAG = 'v0.1.12-015rc1'
+const OWNER_RELEASE = 'https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/' + OWNER_TAG + '/dsh-llm-providers-ui-' + OWNER_VERSION + '.tgz'
+const FROZEN_OWNER_FILE = 'dsh-llm-providers-ui-' + OWNER_VERSION + '-9b747610d755f751f8602256b531d8f03b7885cb19e2c61bedf7cea72d01115d.tgz'
+const FROZEN_OWNER_SHA256 = '9b747610d755f751f8602256b531d8f03b7885cb19e2c61bedf7cea72d01115d'
+const FROZEN_OWNER_BYTES = 95566
+/** Development-dependency specs the Providers UI owner may be pinned to: the sibling checkout, its fixture copy, or the release URL. */
+const OWNER_DEV_SPECS = [
+  'file:../dsh-llm-providers-ui/dsh-llm-providers-ui-' + OWNER_VERSION + '.tgz',
+  'file:../dsh-llm-providers-ui/fixtures/alpha4/tarballs/dsh-llm-providers-ui-' + OWNER_VERSION + '.tgz',
+  OWNER_RELEASE,
+]
 const INVALID_REGISTRY = 'http://127.0.0.1:9/'
 const DEPENDENCY_SECTIONS = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies']
 
@@ -297,13 +306,11 @@ function assertStaticClosure(packageRoot, manifest, label) {
 }
 
 function verifySourceMigration(manifest) {
+  if (!OWNER_TAG.includes(OWNER_VERSION)) fail('Providers UI release tag does not name the pinned version: ' + OWNER_TAG)
   for (const section of DEPENDENCY_SECTIONS) {
     for (const [name, spec] of Object.entries(manifest[section] ?? {})) {
       if (typeof spec !== 'string') fail(section + ' entry is not a string: ' + name)
-      if (section === 'devDependencies' && name === OWNER_NAME
-        && (spec === 'file:../dsh-llm-providers-ui/dsh-llm-providers-ui-0.1.5.tgz'
-          || spec === 'file:../dsh-llm-providers-ui/fixtures/alpha4/tarballs/dsh-llm-providers-ui-0.1.5.tgz'
-          || spec === OWNER_RELEASE)) continue
+      if (section === 'devDependencies' && name === OWNER_NAME && OWNER_DEV_SPECS.includes(spec)) continue
       if (/^(?:file:|link:|workspace:|npm:|github:|git\+|https?:|\/|\.\.?[\/]|~[\/])/iu.test(spec)) fail(section + ' uses a path or VCS source: ' + name + ' ' + spec)
     }
   }
@@ -312,9 +319,7 @@ function verifySourceMigration(manifest) {
       if (name.startsWith('@deepseek-ai/dsh-') && manifest[section][name] !== ALPHA4_VERSION && !(satisfiesRange(ALPHA4_VERSION, manifest[section][name]) && satisfiesRange(RC1_VERSION, manifest[section][name]))) fail(name + ' must include both Alpha.4 and rc.1')
     }
   }
-  if (manifest.devDependencies?.[OWNER_NAME] !== 'file:../dsh-llm-providers-ui/dsh-llm-providers-ui-0.1.10.tgz'
-    && manifest.devDependencies?.[OWNER_NAME] !== 'file:../dsh-llm-providers-ui/fixtures/alpha4/tarballs/dsh-llm-providers-ui-0.1.10.tgz'
-    && manifest.devDependencies?.[OWNER_NAME] !== OWNER_RELEASE) fail('Providers UI must use the pinned Alpha.4 development tarball')
+  if (!OWNER_DEV_SPECS.includes(manifest.devDependencies?.[OWNER_NAME])) fail('Providers UI must use the frozen owner artifact as its development dependency')
   if (manifest.dependencies?.[OWNER_NAME] !== undefined || manifest.peerDependencies?.[OWNER_NAME] !== undefined) fail('Providers UI must not be a runtime or peer dependency')
   const card = readFileSync(join(ROOT, 'src/client/OllamaPluginCard.tsx'), 'utf8')
   if (!card.includes("from 'dsh-llm-providers-ui/sortable'")) fail('client does not import the public sortable subpath')
