@@ -33,9 +33,9 @@ Verified on DeepSeek Harness `0.1.2-alpha.4`, `0.1.2-rc.1`, and `0.1.5-rc.1`. In
 
 ~~~sh
 dsh plugin --profile web add --force \
-  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/v0.1.12-015rc1d/dsh-llm-providers-ui-0.1.12.tgz
+  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/v0.1.12-015rc1e/dsh-llm-providers-ui-0.1.12.tgz
 dsh plugin --profile web add --force \
-  https://github.com/NOirBRight/dsh-llm-ollama/releases/download/v0.6.19-015rc1c/dsh-llm-ollama-0.6.19.tgz
+  https://github.com/NOirBRight/dsh-llm-ollama/releases/download/v0.6.19-015rc1d/dsh-llm-ollama-0.6.19.tgz
 dsh web
 ~~~
 
@@ -179,16 +179,11 @@ Ollama Cloud chat, model discovery, and Web Search/Fetch providers. The release 
 
 The dsh-llm-providers-ui package owns the LLM Providers page, navigation, and shared order store. This package owns only its provider card, models, credentials, and Host route. Install the Owner first for Web; headless Host routing works without the Owner.
 
-Owner (Latest):
+Latest (Owner + this plugin; required together on Web):
 
 ~~~sh
 dsh plugin --profile web add --force \
-  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/v0.1.12-015rc1d/dsh-llm-providers-ui-0.1.12.tgz
-~~~
-
-Provider (Latest):
-
-~~~sh
+  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/latest/download/dsh-llm-providers-ui-0.1.12.tgz
 dsh plugin --profile web add --force \
   https://github.com/NOirBRight/dsh-llm-ollama/releases/latest/download/dsh-llm-ollama-0.6.19.tgz
 ~~~
@@ -197,15 +192,17 @@ Fixed versions (reproducible):
 
 ~~~sh
 dsh plugin --profile web add --force \
-  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/v0.1.12-015rc1d/dsh-llm-providers-ui-0.1.12.tgz
+  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/v0.1.12-015rc1e/dsh-llm-providers-ui-0.1.12.tgz
 dsh plugin --profile web add --force \
-  https://github.com/NOirBRight/dsh-llm-ollama/releases/download/v0.6.19-015rc1c/dsh-llm-ollama-0.6.19.tgz
+  https://github.com/NOirBRight/dsh-llm-ollama/releases/download/v0.6.19-015rc1d/dsh-llm-ollama-0.6.19.tgz
 ~~~
 
 Update, uninstall, and verify:
 
 ~~~sh
-# Update to the latest Release
+# Update Owner + this plugin to Latest
+dsh plugin --profile web add --force \
+  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/latest/download/dsh-llm-providers-ui-0.1.12.tgz
 dsh plugin --profile web add --force \
   https://github.com/NOirBRight/dsh-llm-ollama/releases/latest/download/dsh-llm-ollama-0.6.19.tgz
 # Verify the loaded version
@@ -219,4 +216,4 @@ Configuration: use the plugin section in Settings for Web UI plugins, or the pro
 
 Rollback: rerun the fixed v0.6.15 command, verify the profile list, then restart the Web service once. Inspect journalctl --user -u dsh-web.service and dsh plugin --profile web doctor; never put a source checkout in the production profile.
 
-Release and integrity: [v0.6.19-015rc1c](https://github.com/NOirBRight/dsh-llm-ollama/releases/tag/v0.6.19-015rc1c) · [SHA256SUMS](https://github.com/NOirBRight/dsh-llm-ollama/releases/download/v0.6.19-015rc1c/SHA256SUMS).
+Release and integrity: [v0.6.19-015rc1d](https://github.com/NOirBRight/dsh-llm-ollama/releases/tag/v0.6.19-015rc1d) · [SHA256SUMS](https://github.com/NOirBRight/dsh-llm-ollama/releases/download/v0.6.19-015rc1d/SHA256SUMS).

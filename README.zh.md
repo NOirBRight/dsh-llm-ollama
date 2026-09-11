@@ -21,9 +21,9 @@ DeepSeek Harness 的 Ollama Cloud 集成。聊天通过共享的 pi-ai adapter �
 
 ~~~sh
 dsh plugin --profile web add --force \
-  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/v0.1.12-015rc1d/dsh-llm-providers-ui-0.1.12.tgz
+  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/v0.1.12-015rc1e/dsh-llm-providers-ui-0.1.12.tgz
 dsh plugin --profile web add --force \
-  https://github.com/NOirBRight/dsh-llm-ollama/releases/download/v0.6.19-015rc1c/dsh-llm-ollama-0.6.19.tgz
+  https://github.com/NOirBRight/dsh-llm-ollama/releases/download/v0.6.19-015rc1d/dsh-llm-ollama-0.6.19.tgz
 dsh web
 ~~~
 
@@ -176,16 +176,11 @@ Ollama Cloud chat, model discovery, and Web Search/Fetch providers. 正式成品
 
 LLM Providers 页面、导航和共享排序由 dsh-llm-providers-ui 独占；本插件只提供卡片、模型和 Host 路由。Web 必须先装 Owner，headless 只使用 Host 路由时可以不装 Owner。
 
-Owner（Latest）：
+Latest（Owner + 本插件；Web 必须一起装）：
 
 ~~~sh
 dsh plugin --profile web add --force \
-  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/v0.1.12-015rc1d/dsh-llm-providers-ui-0.1.12.tgz
-~~~
-
-本 Provider（Latest）：
-
-~~~sh
+  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/latest/download/dsh-llm-providers-ui-0.1.12.tgz
 dsh plugin --profile web add --force \
   https://github.com/NOirBRight/dsh-llm-ollama/releases/latest/download/dsh-llm-ollama-0.6.19.tgz
 ~~~
@@ -194,15 +189,17 @@ dsh plugin --profile web add --force \
 
 ~~~sh
 dsh plugin --profile web add --force \
-  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/v0.1.12-015rc1d/dsh-llm-providers-ui-0.1.12.tgz
+  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/v0.1.12-015rc1e/dsh-llm-providers-ui-0.1.12.tgz
 dsh plugin --profile web add --force \
-  https://github.com/NOirBRight/dsh-llm-ollama/releases/download/v0.6.19-015rc1c/dsh-llm-ollama-0.6.19.tgz
+  https://github.com/NOirBRight/dsh-llm-ollama/releases/download/v0.6.19-015rc1d/dsh-llm-ollama-0.6.19.tgz
 ~~~
 
 更新、卸载与验证：
 
 ~~~sh
-# 更新到最新 Release
+# 更新 Owner + 本插件到 Latest
+dsh plugin --profile web add --force \
+  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/latest/download/dsh-llm-providers-ui-0.1.12.tgz
 dsh plugin --profile web add --force \
   https://github.com/NOirBRight/dsh-llm-ollama/releases/latest/download/dsh-llm-ollama-0.6.19.tgz
 # 验证加载与版本
@@ -216,4 +213,4 @@ dsh plugin --profile web remove dsh-llm-ollama
 
 回滚：重新执行固定版本 v0.6.15 命令，确认插件列表后只重启一次 Web 服务。失败时查看 journalctl --user -u dsh-web.service 与 dsh plugin --profile web doctor，不要把源码 checkout 写入 production profile。
 
-Release 与完整性：[v0.6.19-015rc1c](https://github.com/NOirBRight/dsh-llm-ollama/releases/tag/v0.6.19-015rc1c) · [SHA256SUMS](https://github.com/NOirBRight/dsh-llm-ollama/releases/download/v0.6.19-015rc1c/SHA256SUMS)。
+Release 与完整性：[v0.6.19-015rc1d](https://github.com/NOirBRight/dsh-llm-ollama/releases/tag/v0.6.19-015rc1d) · [SHA256SUMS](https://github.com/NOirBRight/dsh-llm-ollama/releases/download/v0.6.19-015rc1d/SHA256SUMS)。
