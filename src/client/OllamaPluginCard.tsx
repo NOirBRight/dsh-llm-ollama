@@ -507,6 +507,8 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
   }
 
   const loadUsage = async (): Promise<void> => {
+    // The settings page owns quota in the shared detail; the card self-loads only in the legacy layout.
+    if (props.mode === 'detail') return
     const epoch = usageEpoch.current + 1
     usageEpoch.current = epoch
     const live = (): boolean => mounted.current && epoch === usageEpoch.current
