@@ -848,7 +848,6 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
   if (props.mode === 'detail' && SharedDetail !== undefined && detailCopy !== undefined && draft !== undefined) {
     const configured = credential?.configured === true
     return (
-      <li style={cardStyle} data-provider-card="" data-provider-role="llm">
         <SharedDetail
           name={title}
           role="llm"
@@ -908,7 +907,6 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
           }}
           draft={draftBlock}
         />
-      </li>
     )
   }
 
