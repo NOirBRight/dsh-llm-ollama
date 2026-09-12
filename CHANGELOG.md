@@ -1,4 +1,38 @@
+## v0.6.20
+
+- 详情页改用共享模板 `ProviderDetail`（由设置页通过 slot 上下文下发，插件不再自带模板与样式）。
+- 模型行交给模板渲染：`items`（行数据）+ `extra`（该行的上下文窗口、能力勾选、默认思考等级等私有字段），插件不再画行卡片；行内字段固定列槽、排序态只读并收起、单层圆角。
+- 详情模式下插件不再自行请求额度（`props.mode === 'detail'` 时直接返回），额度由设置页的共享缓存提供，右上角刷新走 `props.onRefresh`。
+- 高级设置按原型：分隔线区块 + 折叠箭头 + 右侧说明，选项为「复选框 + 缩进说明」。
+- 移动端：工具栏与标题同一行（无换行、无溢出），窄屏自动收紧。
+- 依赖 `dsh-llm-providers-ui` 升级到 `0.2.0`（破坏性接口：必须使用 slot 下发的 `template`/`copy` 与 `items`/`extra`）。
+
 # Changelog
+
+## [0.6.19] - 2026-09-09
+
+- Pin GLM-5.3 / GLM-5.3 Flash to vendor `low` / `high` / `max` (default `max`) instead of the generic five-level map.
+- Do not advertise Codex five-level effort for Mistral Large 3; it has no reasoning grades.
+- Read the monthly usage window ollama.com reports for current account tiers alongside session and weekly.
+- Host usage reads that cannot resolve a usable credential answer `INVALID_CREDENTIAL` so the shared quota cache can evict stale readings.
+- Migrate the host plane to DeepSeek Harness `0.1.5-rc.1`; verified runtimes now include `0.1.5-rc.1` alongside Alpha.4 and `0.1.2-rc.1`.
+- Development dependency and install guidance point at the `dsh-llm-providers-ui` `v0.1.12-015rc1d` candidate tarball.
+
+## [0.6.18] - 2026-09-07
+
+### Changed
+
+- Adopt the shared provider-ui header from `dsh-llm-providers-ui` 0.1.10; remove the per-provider header fork.
+- Header quota loads collapsed once settings are ready with idle dedup so expansion never refires; a failed read shows a truthful unavailable dash, never a fabricated percent.
+- Development dependency now points at the final `dsh-llm-providers-ui` 0.1.10 release URL with pinned integrity.
+
+## [0.6.17] - 2026-09-03
+
+### Changed
+
+- DSH compatibility declarations cover the verified Alpha.4 and rc.1 runtimes.
+- Unknown runtimes warn once and use the normal best-effort mount path; only reproduced failures may be blocklisted.
+
 
 ## 0.6.14
 

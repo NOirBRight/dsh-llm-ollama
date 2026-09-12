@@ -1,10 +1,11 @@
 /** Ollama Cloud connection and model-catalog card for Plugin configuration. */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import type { SettingsScope, SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { InjectFace, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-settings-plugins/client'
+import { OLLAMA_SETTINGS_NAMESPACE } from '../client-contract.ts'
 import type {
   OllamaCatalogModelConfig,
   OllamaDiscoveryRequest,
@@ -20,19 +21,19 @@ import {
 } from '../reasoning.ts'
 import type { OllamaSettingsKey } from './locales.ts'
 import { BrandMark } from './BrandMark.tsx'
-import { ProviderCardHeader, UsageHeader, UsageResetAt, UsageSkeleton, UsageUpdatedAt, formatProviderSummary, formatUsageClock, providerHeaderStyle, resetLabelOf } from './provider-chrome.tsx'
+import { ProviderCardHeader, ProviderQuotaMeter, UsageHeader, UsageSkeleton, UsageUpdatedAt, formatUsageClock, providerUiCss, resetLabelOf } from './provider-chrome.tsx'
+import type { ProviderQuotaState } from 'dsh-llm-providers-ui/provider-ui';
 import { SortableList } from 'dsh-llm-providers-ui/sortable'
+import { headerQuotaFromCache, peekCachedUsage, rememberHeadlineQuota } from 'dsh-llm-providers-ui/usage-readers'
+import type { ProviderItemSlotContext } from 'dsh-llm-providers-ui/provider-detail'
+
 import {
-  CapabilitiesRow,
-  CatalogRow,
-  ModelDetail,
   fieldStyle,
   hintStyle,
   inputStyle,
   labelStyle,
   modelContentStyle,
   rowInputStyle,
-  selectStyle,
 } from './model-catalog-ui.tsx'
 
 /** Credential state exposed without returning the credential value. */
@@ -85,6 +86,8 @@ export interface OllamaPluginCardFace {
 export type OllamaPluginCardProps =
   PropsRuntime<'settings.provider.item'>
   & InjectFace<OllamaPluginCardFace>
+  // Present only on the settings page; an older host renders the legacy card.
+  & Partial<ProviderItemSlotContext>
 
 interface ModelDraft {
   /** Client-only stable identity; stripped before settings are saved. */
@@ -116,13 +119,14 @@ type UsageState =
   | { status: 'needs-restart' }
   | { status: 'error', message: string }
 
+/** Ollama Cloud window lengths, used only as the reset caption when the API omits a reset time. */
+const OLLAMA_SESSION_HOURS = 5
+const OLLAMA_WEEKLY_DAYS = 7
+const OLLAMA_MONTHLY_DAYS = 30
+
 const cardStyle: CSSProperties = {
-  overflow: 'hidden',
-  border: '1px solid var(--dsw-alias-border-l2)',
-  borderRadius: 10,
-  background: 'var(--dsw-alias-bg-module-platform)',
+  overflow: 'visible',
 }
-const headerStyle = providerHeaderStyle
 const bodyStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
@@ -188,14 +192,6 @@ const disclosureStyle: CSSProperties = {
 // modelContentStyle, modelDetailStyle, capabilitiesStyle now from model-catalog-ui.tsx
 const statusStyle: CSSProperties = { margin: 0, fontSize: 13, color: 'var(--dsw-alias-label-secondary)' }
 const errorStyle: CSSProperties = { ...statusStyle, color: 'var(--dsw-alias-state-error-primary)' }
-const barTrackStyle: CSSProperties = {
-  boxSizing: 'border-box',
-  height: 14,
-  display: 'flex',
-  overflow: 'hidden',
-  borderRadius: 999,
-  background: 'color-mix(in srgb, var(--dsw-alias-label-primary) 14%, transparent)',
-}
 const usageListStyle: CSSProperties = {
   margin: 0,
   padding: 0,
@@ -294,25 +290,6 @@ function rowKeyOf(model: ModelDraft): string {
 }
 
 /** One capability checkbox. */
-function Capability({ label, checked, disabled, onChange }: {
-  label: string
-  checked: boolean
-  disabled: boolean
-  onChange: (checked: boolean) => void
-}): ReactNode {
-  return (
-    <label style={{ ...labelStyle, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-      <input
-        type="checkbox"
-        checked={checked}
-        disabled={disabled}
-        onChange={(event) => { onChange(event.target.checked) }}
-      />
-      {label}
-    </label>
-  )
-}
-
 /** Disclosure chevron; rotates to point down while open. */
 function IconChevron({ open }: { open: boolean }): ReactNode {
   return (
@@ -341,7 +318,7 @@ function usageResetCopy(t: OllamaPluginCardFace['t']): { at: string, atDays: str
   return { at: t('usageResetAt'), atDays: t('usageResetAtDays') }
 }
 
-/** One quota window: an aggregate consumed percentage and solid meter. */
+/** One quota window: segmented remaining meter; honest native text when no percent metric. */
 
 function UsageBar({ label, usedText, window: quota, t, fallbackReset }: {
   label: string
@@ -350,39 +327,36 @@ function UsageBar({ label, usedText, window: quota, t, fallbackReset }: {
   t: OllamaPluginCardFace['t']
   fallbackReset?: string
 }): ReactNode {
-  const percent = Math.round(quota.usage * 1000) / 10
-  const fill = Math.min(100, Math.max(0, percent))
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+  const remaining = 100 * (1 - quota.usage)
+  if (!Number.isFinite(remaining) || remaining < 0 || remaining > 100) {
+    const percent = Math.round(quota.usage * 1000) / 10
+    return (
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
         <span style={labelStyle}>{label}</span>
         <span style={hintStyle}>{usedText} {percent}%</span>
       </div>
-      <div
-        style={barTrackStyle}
-        role="progressbar"
-        aria-label={label}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={Math.round(fill)}
-      >
-        <span
-          data-usage-fill="true"
-          style={{
-            width: String(fill) + '%',
-            height: '100%',
-            flex: 'none',
-            background: 'var(--dsw-alias-state-business-primary)',
-            transition: 'width 200ms ease',
-          }}
-        />
-      </div>
-      <UsageResetAt label={resetLabelOf(quota.resetsAt, usageResetCopy(t)) ?? fallbackReset} />
-    </div>
-  )
+    )
+  }
+  const detail = resetLabelOf(quota.resetsAt, usageResetCopy(t)) ?? fallbackReset
+  return <ProviderQuotaMeter remainingPercent={Math.round(remaining * 10) / 10} label={label} {...(detail === undefined ? {} : { detail })} />
 }
 
 /** Render the single-package Ollama Cloud contribution under Plugin configuration. */
+/** Headline remaining quota from real auth values; missing renders no meter, never zero. */
+function headlineQuotaOf(view: OllamaUsageView | undefined, t: OllamaPluginCardFace['t']): ProviderQuotaState | undefined {
+  const window = view?.monthly ?? view?.weekly ?? view?.session;
+  if (window === undefined) return undefined;
+  const remaining = 100 * (1 - window.usage);
+  if (!Number.isFinite(remaining) || remaining < 0 || remaining > 100) return undefined;
+  return {
+    remainingPercent: Math.round(remaining * 10) / 10,
+    label: view?.monthly !== undefined
+      ? t('usageMonthly')
+      : view?.weekly !== undefined ? t('usageWeekly') : t('usageSession'),
+    ...(resetLabelOf(window.resetsAt, usageResetCopy(t)) ?? undefined) === undefined ? {} : { detail: resetLabelOf(window.resetsAt, usageResetCopy(t)) as string },
+  };
+}
+
 export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
   const { t } = props
   const snapshot = props.useOllamaSettings((value: SettingsScopeSnapshot<OllamaSettingsView>) => value)
@@ -400,7 +374,13 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
   const [usage, setUsage] = useState<UsageState>({ status: 'idle' })
   const [lastUsage, setLastUsage] = useState<OllamaUsageView | undefined>(undefined)
   const [usageUpdatedAt, setUsageUpdatedAt] = useState<Date | undefined>(undefined)
+  // Read generation: only the latest usage read may publish. A superseded read
+  // (save-new-key, credential change, unmount) must not resurrect old-account
+  // usage into state or the persisted headline cache.
+  const usageEpoch = useRef(0)
+  const mounted = useRef(true)
   const [catalogOpen, setCatalogOpen] = useState(false)
+  const [modelSorting, setModelSorting] = useState(false)
   const [expandedModels, setExpandedModels] = useState<ReadonlySet<string>>(new Set())
   const dirty = source !== undefined && draft !== undefined && (!sameDraft(source, draft) || apiKey.length > 0)
 
@@ -414,10 +394,20 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
     setSourceRevision(snapshot.revision)
   }, [dirty, snapshot.revision, snapshot.status, snapshot.value, sourceRevision])
 
+  // Credential generation mirrors the usage epoch: a superseded credential read
+  // (save-new-key, unmount) must not overwrite fresher credential state. A shared
+  // counter would false-invalidate the mount reads, which overlap by design.
+  const credentialEpoch = useRef(0)
   const refreshCredential = async (): Promise<void> => {
+    const epoch = credentialEpoch.current + 1
+    credentialEpoch.current = epoch
+    const liveCredential = (): boolean => mounted.current && epoch === credentialEpoch.current
     try {
-      setCredential(await props.describeCredential())
+      const next = await props.describeCredential()
+      if (!liveCredential()) return
+      setCredential(next)
     } catch {
+      if (!liveCredential()) return
       setCredential(undefined)
     }
   }
@@ -429,10 +419,11 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
 
   if (snapshot.status === 'unavailable') {
     return (
-      <li style={cardStyle}>
+      <li style={cardStyle} data-provider-card="" data-provider-role="llm">
+        <style>{providerUiCss}</style>
         <button
           type="button"
-          style={headerStyle}
+          data-provider-card-header=""
           aria-expanded={open}
           aria-label={t(open ? 'collapse' : 'expand') + ': ' + t('title')}
           onClick={() => { setOpen(!open) }}
@@ -440,13 +431,15 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
           <ProviderCardHeader
             title={t('title')}
             mark={<BrandMark />}
-            summary={formatProviderSummary(t('summaryOff'), t('summaryModels').replace('{count}', '0'))}
+            summary={t('summaryModels').replace('{count}', '0')}
+            status={t('summaryOff')}
             open={open}
+            role="llm"
           />
         </button>
         {open
           ? (
-            <div style={bodyStyle}>
+            <div style={bodyStyle} data-provider-body="">
               <p style={statusStyle} role="status">{t('remoteAccess')}</p>
             </div>
           )
@@ -514,14 +507,21 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
   }
 
   const loadUsage = async (): Promise<void> => {
+    // The settings page owns quota in the shared detail; the card self-loads only in the legacy layout.
+    if (props.mode === 'detail') return
+    const epoch = usageEpoch.current + 1
+    usageEpoch.current = epoch
+    const live = (): boolean => mounted.current && epoch === usageEpoch.current
     setUsage({ status: 'loading' })
     try {
       const read = await props.fetchUsage({
         ...draft === undefined ? {} : { baseURL: draft.baseURL.trim() },
         ...apiKey.trim().length === 0 ? {} : { apiKey: apiKey.trim() },
       })
+      if (!live()) return
       if (read.kind === 'ok') {
         setLastUsage(read.usage)
+        rememberHeadlineQuota(OLLAMA_SETTINGS_NAMESPACE, 'Ollama Cloud', headlineQuotaOf(read.usage, t))
         setUsageUpdatedAt(new Date())
       }
       setUsage(
@@ -532,14 +532,21 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
             : { status: 'unsupported' },
       )
     } catch (error: unknown) {
+      if (!live()) return
       setUsage({ status: 'error', message: usageErrorOf(error, t) })
     }
   }
+  // Header quota loads collapsed once settings are ready; idle status dedups so expansion never refires.
   useEffect(() => {
-    if (!open || snapshot.status !== 'ready') return
-    setUsage({ status: 'loading' })
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
+  useEffect(() => {
+    if (snapshot.status !== 'ready' || usage.status !== 'idle') return
     void loadUsage()
-  }, [open, snapshot.status])
+  }, [snapshot.status, usage.status])
 
   const fetchModels = async (): Promise<void> => {
     if (draft === undefined) return
@@ -598,6 +605,9 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
 
   const save = async (): Promise<void> => {
     if (draft === undefined || snapshot.value === undefined || invalid) return
+    // A new key may change the account: invalidate in-flight usage reads now so a
+    // late old-account resolve cannot publish or re-persist before the fresh read.
+    usageEpoch.current += 1
     setBusy(true)
     setFailure(undefined)
     setNotice(undefined)
@@ -616,6 +626,9 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
       setUsage({ status: 'idle' })
     } catch (error: unknown) {
       setFailure(messageOf(error, t('requestFailed')))
+      // A failed save starts no fresh read: release a stuck loading state back to
+      // idle so the next effect pass retries instead of hanging forever.
+      setUsage(current => (current.status === 'loading' ? { status: 'idle' } : current))
     } finally {
       setBusy(false)
     }
@@ -626,41 +639,105 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
   else if (draft !== undefined && modelFailure(draft.models)) validation = t('invalidModel')
   else if (keyInvalid) validation = t('invalidApiKey')
 
-  const headerSummary = formatProviderSummary(
-    credential?.configured === true ? t('summaryOn') : t('summaryOff'),
-    t('summaryModels').replace('{count}', String(draft?.models.length ?? 0)),
-  )
+  const headerModelCount = draft?.models.length
+  const headerCount = headerModelCount === undefined ? '' : t('summaryModels').replace('{count}', String(headerModelCount))
+  // Unknown credential is loading, not unconfigured: only an authoritative verdict earns On/Off.
+  const headerStatus = credential?.configured === true ? t('summaryOn') : credential?.configured === false ? t('summaryOff') : t('loading')
+  const usageView = usage.status === 'ready' ? usage.usage : lastUsage
+  const liveQuota = credential?.configured === true ? headlineQuotaOf(usageView, t) : undefined
+  // Persisted fallback before fresh metadata: allowed while credential is unknown,
+  // withheld once known-false or the usage read settles error/unsupported/needs-restart.
+  const quotaWithheld = credential?.configured === false
+    || usage.status === 'error' || usage.status === 'unsupported' || usage.status === 'needs-restart'
+  // The verdict gates the entire header quota, not only the persisted fallback:
+  // stale local lastUsage must not look fresh on error/unsupported either.
+  const headerQuota = quotaWithheld ? undefined : (liveQuota ?? headerQuotaFromCache(peekCachedUsage(OLLAMA_SETTINGS_NAMESPACE)))
 
-  return (
-    <li style={cardStyle}>
-      <button
-        type="button"
-        style={headerStyle}
-        aria-expanded={open}
-        aria-label={t(open ? 'collapse' : 'expand') + ': ' + title}
-        onClick={() => { setOpen(!open) }}
-      >
-        <ProviderCardHeader
-          title={title}
-          mark={<BrandMark />}
-          summary={headerSummary}
-          open={open}
-          unsaved={dirty}
-          unsavedLabel={t('unsaved')}
-        />
-      </button>
-      {open
-        ? (
-          <div style={bodyStyle}>
-            <p style={hintStyle}>{t('description')}</p>
-            {snapshot.status === 'loading' ? <p style={statusStyle}>{t('loading')}</p> : null}
-            {snapshot.status === 'ready' && !snapshot.writable ? <p style={statusStyle}>{t('readOnly')}</p> : null}
-            {draft === undefined
-              ? null
-              : (
-                <>
-                  <section style={sectionStyle}>
-                    <h3 style={sectionTitleStyle}>{t('connection')}</h3>
+  // Prototype C pieces, shared by the legacy card and the migrated detail.
+  const modelsList = (
+    <>
+                          <SortableList
+                            items={draft?.models ?? []}
+                            getId={model => model.rowId}
+                            disabled={disabled}
+                            sorting={modelSorting}
+                            dragLabel={(model, index) => {
+                              const label = model.id.trim().length > 0 ? model.id.trim() : String(index + 1)
+                              return t('dragModel') + ': ' + label
+                            }}
+                            moveButtons
+                            moveUpLabel={(model, index) => {
+                              const label = model.id.trim().length > 0 ? model.id.trim() : String(index + 1)
+                              return t('moveUp') + ': ' + label
+                            }}
+                            moveDownLabel={(model, index) => {
+                              const label = model.id.trim().length > 0 ? model.id.trim() : String(index + 1)
+                              return t('moveDown') + ': ' + label
+                            }}
+                            onReorder={(models) => { patchDraft({ models }) }}
+                            renderItem={(model, index) => {
+                              const key = rowKeyOf(model)
+                              const expanded = expandedModels.has(key)
+                              const label = model.id.trim().length > 0 ? model.id.trim() : String(index + 1)
+                              return (
+                                <div data-model-row={label} data-provider-model="" style={modelContentStyle}>
+                                  <input
+                                    style={rowInputStyle}
+                                    value={model.id}
+                                    placeholder={t('modelId')}
+                                    aria-label={t('modelId') + ' ' + String(index + 1)}
+                                    disabled={disabled}
+                                    onChange={(event) => { patchModel(index, { id: event.target.value }) }}
+                                  />
+                                  <input
+                                    style={rowInputStyle}
+                                    value={model.name ?? ''}
+                                    placeholder={t('modelName')}
+                                    aria-label={t('modelName') + ' ' + String(index + 1)}
+                                    disabled={disabled}
+                                    onChange={(event) => { patchModel(index, { name: event.target.value || undefined }) }}
+                                  />
+                                  <button
+                                    type="button"
+                                    style={iconButtonStyle}
+                                    aria-label={t('modelDetails') + ': ' + label}
+                                    aria-expanded={expanded}
+                                    title={t('modelDetails')}
+                                    onClick={() => { toggleModel(key) }}
+                                  >
+                                    <IconChevron open={expanded} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    style={iconButtonStyle}
+                                    aria-label={t('remove') + ' ' + label}
+                                    title={t('remove')}
+                                    disabled={disabled}
+                                    onClick={() => { removeModel(index) }}
+                                  >
+                                    <IconTrash />
+                                  </button>
+                                   {expanded ? modelExtra(model, index) : null}
+                                </div>
+                              )
+                            }}
+                          />
+                          <button
+                            type="button"
+                            style={{ ...buttonStyle, alignSelf: 'flex-start' }}
+                            disabled={disabled}
+                            onClick={() => {
+                              const model: ModelDraft = { rowId: newModelRowId(), id: '', contextWindow: '' }
+                              patchDraft({ models: [...draft?.models ?? [], model] })
+                              setExpandedModels(current => new Set(current).add(model.rowId))
+                            }}
+                          >
+                            {t('addModel')}
+                          </button>
+    </>
+  )
+  const accountFields = (
+    <>
                     <label style={fieldStyle}>
                       <span style={labelStyle}>{t('apiKey')}</span>
                       <input
@@ -687,11 +764,192 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
                         style={inputStyle}
                         type="url"
                         aria-label={t('baseURL')}
-                        value={draft.baseURL}
+                        value={draft?.baseURL ?? ''}
                         disabled={disabled}
                         onChange={(event) => { patchDraft({ baseURL: event.target.value }) }}
                       />
                     </label>
+    </>
+  )
+  const draftBlock = (
+    <>
+            {validation === undefined ? null : <p style={errorStyle}>{validation}</p>}
+            {failure === undefined ? null : <p style={errorStyle}>{failure}</p>}
+            {notice === undefined ? null : <p style={statusStyle}>{notice}</p>}
+            <div style={actionsStyle}>
+              <button type="button" style={buttonStyle} disabled={!dirty || busy} onClick={discard}>{t('discard')}</button>
+              <button
+                type="button"
+                style={primaryButtonStyle}
+                disabled={!dirty || invalid || disabled}
+                onClick={() => { void save() }}
+              >
+                {t(busy ? 'saving' : 'save')}
+              </button>
+            </div>
+    </>
+  )
+
+
+  /** Provider-specific fields for one expanded model row; shared by both layouts. */
+  const modelExtra = (model: ModelDraft, index: number): ReactNode => (
+    <div className="c-extra-grid">
+      <label className="c-field">
+        <span className="c-field-label">{t('modelContext')}</span>
+        <input
+          className="c-input"
+          inputMode="numeric"
+          value={model.contextWindow}
+          disabled={disabled}
+          aria-label={t('modelContext')}
+          onChange={(event) => { patchModel(index, { contextWindow: event.target.value }) }}
+        />
+      </label>
+      <div className="c-extra-checks">
+        <label>
+          <input type="checkbox" checked={model.vision === true} disabled={disabled} onChange={(event) => { patchModel(index, { vision: event.target.checked }) }} />
+          {t('vision')}
+        </label>
+        <label>
+          <input type="checkbox" checked={model.thinking === true} disabled={disabled} onChange={(event) => { patchModel(index, { thinking: event.target.checked }) }} />
+          {t('thinking')}
+        </label>
+      </div>
+      {(() => {
+        const efforts = effortsForOllamaModel(modelSettingsOf(model))
+        if (efforts.length === 0) return null
+        const suggested = ollamaDefaultEffort(model.id.trim()) ?? efforts[0]
+        return (
+          <label className="c-field">
+            <span className="c-field-label">{t('defaultEffort')}</span>
+            <select
+              className="c-input"
+              value={model.defaultEffort ?? suggested ?? ''}
+              disabled={disabled}
+              aria-label={t('defaultEffort')}
+              onChange={(event) => {
+                const effort = efforts.find(entry => entry === event.target.value)
+                patchModel(index, { defaultEffort: effort })
+              }}
+            >
+              {efforts.map(effort => (
+                <option key={effort} value={effort}>{OLLAMA_EFFORT_LABELS[effort] ?? effort}</option>
+              ))}
+            </select>
+          </label>
+        )
+      })()}
+    </div>
+  )
+
+  // Prototype C detail: the shared template owns the layout, this card owns Ollama's data.
+  const SharedDetail = props.template
+  const detailCopy = props.copy
+  if (props.mode === 'detail' && SharedDetail !== undefined && detailCopy !== undefined && draft !== undefined) {
+    const configured = credential?.configured === true
+    return (
+        <SharedDetail
+          name={title}
+          role="llm"
+          mark={<BrandMark />}
+          copy={detailCopy}
+          notice={t('description')}
+          account={{
+            state: configured ? 'configured' : 'unconnected',
+            label: configured ? t('summaryOn') : t('apiKeyUnset'),
+            body: accountFields,
+          }}
+          quota={{
+            status: props.usage?.status ?? 'loading',
+            windows: props.usage?.windows ?? [],
+            ...(props.onRefresh === undefined ? {} : { onRefresh: props.onRefresh }),
+          }}
+          models={{
+            count: draft.models.length,
+            allOpen: catalogOpen,
+            onToggleAll: () => { setCatalogOpen(value => !value) },
+            sorting: modelSorting,
+            onToggleSorting: () => { setModelSorting(current => !current) },
+            sortDisabled: disabled || draft.models.length < 2,
+            onChooseFromAccount: () => { void fetchModels() },
+            chooseDisabled: fetching || invalid || snapshot.status !== 'ready',
+            items: draft.models.map(model => ({
+              rowId: model.rowId,
+              id: model.id,
+              ...(model.name === undefined ? {} : { name: model.name }),
+            })),
+            expanded: [...expandedModels],
+            onPatch: (rowId, patch) => {
+              const index = draft.models.findIndex(model => model.rowId === rowId)
+              if (index >= 0) patchModel(index, patch)
+            },
+            onRemove: (rowId) => {
+              const index = draft.models.findIndex(model => model.rowId === rowId)
+              if (index >= 0) removeModel(index)
+            },
+            onToggle: (rowId) => { toggleModel(rowId) },
+            onReorder: (rowIds) => {
+              const byId = new Map(draft.models.map(model => [model.rowId, model]))
+              const next = rowIds.map(rowId => byId.get(rowId)).filter((model): model is ModelDraft => model !== undefined)
+              if (next.length === draft.models.length) patchDraft({ models: next })
+            },
+            onAdd: () => {
+              const model: ModelDraft = { rowId: newModelRowId(), id: '', contextWindow: '' }
+              patchDraft({ models: [...draft.models, model] })
+              setExpandedModels(current => new Set(current).add(model.rowId))
+            },
+            addDisabled: disabled,
+            extra: (row) => {
+              const index = draft.models.findIndex(model => model.rowId === row.rowId)
+              const model = draft.models[index]
+              return index < 0 || model === undefined ? null : modelExtra(model, index)
+            },
+          }}
+          draft={draftBlock}
+        />
+    )
+  }
+
+  return (
+    <li style={cardStyle} data-provider-card="" data-provider-role="llm">
+      <style>{providerUiCss}</style>
+      <button
+        type="button"
+        data-provider-card-header=""
+        aria-expanded={open}
+        aria-label={t(open ? 'collapse' : 'expand') + ': ' + title}
+        onClick={() => { setOpen(!open) }}
+      >
+        <ProviderCardHeader
+          title={title}
+          mark={<BrandMark />}
+          summary={headerCount}
+          status={headerStatus}
+          open={open}
+          unsaved={dirty}
+          unsavedLabel={t('unsaved')}
+          role="llm"
+          {...(headerQuota === undefined
+            ? (credential?.configured === true && (usage.status === 'error' || usage.status === 'unsupported' || usage.status === 'needs-restart')
+              // Query attempted but no usable quota: unavailable dash, never a fabricated percent.
+              ? { quota: { label: t('usage') } }
+              : {})
+            : { quota: headerQuota })}
+        />
+      </button>
+      {open
+        ? (
+          <div style={bodyStyle} data-provider-body="">
+            <p style={hintStyle}>{t('description')}</p>
+            {snapshot.status === 'loading' ? <p style={statusStyle}>{t('loading')}</p> : null}
+            {snapshot.status === 'ready' && !snapshot.writable ? <p style={statusStyle}>{t('readOnly')}</p> : null}
+            {draft === undefined
+              ? null
+              : (
+                <>
+                  <section style={sectionStyle}>
+                    <h3 style={sectionTitleStyle}>{t('connection')}</h3>
+                    {accountFields}
                   </section>
 
                   <section style={sectionStyle} aria-label={t('usage')}>
@@ -708,13 +966,27 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
                       if (usage.status === 'loading' || usage.status === 'idle') {
                         const known = lastUsage === undefined
                           ? 2
-                          : Number(lastUsage.session !== undefined) + Number(lastUsage.weekly !== undefined)
+                          : Number(lastUsage.session !== undefined)
+                            + Number(lastUsage.weekly !== undefined)
+                            + Number(lastUsage.monthly !== undefined)
                         return <UsageSkeleton rows={known > 0 ? known : 2} />
                       }
                       const bars = usage.status === 'ready' ? usage.usage : lastUsage
                       if (bars !== undefined) {
+                        const primaryWindow = bars.monthly ?? bars.weekly ?? bars.session
                         return (
                         <>
+                          {bars.monthly === undefined
+                            ? null
+                            : (
+                              <UsageBar
+                                label={t('usageMonthly')}
+                                usedText={t('usageUsed')}
+                                window={bars.monthly}
+                                t={t}
+                                fallbackReset={t('usageResetEveryDays').replace('{count}', String(OLLAMA_MONTHLY_DAYS))}
+                              />
+                            )}
                           {bars.session === undefined
                             ? null
                             : (
@@ -723,7 +995,7 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
                                 usedText={t('usageUsed')}
                                 window={bars.session}
                                 t={t}
-                                fallbackReset={t('usageResetEveryHours').replace('{count}', '5')}
+                                fallbackReset={t('usageResetEveryHours').replace('{count}', String(OLLAMA_SESSION_HOURS))}
                               />
                             )}
                           {bars.weekly === undefined
@@ -734,15 +1006,15 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
                                 usedText={t('usageUsed')}
                                 window={bars.weekly}
                                 t={t}
-                                fallbackReset={t('usageResetEveryDays').replace('{count}', '7')}
+                                fallbackReset={t('usageResetEveryDays').replace('{count}', String(OLLAMA_WEEKLY_DAYS))}
                               />
                             )}
-                          {bars.weekly !== undefined && bars.weekly.models.length > 0
+                          {primaryWindow !== undefined && primaryWindow.models.length > 0
                             ? (
                               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                                 <span style={labelStyle}>{t('usageModels')}</span>
                                 <ul style={usageListStyle} aria-label={t('usageModels')}>
-                                  {bars.weekly.models.map(model => (
+                                  {primaryWindow.models.map(model => (
                                     <li
                                       key={model.name}
                                       style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}
@@ -784,153 +1056,32 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
                         <span style={sectionTitleStyle}>{t('models')}</span>
                         <span style={hintStyle}>{customModels ? t('customized') : t('inherited')}</span>
                       </button>
-                      <button
-                        type="button"
-                        style={buttonStyle}
-                        disabled={fetching || invalid || snapshot.status !== 'ready'}
-                        onClick={() => { void fetchModels() }}
-                      >
-                        {t(fetching ? 'fetchingModels' : 'fetchModels')}
-                      </button>
+                      <span style={{ display: 'inline-flex', gap: 8 }}>
+                        <button
+                          type="button"
+                          style={buttonStyle}
+                          aria-pressed={modelSorting}
+                          disabled={disabled || draft.models.length < 2}
+                          onClick={() => { setModelSorting(current => !current) }}
+                        >
+                          {t(modelSorting ? 'doneSorting' : 'sortModels')}
+                        </button>
+                        <button
+                          type="button"
+                          style={buttonStyle}
+                          disabled={fetching || invalid || snapshot.status !== 'ready'}
+                          onClick={() => { void fetchModels() }}
+                        >
+                          {t(fetching ? 'fetchingModels' : 'fetchModels')}
+                        </button>
+                      </span>
                     </div>
-                    {catalogOpen
-                      ? (
-                        <>
-                          <SortableList
-                            items={draft.models}
-                            getId={model => model.rowId}
-                            disabled={disabled}
-                            dragLabel={(model, index) => {
-                              const label = model.id.trim().length > 0 ? model.id.trim() : String(index + 1)
-                              return t('dragModel') + ': ' + label
-                            }}
-                            onReorder={(models) => { patchDraft({ models }) }}
-                            renderItem={(model, index) => {
-                              const key = rowKeyOf(model)
-                              const expanded = expandedModels.has(key)
-                              const label = model.id.trim().length > 0 ? model.id.trim() : String(index + 1)
-                              return (
-                                <div data-model-row={label} style={modelContentStyle}>
-                                  <input
-                                    style={rowInputStyle}
-                                    value={model.id}
-                                    placeholder={t('modelId')}
-                                    aria-label={t('modelId') + ' ' + String(index + 1)}
-                                    disabled={disabled}
-                                    onChange={(event) => { patchModel(index, { id: event.target.value }) }}
-                                  />
-                                  <input
-                                    style={rowInputStyle}
-                                    value={model.name ?? ''}
-                                    placeholder={t('modelName')}
-                                    aria-label={t('modelName') + ' ' + String(index + 1)}
-                                    disabled={disabled}
-                                    onChange={(event) => { patchModel(index, { name: event.target.value || undefined }) }}
-                                  />
-                                  <button
-                                    type="button"
-                                    style={iconButtonStyle}
-                                    aria-label={t('modelDetails') + ': ' + label}
-                                    aria-expanded={expanded}
-                                    title={t('modelDetails')}
-                                    onClick={() => { toggleModel(key) }}
-                                  >
-                                    <IconChevron open={expanded} />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    style={iconButtonStyle}
-                                    aria-label={t('remove') + ' ' + label}
-                                    title={t('remove')}
-                                    disabled={disabled}
-                                    onClick={() => { removeModel(index) }}
-                                  >
-                                    <IconTrash />
-                                  </button>
-                                  {expanded
-                                    ? (
-                                      <ModelDetail gridColumn="1 / -1">
-                                        <CatalogRow>
-                                          <label style={fieldStyle}>
-                                            <span style={labelStyle}>{t('modelContext')}</span>
-                                            <input
-                                              style={inputStyle}
-                                              inputMode="numeric"
-                                              value={model.contextWindow}
-                                              disabled={disabled}
-                                              aria-label={t('modelContext')}
-                                              onChange={(event) => { patchModel(index, { contextWindow: event.target.value }) }}
-                                            />
-                                          </label>
-                                        </CatalogRow>
-                                        <CapabilitiesRow>
-                                          <Capability label={t('vision')} checked={model.vision === true} disabled={disabled} onChange={(vision) => { patchModel(index, { vision }) }} />
-                                          <Capability label={t('thinking')} checked={model.thinking === true} disabled={disabled} onChange={(thinking) => { patchModel(index, { thinking }) }} />
-                                          {(() => {
-                                            const efforts = effortsForOllamaModel(modelSettingsOf(model))
-                                            if (efforts.length === 0) return null
-                                            const suggested = ollamaDefaultEffort(model.id.trim()) ?? efforts[0]
-                                            return (
-                                              <label style={{ ...labelStyle, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                                                {t('defaultEffort')}
-                                                <select
-                                                  style={selectStyle}
-                                                  value={model.defaultEffort ?? suggested ?? ''}
-                                                  disabled={disabled}
-                                                  aria-label={t('defaultEffort')}
-                                                  onChange={(event) => {
-                                                    const effort = efforts.find(entry => entry === event.target.value)
-                                                    patchModel(index, { defaultEffort: effort })
-                                                  }}
-                                                >
-                                                  {efforts.map(effort => (
-                                                    <option key={effort} value={effort}>{OLLAMA_EFFORT_LABELS[effort] ?? effort}</option>
-                                                  ))}
-                                                </select>
-                                              </label>
-                                            )
-                                          })()}
-                                        </CapabilitiesRow>
-                                      </ModelDetail>
-                                    )
-                                    : null}
-                                </div>
-                              )
-                            }}
-                          />
-                          <button
-                            type="button"
-                            style={{ ...buttonStyle, alignSelf: 'flex-start' }}
-                            disabled={disabled}
-                            onClick={() => {
-                              const model: ModelDraft = { rowId: newModelRowId(), id: '', contextWindow: '' }
-                              patchDraft({ models: [...draft.models, model] })
-                              setExpandedModels(current => new Set(current).add(model.rowId))
-                            }}
-                          >
-                            {t('addModel')}
-                          </button>
-                        </>
-                      )
-                      : null}
+                    {catalogOpen ? modelsList : null}
                   </section>
                 </>
               )}
 
-            {validation === undefined ? null : <p style={errorStyle}>{validation}</p>}
-            {failure === undefined ? null : <p style={errorStyle}>{failure}</p>}
-            {notice === undefined ? null : <p style={statusStyle}>{notice}</p>}
-            <div style={actionsStyle}>
-              <button type="button" style={buttonStyle} disabled={!dirty || busy} onClick={discard}>{t('discard')}</button>
-              <button
-                type="button"
-                style={primaryButtonStyle}
-                disabled={!dirty || invalid || disabled}
-                onClick={() => { void save() }}
-              >
-                {t(busy ? 'saving' : 'save')}
-              </button>
-            </div>
+            {draftBlock}
           </div>
         )
         : null}

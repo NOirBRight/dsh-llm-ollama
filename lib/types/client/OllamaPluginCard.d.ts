@@ -4,6 +4,7 @@ import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client';
 import type { InjectFace, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
 import type { OllamaCatalogModelConfig, OllamaDiscoveryRequest, OllamaSaveResult, OllamaSettingsView, OllamaUsageView } from '../client-contract.ts';
 import type { OllamaSettingsKey } from './locales.ts';
+import type { ProviderItemSlotContext } from 'dsh-llm-providers-ui/provider-detail';
 /** Credential state exposed without returning the credential value. */
 export interface OllamaCredentialState {
     /** Whether any Host credential layer supplies the reference. */
@@ -52,7 +53,6 @@ export interface OllamaPluginCardFace {
     closeModelPicker: () => void;
 }
 /** Props delivered by the Plugin configuration item slot. */
-export type OllamaPluginCardProps = PropsRuntime<'settings.provider.item'> & InjectFace<OllamaPluginCardFace>;
-/** Render the single-package Ollama Cloud contribution under Plugin configuration. */
+export type OllamaPluginCardProps = PropsRuntime<'settings.provider.item'> & InjectFace<OllamaPluginCardFace> & Partial<ProviderItemSlotContext>;
 export declare function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode;
 //# sourceMappingURL=OllamaPluginCard.d.ts.map

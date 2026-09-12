@@ -4,7 +4,8 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
 import type { SettingsScope, SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { OllamaSettingsView } from '../src/client-contract.ts'
-import { apply, inject } from '../src/client/index.ts'
+import { apply, inject, MISSING_OWNER_GRACE_MS } from '../src/client/index.ts'
+import { clearProviderUsageCache, peekCachedUsage, rememberHeadlineQuota } from 'dsh-llm-providers-ui/usage-readers'
 
 const value: OllamaSettingsView = {
   apiKeyEnv: 'OLLAMA_API_KEY',
@@ -55,12 +56,18 @@ class FakeSlots extends Service {
     return this.registered.filter(entry => entry.options['name'] === name)
   }
 
-  subscribe(_name: string, _listener: () => void): () => void {
-    return () => undefined
+  subscribe(_name: string, listener: () => void): () => void {
+    this.listeners.push(listener)
+    return () => { this.listeners.splice(this.listeners.indexOf(listener), 1) }
   }
+
+  private readonly listeners: Array<() => void> = []
+
+  /** Emit a slot change, as the owner's registration does. */
+  notify(): void { for (const listener of [...this.listeners]) listener() }
 }
 
-async function bench() {
+async function bench(usageReply: unknown = { ok: true, value: { models: [] } }) {
   const ctx = new Context()
   await ctx.plugin(FakeSlots).await()
   const slots = ctx.get('slots') as FakeSlots
@@ -81,7 +88,8 @@ async function bench() {
       },
     },
     rpc: {
-      call: vi.fn(() => Promise.resolve({ ok: true, value: { models: [] } })),
+      call: vi.fn((_channel: string, endpoint: string) =>
+        Promise.resolve(endpoint === 'usage/read' ? usageReply : { ok: true, value: { models: [] } })),
     },
   } as never)
   return { ctx, slots }
@@ -112,5 +120,81 @@ describe('Ollama client plugin registration', () => {
     expect(slots.entries('settings.provider.item')).toHaveLength(0)
     expect(slots.entries('settings.section')).toHaveLength(0)
     expect(slots.entries('shell.overlay')).toHaveLength(0)
+  })
+
+  it('defers the missing owner warning past the grace period', async () => {
+    vi.useFakeTimers()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    try {
+      const { ctx, slots } = await bench()
+      const fiber = ctx.plugin({ inject: [...inject], apply })
+      await fiber.await()
+
+      await vi.advanceTimersByTimeAsync(MISSING_OWNER_GRACE_MS - 1)
+      expect(warn).not.toHaveBeenCalled()
+      await vi.advanceTimersByTimeAsync(1)
+      expect(warn).toHaveBeenCalledTimes(1)
+      await fiber.dispose()
+
+      const late = await bench()
+      const lateFiber = late.ctx.plugin({ inject: [...inject], apply })
+      await lateFiber.await()
+      late.slots.register({ name: 'settings.section', id: 'other' }, undefined)
+      late.slots.notify()
+      await vi.advanceTimersByTimeAsync(MISSING_OWNER_GRACE_MS - 1)
+      expect(warn).toHaveBeenCalledTimes(1)
+      late.slots.register({ name: 'settings.section', id: 'providers' }, undefined)
+      late.slots.notify()
+      await vi.advanceTimersByTimeAsync(MISSING_OWNER_GRACE_MS)
+      expect(warn).toHaveBeenCalledTimes(1)
+      await lateFiber.dispose()
+    } finally {
+      warn.mockRestore()
+      vi.useRealTimers()
+    }
+  })
+
+  it('decodes a monthly-only usage reply into the card view', async () => {
+    const usage = {
+      fetchedAt: '2026-09-01T00:00:00.000Z',
+      monthly: { usage: 0.25, models: [{ name: 'qwen3-coder', requestCount: 4 }] },
+    }
+    const { ctx, slots } = await bench({ ok: true, value: { status: 'ok', usage } })
+    const fiber = ctx.plugin({ inject: [...inject], apply })
+    await fiber.await()
+    const face = (slots.entries('settings.provider.item')[0] as {
+      inject?: () => { fetchUsage: (request: { baseURL?: string }) => Promise<unknown> }
+    }).inject?.()
+
+    await expect(face?.fetchUsage({ baseURL: 'https://ollama.com/api' }))
+      .resolves.toEqual({ kind: 'ok', usage })
+    await fiber.dispose()
+  })
+
+  it('purges persisted quota when credentials are stored without a provider directory', async () => {
+    rememberHeadlineQuota('llm-ollama', 'Ollama Cloud', { label: 'S', remainingPercent: 90 })
+    const ctx = new Context()
+    await ctx.plugin(FakeSlots).await()
+    const slots = ctx.get('slots') as FakeSlots
+    ctx.provide('locale', {
+      register: () => () => undefined,
+      bind: () => (key: string) => key,
+    } as never)
+    ctx.provide('settingsScope', { bind: () => scope() } as never)
+    ctx.provide('remote', { $on: () => () => undefined } as never)
+    ctx.provide('connection', {
+      rpc: {
+        call: vi.fn(async (_channel: string, endpoint: string) => endpoint === 'credential/set'
+          ? { ok: true, value: { configured: true, writable: true } }
+          : { ok: true, value: { models: [] } }),
+      },
+    } as never)
+    const fiber = ctx.plugin({ inject: [...inject], apply })
+    await fiber.await()
+    const face = (slots.entries('settings.provider.item')[0] as { inject?: () => { saveCredential: (apiKey: string) => Promise<unknown> } }).inject?.()
+    await face?.saveCredential('new-key')
+    expect(peekCachedUsage('llm-ollama')).toBeUndefined()
+    clearProviderUsageCache()
+    await fiber.dispose()
   })
 })

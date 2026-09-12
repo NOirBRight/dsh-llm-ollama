@@ -12,7 +12,7 @@ import type { LlmResolvedModelInfo } from '@deepseek-ai/dsh-llm';
 import type { ModelThinkingLevel, ThinkingLevelMap } from '@earendil-works/pi-ai';
 import type { OllamaCatalogModelConfig } from './client-contract.ts';
 /** Cloud families with documented real thinking controls. */
-export type OllamaReasoningFamily = 'glm-5.2' | 'glm-5.1' | 'deepseek-v4-pro' | 'deepseek-v4-flash' | 'gpt-oss' | 'gemma4' | 'nemotron-3-ultra' | 'nemotron-3-super' | 'nemotron-3-nano' | 'minimax-m3' | 'minimax-m2' | 'kimi-k2.7' | 'kimi-k3' | 'kimi-k2.6' | 'qwen3.5' | 'generic';
+export type OllamaReasoningFamily = 'glm-5.3' | 'glm-5.2' | 'glm-5.1' | 'deepseek-v4-pro' | 'deepseek-v4-flash' | 'gpt-oss' | 'gemma4' | 'nemotron-3-ultra' | 'nemotron-3-super' | 'nemotron-3-nano' | 'minimax-m3' | 'minimax-m2' | 'kimi-k2.7' | 'kimi-k3' | 'kimi-k2.6' | 'qwen3.5' | 'mistral-large-3' | 'generic';
 /**
  * Strip a registry prefix so family matching sees the native Ollama id.
  * @param model - wire model id, possibly `registry/name:tag`.

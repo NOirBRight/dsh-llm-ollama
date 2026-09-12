@@ -164,6 +164,14 @@ describe('createOllamaPiAiProfile', () => {
       contextWindow: 262_144,
     })
   })
+  it('exposes an empty modelErrors map for the host modelOf path', () => {
+    const profile = createOllamaPiAiProfile(connection({ models: [{ id: 'qwen3' }] }))
+    // Mirrors PiAiAdapter.modelOf: unconditional profile.modelErrors.get(model).
+    expect(profile.modelErrors).toBeInstanceOf(Map)
+    expect(profile.modelErrors.size).toBe(0)
+    expect(profile.modelErrors.get('qwen3')).toBeUndefined()
+  })
+
   it('declares the rc.2 request-image budgets', () => {
     const profile = createOllamaPiAiProfile(connection())
 

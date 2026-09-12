@@ -15,14 +15,24 @@ const PROVENANCE_PATH = join(FIXTURE_ROOT, 'PROVENANCE.json')
 const LOCKFILE_PATH = join(ROOT, 'pnpm-lock.yaml')
 const PACKAGE_NAME = 'dsh-llm-ollama'
 const ALPHA4_VERSION = '0.1.2-alpha.4'
+const RC1_VERSION = '0.1.2-rc.1'
 const ALPHA4_TAG = 'dsh-v0.1.2-alpha.4'
 const ALPHA4_COMMIT = '4e84901e6471b79ec0338099867ebb4606d12bb5'
 const OWNER_NAME = 'dsh-llm-providers-ui'
-const OWNER_VERSION = '0.1.3'
-const OWNER_RELEASE = 'https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/v0.1.3/dsh-llm-providers-ui-0.1.3.tgz'
-const FROZEN_OWNER_FILE = 'dsh-llm-providers-ui-0.1.3-2ea19427e9622253ae4621584e3d5fd4fcdb24b60ef72ca4e101ac2e267da595.tgz'
-const FROZEN_OWNER_SHA256 = '2ea19427e9622253ae4621584e3d5fd4fcdb24b60ef72ca4e101ac2e267da595'
-const FROZEN_OWNER_BYTES = 29675
+/** Providers UI version the frozen owner artifact and the dev dependency both pin. */
+const OWNER_VERSION = '0.1.12'
+/** Release tag the frozen owner artifact was taken from. */
+const OWNER_TAG = 'v0.1.12-015rc1d'
+const OWNER_RELEASE = 'https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/' + OWNER_TAG + '/dsh-llm-providers-ui-' + OWNER_VERSION + '.tgz'
+const FROZEN_OWNER_FILE = 'dsh-llm-providers-ui-' + OWNER_VERSION + '-c16667922b863563ddb0bbfb88682ee942d643dcdc431051e36bef69280b844e.tgz'
+const FROZEN_OWNER_SHA256 = 'c16667922b863563ddb0bbfb88682ee942d643dcdc431051e36bef69280b844e'
+const FROZEN_OWNER_BYTES = 95966
+/** Development-dependency specs the Providers UI owner may be pinned to: the sibling checkout, its fixture copy, or the release URL. */
+const OWNER_DEV_SPECS = [
+  'file:../dsh-llm-providers-ui/dsh-llm-providers-ui-' + OWNER_VERSION + '.tgz',
+  'file:../dsh-llm-providers-ui/fixtures/alpha4/tarballs/dsh-llm-providers-ui-' + OWNER_VERSION + '.tgz',
+  OWNER_RELEASE,
+]
 const INVALID_REGISTRY = 'http://127.0.0.1:9/'
 const DEPENDENCY_SECTIONS = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies']
 
@@ -288,7 +298,7 @@ function assertStaticClosure(packageRoot, manifest, label) {
       if (specifier.startsWith('node:')) continue
       if (specifier.includes('/src/') || specifier.includes('/source/')) fail(label + ' imports a source-plane path: ' + specifier)
       const name = packageName(specifier)
-      if (name === OWNER_NAME) fail(label + ' retains a Providers UI runtime import: ' + specifier)
+      if (name === OWNER_NAME && specifier !== 'dsh-llm-providers-ui/sortable' && specifier !== 'dsh-llm-providers-ui/usage-readers') fail(label + ' retains a Providers UI runtime import: ' + specifier)
       if (!declared.has(name)) fail(label + ' contains undeclared runtime import: ' + specifier)
     }
   }
@@ -296,29 +306,27 @@ function assertStaticClosure(packageRoot, manifest, label) {
 }
 
 function verifySourceMigration(manifest) {
+  if (!OWNER_TAG.includes(OWNER_VERSION)) fail('Providers UI release tag does not name the pinned version: ' + OWNER_TAG)
   for (const section of DEPENDENCY_SECTIONS) {
     for (const [name, spec] of Object.entries(manifest[section] ?? {})) {
       if (typeof spec !== 'string') fail(section + ' entry is not a string: ' + name)
-      if (section === 'devDependencies' && name === OWNER_NAME
-        && (spec === 'file:../dsh-llm-providers-ui/dsh-llm-providers-ui-0.1.3.tgz'
-          || spec === 'file:../dsh-llm-providers-ui/fixtures/alpha4/tarballs/dsh-llm-providers-ui-0.1.3.tgz'
-          || spec === OWNER_RELEASE)) continue
+      if (section === 'devDependencies' && name === OWNER_NAME && OWNER_DEV_SPECS.includes(spec)) continue
       if (/^(?:file:|link:|workspace:|npm:|github:|git\+|https?:|\/|\.\.?[\/]|~[\/])/iu.test(spec)) fail(section + ' uses a path or VCS source: ' + name + ' ' + spec)
     }
   }
   for (const section of ['dependencies', 'peerDependencies', 'optionalDependencies']) {
     for (const name of Object.keys(manifest[section] ?? {})) {
-      if (name.startsWith('@deepseek-ai/dsh-') && manifest[section][name] !== ALPHA4_VERSION) fail(name + ' must use exact alpha.4 version')
+      if (name.startsWith('@deepseek-ai/dsh-') && manifest[section][name] !== ALPHA4_VERSION && !(satisfiesRange(ALPHA4_VERSION, manifest[section][name]) && satisfiesRange(RC1_VERSION, manifest[section][name]))) fail(name + ' must include both Alpha.4 and rc.1')
     }
   }
-  if (manifest.devDependencies?.[OWNER_NAME] !== 'file:../dsh-llm-providers-ui/dsh-llm-providers-ui-0.1.3.tgz'
-    && manifest.devDependencies?.[OWNER_NAME] !== 'file:../dsh-llm-providers-ui/fixtures/alpha4/tarballs/dsh-llm-providers-ui-0.1.3.tgz'
-    && manifest.devDependencies?.[OWNER_NAME] !== OWNER_RELEASE) fail('Providers UI must use the pinned Alpha.4 development tarball')
+  if (!OWNER_DEV_SPECS.includes(manifest.devDependencies?.[OWNER_NAME])) fail('Providers UI must use the frozen owner artifact as its development dependency')
   if (manifest.dependencies?.[OWNER_NAME] !== undefined || manifest.peerDependencies?.[OWNER_NAME] !== undefined) fail('Providers UI must not be a runtime or peer dependency')
   const card = readFileSync(join(ROOT, 'src/client/OllamaPluginCard.tsx'), 'utf8')
   if (!card.includes("from 'dsh-llm-providers-ui/sortable'")) fail('client does not import the public sortable subpath')
+  const index = readFileSync(join(ROOT, 'src/client/index.ts'), 'utf8')
+  if (!index.includes("from 'dsh-llm-providers-ui/usage-readers'")) fail('client does not import the public usage-readers subpath')
   const tsdown = readFileSync(join(ROOT, 'tsdown.config.ts'), 'utf8')
-  if (!tsdown.includes("'dsh-llm-providers-ui/sortable'") || !/alwaysBundle\s*:/u.test(tsdown)) fail('tsdown does not bundle the sortable owner code')
+  if (!tsdown.includes("'dsh-llm-providers-ui/sortable'") || !tsdown.includes("'dsh-llm-providers-ui/usage-readers'") || !/alwaysBundle\s*:/u.test(tsdown)) fail('tsdown does not bundle the sortable and usage-readers owner code')
   const adapter = readFileSync(join(ROOT, 'src/adapter.ts'), 'utf8')
   if (!adapter.includes('delegate.prepareCall(provider, model, signal)')) fail('adapter does not delegate prepareCall with the alpha.4 signature')
   const discovery = readFileSync(join(ROOT, 'src/discovery.ts'), 'utf8')
@@ -835,7 +843,7 @@ function runPublicSmokes(directory, kind) {
     "await import('dsh-llm-ollama/client')",
     "const row = registrations.find(item => item.id === 'dsh-llm-ollama')",
     "if (row === undefined || typeof row.factory !== 'function') throw new Error('client did not register a ModuleLoader factory')",
-    "const result = row.factory(specifier => { if (specifier === 'dsh-llm-providers-ui/sortable') throw new Error('client kept a Providers UI runtime import'); return {} })",
+    "const result = row.factory(specifier => { if (specifier === 'dsh-llm-providers-ui/sortable' || specifier === 'dsh-llm-providers-ui/usage-readers') throw new Error('client kept a Providers UI runtime import'); return {} })",
     "if (typeof result.apply !== 'function') throw new Error('client factory exports are incomplete')",
     "let rejected = false; try { await import('dsh-llm-ollama/src/index.ts') } catch { rejected = true }; if (!rejected) throw new Error('source plane is importable')",
   ].join('\n') + '\n'

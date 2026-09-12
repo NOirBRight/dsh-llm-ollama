@@ -14,13 +14,21 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type {} from '@deepseek-ai/dsh-client-connection'
 import type {} from '@deepseek-ai/dsh-web'
-import { assertUsableApiKey, LlmError, resolveRetryPolicy, RetryPolicySchema } from '@deepseek-ai/dsh-llm'
+import {
+  assertUsableApiKey,
+  INVALID_CREDENTIAL_CODE,
+  isHarnessError,
+  LlmError,
+  resolveRetryPolicy,
+  RetryPolicySchema,
+} from '@deepseek-ai/dsh-llm'
 import type { RetryPolicyConfig } from '@deepseek-ai/dsh-llm'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
 import { deepEqualJson } from '@deepseek-ai/dsh-util-values'
 import type { SettingsPathOp } from '@deepseek-ai/dsh-settings'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
+import { allowDshRuntime } from './compatibility.ts'
 import {
   DEFAULT_CONTEXT_WINDOW,
   DEFAULT_STREAM_IDLE_TIMEOUT_MS,
@@ -126,6 +134,15 @@ export const inject = ['llm']
 const DEFAULT_MAX_RETRIES = 2
 
 const NS = OLLAMA_SETTINGS_NAMESPACE
+
+/**
+ * Failure codes meaning this account has no usable credential, wherever they
+ * were raised: this route's own verdict, the missing-credential class a
+ * credential provider answers with, and the auth class a provider adapter
+ * classifies for a refused 401/403 session. Any other code is a failure of the
+ * read, not a verdict on the credential.
+ */
+const CREDENTIAL_FAILURE_CODES: readonly string[] = [INVALID_CREDENTIAL_CODE, 'MISSING_CREDENTIAL', 'AUTH']
 
 /**
  * Plugin config, validated by the same-named schemastery schema and doubling
@@ -275,29 +292,41 @@ function discoveryFailure(message: string, baseURL?: string) {
   }
 }
 
-function settingsFailure(message: string) {
+/**
+ * Refuse one Host endpoint. The code defaults to `internal` and callers pass a
+ * provider's own code when the failure class is known to the browser.
+ */
+function settingsFailure(message: string, code = 'internal') {
   return {
     ok: false as const,
     error: {
-      code: 'internal' as const,
+      code,
       message,
       details: {},
     },
   }
 }
 
-/** Fold one usage-read failure: "unsupported" is a legitimate answer, the rest are errors. */
+/**
+ * Fold one usage-read failure: "unsupported" is a legitimate answer, the rest
+ * are errors. An LlmError keeps its own code, so a credential the Host cannot
+ * use reaches the browser as INVALID_CREDENTIAL and the shared quota cache
+ * drops the entry instead of retaining the previous account's numbers.
+ */
 function usageFailure(error: unknown) {
-  if (error instanceof LlmError && error.code === OLLAMA_USAGE_UNSUPPORTED) {
+  if (!(error instanceof LlmError)) return settingsFailure('Ollama Cloud usage read failed')
+  if (error.code === OLLAMA_USAGE_UNSUPPORTED) {
     return { ok: true as const, value: { status: 'unsupported' as const } }
   }
-  const message = error instanceof LlmError && error.message.length > 0
-    ? error.message
-    : 'Ollama Cloud usage read failed'
-  return settingsFailure(message)
+  return settingsFailure(
+    error.message.length > 0 ? error.message : 'Ollama Cloud usage read failed',
+    error.code,
+  )
 }
 
 export function apply(ctx: Context, config: Config): void {
+  if (!allowDshRuntime(ctx.logger, 'dsh-llm-ollama', ['@deepseek-ai/dsh-llm'])) return
+
   if (Object.hasOwn(config, 'remoteManagement')) {
     throw new Error('llm-ollama: remoteManagement is not supported by the Alpha.4 Connection service')
   }
@@ -390,6 +419,23 @@ export function apply(ctx: Context, config: Config): void {
 
   // Connection authenticates this channel before dispatch.
   ctx.inject(['connection'], (connectionCtx) => {
+    // The browser's shared quota cache drops its entry on INVALID_CREDENTIAL, so
+    // only a credential verdict is remapped to that code. Every other lookup
+    // failure — an unreadable store, a transient environment read — is rethrown
+    // unchanged: it says nothing about whether the credential still works, so it
+    // must not discard a cached quota.
+    const usageApiKey = async (): Promise<string | undefined> => {
+      try {
+        return await storedApiKey()
+      } catch (error: unknown) {
+        if (!isHarnessError(error) || !CREDENTIAL_FAILURE_CODES.includes(error.code)) throw error
+        throw new LlmError(
+          error.message.length > 0 ? error.message : 'Ollama Cloud credential lookup failed',
+          INVALID_CREDENTIAL_CODE,
+          { cause: error },
+        )
+      }
+    }
     const handler = async (endpoint: string, payload: unknown, signal: AbortSignal) => {
       if (endpoint === OLLAMA_SETTINGS_READ_ENDPOINT) {
         const settings = ctx.get('settings')
@@ -473,7 +519,7 @@ export function apply(ctx: Context, config: Config): void {
         const request = decodeOllamaDiscoveryRequest(payload)
         if (request === undefined) return settingsFailure('invalid Ollama Cloud usage request')
         try {
-          const usage = await readOllamaUsage({ ...request, signal }, storedApiKey)
+          const usage = await readOllamaUsage({ ...request, signal }, usageApiKey)
           return { ok: true as const, value: { status: 'ok' as const, usage } }
         } catch (error: unknown) {
           return usageFailure(error)

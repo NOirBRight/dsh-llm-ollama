@@ -8,10 +8,10 @@
   },
   "ownerArtifact": {
     "package": "dsh-llm-providers-ui",
-    "version": "0.1.3",
-    "file": "dsh-llm-providers-ui-0.1.3-2ea19427e9622253ae4621584e3d5fd4fcdb24b60ef72ca4e101ac2e267da595.tgz",
-    "bytes": 29675,
-    "sha256": "2ea19427e9622253ae4621584e3d5fd4fcdb24b60ef72ca4e101ac2e267da595"
+    "version": "0.1.12",
+    "file": "dsh-llm-providers-ui-0.1.12-c16667922b863563ddb0bbfb88682ee942d643dcdc431051e36bef69280b844e.tgz",
+    "bytes": 95966,
+    "sha256": "c16667922b863563ddb0bbfb88682ee942d643dcdc431051e36bef69280b844e"
   },
   "graph": {
     "officialAlpha4Packages": [
@@ -412,9 +412,21 @@
       }
     ],
     "multiVersionPackages": {
+      "@anthropic-ai/sdk": [
+        "0.123.0",
+        "0.91.1"
+      ],
       "@aws-sdk/token-providers": [
         "3.1048.0",
         "3.1116.0"
+      ],
+      "@earendil-works/pi-ai": [
+        "0.84.4",
+        "0.85.1"
+      ],
+      "@earendil-works/pi-telemetry": [
+        "0.84.4",
+        "0.85.1"
       ],
       "@smithy/node-http-handler": [
         "4.12.0",
@@ -2481,18 +2493,18 @@
       "sha256": "27666ed1036ae103758a8214a70052bfa817537c90fe652b07c846441784d8d7",
       "source": "registry"
     },
-    "dsh-llm-providers-ui-0.1.3-2ea19427e9622253ae4621584e3d5fd4fcdb24b60ef72ca4e101ac2e267da595.tgz": {
-      "package": "dsh-llm-providers-ui",
-      "version": "0.1.3",
-      "bytes": 29675,
-      "sha256": "2ea19427e9622253ae4621584e3d5fd4fcdb24b60ef72ca4e101ac2e267da595",
-      "source": "frozen-owner"
-    },
     "earendil-works-pi-ai-0.84.4.tgz": {
       "package": "@earendil-works/pi-ai",
       "version": "0.84.4",
       "bytes": 776905,
       "sha256": "dfd3c929cee5a7387199a0a24dfc1be2096f1ea8f59ffb8285198a0ed01ebf93",
+      "source": "registry"
+    },
+    "earendil-works-pi-ai-0.85.1.tgz": {
+      "package": "@earendil-works/pi-ai",
+      "version": "0.85.1",
+      "bytes": 798833,
+      "sha256": "af7d11986179445ce6fe88b37d57de22f823c0ffd3a65cae31c555b7f5e99253",
       "source": "registry"
     },
     "earendil-works-pi-telemetry-0.84.4.tgz": {
@@ -2941,6 +2953,48 @@
       "version": "4.5.4",
       "bytes": 1054799,
       "sha256": "51f51d886af1428713bf52b4e795afa43e2b43956b8483c9a92590f4c5a7b296",
+      "source": "registry"
+    },
+    "dsh-llm-providers-ui-0.1.12-c16667922b863563ddb0bbfb88682ee942d643dcdc431051e36bef69280b844e.tgz": {
+      "package": "dsh-llm-providers-ui",
+      "version": "0.1.12",
+      "bytes": 95966,
+      "sha256": "c16667922b863563ddb0bbfb88682ee942d643dcdc431051e36bef69280b844e",
+      "source": "frozen-owner"
+    },
+    "anthropic-ai-sdk-0.123.0.tgz": {
+      "package": "@anthropic-ai/sdk",
+      "version": "0.123.0",
+      "bytes": 1508782,
+      "sha256": "defd4168837747c74dae55a352da80e2e6a8e2d1343ed94a4d840a8ac7aef6bf",
+      "source": "registry"
+    },
+    "earendil-works-pi-telemetry-0.85.1.tgz": {
+      "package": "@earendil-works/pi-telemetry",
+      "version": "0.85.1",
+      "bytes": 27323,
+      "sha256": "22103a32c657ab1f0ca8dd0b3adab48924c56636a5a9ab8b89a43559fb201310",
+      "source": "registry"
+    },
+    "standardwebhooks-1.1.1.tgz": {
+      "package": "standardwebhooks",
+      "version": "1.1.1",
+      "bytes": 4109,
+      "sha256": "d0bc8fec280c9e30ea3cbc876f44fe71d56f443aeca2bd2bdf745718308d4aed",
+      "source": "registry"
+    },
+    "fast-sha256-1.3.0.tgz": {
+      "package": "fast-sha256",
+      "version": "1.3.0",
+      "bytes": 9135,
+      "sha256": "4f897ea2594dc9cfb1250e7d4d0f65b4f105952a802fff2d06990bf1dc2c84f6",
+      "source": "registry"
+    },
+    "stablelib-base64-1.0.1.tgz": {
+      "package": "@stablelib/base64",
+      "version": "1.0.1",
+      "bytes": 10397,
+      "sha256": "0130711d2e0d3f87436c7825db1f35bd6134fba2eda64b0df43d781f9b6a596a",
       "source": "registry"
     }
   }
