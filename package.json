@@ -1,7 +1,7 @@
 {
   "name": "dsh-llm-ollama",
   "description": "Ollama Cloud models, OpenAI-compatible chat, and Web Search/Fetch for DeepSeek Harness",
-  "version": "0.6.19",
+  "version": "0.6.20",
   "publishConfig": {
     "access": "public"
   },
@@ -54,8 +54,7 @@
   "license": "MIT",
   "dependencies": {
     "@deepseek-ai/dsh-util-values": ">=0.1.2-alpha.4 <1.0.0 || 0.1.2-alpha.5 || 0.1.2-rc.1 || 0.1.5-rc.1",
-    "@earendil-works/pi-ai": "^0.85.1",
-    "dsh-llm-providers-ui": "file:/home/noirbright/.dsh-lab/tmp/dsh-llm-providers-ui-0.1.12-preview.16.tgz"
+    "@earendil-works/pi-ai": "^0.85.1"
   },
   "dsh": {
     "bundle": {
@@ -132,7 +131,7 @@
     "@deepseek-ai/dsh-sandbox": "0.1.5-rc.1",
     "@deepseek-ai/dsh-timeout": "0.1.5-rc.1",
     "@deepseek-ai/dsh-web": "0.1.5-rc.1",
-    "dsh-llm-providers-ui": "https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/v0.1.12-015rc1d/dsh-llm-providers-ui-0.1.12.tgz",
+    "dsh-llm-providers-ui": "https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/v0.2.0/dsh-llm-providers-ui-0.2.0.tgz",
     "@testing-library/dom": "^10.0.0",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^22.0.0",
