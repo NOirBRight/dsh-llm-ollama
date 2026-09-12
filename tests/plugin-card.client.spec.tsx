@@ -3,7 +3,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
-import { providerDetailCopy } from 'dsh-llm-providers-ui/provider-detail'
+import { ProviderDetail, providerDetailCopy } from 'dsh-llm-providers-ui/provider-detail'
 import { OllamaPluginCard } from '../src/client/OllamaPluginCard.tsx'
 import type { OllamaPluginCardProps } from '../src/client/OllamaPluginCard.tsx'
 import { en } from '../src/client/locales.ts'
@@ -389,7 +389,7 @@ describe('OllamaPluginCard', () => {
         { id: 'hourly', label: 'Hour', shortLabel: 'H', remainingPercent: 95, valueText: '95%' },
       ],
     }
-    const { container } = render(<OllamaPluginCard {...props({ mode: 'detail', usage, accountState: 'configured', onRefresh, copy: providerDetailCopy.en })} />)
+    const { container } = render(<OllamaPluginCard {...props({ mode: 'detail', usage, accountState: 'configured', onRefresh, copy: providerDetailCopy.en, template: ProviderDetail })} />)
 
     expect(container.querySelector('[data-provider-detail]')).not.toBeNull()
     expect(container.querySelectorAll('[data-c-quota]')).toHaveLength(1)
