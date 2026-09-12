@@ -28,16 +28,12 @@ import { headerQuotaFromCache, peekCachedUsage, rememberHeadlineQuota } from 'ds
 import type { ProviderItemSlotContext } from 'dsh-llm-providers-ui/provider-detail'
 
 import {
-  CapabilitiesRow,
-  CatalogRow,
-  ModelDetail,
   fieldStyle,
   hintStyle,
   inputStyle,
   labelStyle,
   modelContentStyle,
   rowInputStyle,
-  selectStyle,
 } from './model-catalog-ui.tsx'
 
 /** Credential state exposed without returning the credential value. */
@@ -294,25 +290,6 @@ function rowKeyOf(model: ModelDraft): string {
 }
 
 /** One capability checkbox. */
-function Capability({ label, checked, disabled, onChange }: {
-  label: string
-  checked: boolean
-  disabled: boolean
-  onChange: (checked: boolean) => void
-}): ReactNode {
-  return (
-    <label style={{ ...labelStyle, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-      <input
-        type="checkbox"
-        checked={checked}
-        disabled={disabled}
-        onChange={(event) => { onChange(event.target.checked) }}
-      />
-      {label}
-    </label>
-  )
-}
-
 /** Disclosure chevron; rotates to point down while open. */
 function IconChevron({ open }: { open: boolean }): ReactNode {
   return (
@@ -738,53 +715,7 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
                                   >
                                     <IconTrash />
                                   </button>
-                                  {expanded
-                                    ? (
-                                      <ModelDetail gridColumn="1 / -1">
-                                        <CatalogRow>
-                                          <label style={fieldStyle}>
-                                            <span style={labelStyle}>{t('modelContext')}</span>
-                                            <input
-                                              style={inputStyle}
-                                              inputMode="numeric"
-                                              value={model.contextWindow}
-                                              disabled={disabled}
-                                              aria-label={t('modelContext')}
-                                              onChange={(event) => { patchModel(index, { contextWindow: event.target.value }) }}
-                                            />
-                                          </label>
-                                        </CatalogRow>
-                                        <CapabilitiesRow>
-                                          <Capability label={t('vision')} checked={model.vision === true} disabled={disabled} onChange={(vision) => { patchModel(index, { vision }) }} />
-                                          <Capability label={t('thinking')} checked={model.thinking === true} disabled={disabled} onChange={(thinking) => { patchModel(index, { thinking }) }} />
-                                          {(() => {
-                                            const efforts = effortsForOllamaModel(modelSettingsOf(model))
-                                            if (efforts.length === 0) return null
-                                            const suggested = ollamaDefaultEffort(model.id.trim()) ?? efforts[0]
-                                            return (
-                                              <label style={{ ...labelStyle, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                                                {t('defaultEffort')}
-                                                <select
-                                                  style={selectStyle}
-                                                  value={model.defaultEffort ?? suggested ?? ''}
-                                                  disabled={disabled}
-                                                  aria-label={t('defaultEffort')}
-                                                  onChange={(event) => {
-                                                    const effort = efforts.find(entry => entry === event.target.value)
-                                                    patchModel(index, { defaultEffort: effort })
-                                                  }}
-                                                >
-                                                  {efforts.map(effort => (
-                                                    <option key={effort} value={effort}>{OLLAMA_EFFORT_LABELS[effort] ?? effort}</option>
-                                                  ))}
-                                                </select>
-                                              </label>
-                                            )
-                                          })()}
-                                        </CapabilitiesRow>
-                                      </ModelDetail>
-                                    )
-                                    : null}
+                                   {expanded ? modelExtra(model, index) : null}
                                 </div>
                               )
                             }}
@@ -858,6 +789,57 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
   )
 
 
+  /** Provider-specific fields for one expanded model row; shared by both layouts. */
+  const modelExtra = (model: ModelDraft, index: number): ReactNode => (
+    <div className="c-extra-grid">
+      <label className="c-field">
+        <span className="c-field-label">{t('modelContext')}</span>
+        <input
+          className="c-input"
+          inputMode="numeric"
+          value={model.contextWindow}
+          disabled={disabled}
+          aria-label={t('modelContext')}
+          onChange={(event) => { patchModel(index, { contextWindow: event.target.value }) }}
+        />
+      </label>
+      <div className="c-extra-checks">
+        <label>
+          <input type="checkbox" checked={model.vision === true} disabled={disabled} onChange={(event) => { patchModel(index, { vision: event.target.checked }) }} />
+          {t('vision')}
+        </label>
+        <label>
+          <input type="checkbox" checked={model.thinking === true} disabled={disabled} onChange={(event) => { patchModel(index, { thinking: event.target.checked }) }} />
+          {t('thinking')}
+        </label>
+      </div>
+      {(() => {
+        const efforts = effortsForOllamaModel(modelSettingsOf(model))
+        if (efforts.length === 0) return null
+        const suggested = ollamaDefaultEffort(model.id.trim()) ?? efforts[0]
+        return (
+          <label className="c-field">
+            <span className="c-field-label">{t('defaultEffort')}</span>
+            <select
+              className="c-input"
+              value={model.defaultEffort ?? suggested ?? ''}
+              disabled={disabled}
+              aria-label={t('defaultEffort')}
+              onChange={(event) => {
+                const effort = efforts.find(entry => entry === event.target.value)
+                patchModel(index, { defaultEffort: effort })
+              }}
+            >
+              {efforts.map(effort => (
+                <option key={effort} value={effort}>{OLLAMA_EFFORT_LABELS[effort] ?? effort}</option>
+              ))}
+            </select>
+          </label>
+        )
+      })()}
+    </div>
+  )
+
   // Prototype C detail: the shared template owns the layout, this card owns Ollama's data.
   const SharedDetail = props.template
   const detailCopy = props.copy
@@ -868,6 +850,7 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
         <SharedDetail
           name={title}
           role="llm"
+          mark={<BrandMark />}
           copy={detailCopy}
           notice={t('description')}
           account={{
@@ -889,7 +872,37 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
             sortDisabled: disabled || draft.models.length < 2,
             onChooseFromAccount: () => { void fetchModels() },
             chooseDisabled: fetching || invalid || snapshot.status !== 'ready',
-            list: modelsList,
+            items: draft.models.map(model => ({
+              rowId: model.rowId,
+              id: model.id,
+              ...(model.name === undefined ? {} : { name: model.name }),
+            })),
+            expanded: [...expandedModels],
+            onPatch: (rowId, patch) => {
+              const index = draft.models.findIndex(model => model.rowId === rowId)
+              if (index >= 0) patchModel(index, patch)
+            },
+            onRemove: (rowId) => {
+              const index = draft.models.findIndex(model => model.rowId === rowId)
+              if (index >= 0) removeModel(index)
+            },
+            onToggle: (rowId) => { toggleModel(rowId) },
+            onReorder: (rowIds) => {
+              const byId = new Map(draft.models.map(model => [model.rowId, model]))
+              const next = rowIds.map(rowId => byId.get(rowId)).filter((model): model is ModelDraft => model !== undefined)
+              if (next.length === draft.models.length) patchDraft({ models: next })
+            },
+            onAdd: () => {
+              const model: ModelDraft = { rowId: newModelRowId(), id: '', contextWindow: '' }
+              patchDraft({ models: [...draft.models, model] })
+              setExpandedModels(current => new Set(current).add(model.rowId))
+            },
+            addDisabled: disabled,
+            extra: (row) => {
+              const index = draft.models.findIndex(model => model.rowId === row.rowId)
+              const model = draft.models[index]
+              return index < 0 || model === undefined ? null : modelExtra(model, index)
+            },
           }}
           draft={draftBlock}
         />
