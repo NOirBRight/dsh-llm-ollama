@@ -3,6 +3,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
+import { providerDetailCopy } from 'dsh-llm-providers-ui/provider-detail'
 import { OllamaPluginCard } from '../src/client/OllamaPluginCard.tsx'
 import type { OllamaPluginCardProps } from '../src/client/OllamaPluginCard.tsx'
 import { en } from '../src/client/locales.ts'
@@ -377,5 +378,24 @@ describe('OllamaPluginCard', () => {
     expect(saveConfiguration).toHaveBeenCalledWith(expect.objectContaining({
       models: [{ id: 'bravo' }, { id: 'charlie' }, { id: 'alpha-edited' }],
     }))
+  })
+  it('renders the shared detail template when the settings page asks for it', () => {
+    const onRefresh = vi.fn()
+    const usage = {
+      status: 'ready' as const,
+      fetchedAt: '2026-09-12T00:00:00.000Z',
+      windows: [
+        { id: 'weekly', label: 'Week', shortLabel: 'W', remainingPercent: 72, valueText: '72%' },
+        { id: 'hourly', label: 'Hour', shortLabel: 'H', remainingPercent: 95, valueText: '95%' },
+      ],
+    }
+    const { container } = render(<OllamaPluginCard {...props({ mode: 'detail', usage, accountState: 'configured', onRefresh, copy: providerDetailCopy.en })} />)
+
+    expect(container.querySelector('[data-provider-detail]')).not.toBeNull()
+    expect(container.querySelectorAll('[data-c-quota]')).toHaveLength(1)
+    expect(container.textContent).toContain('72%')
+    expect(container.textContent).toContain('95%')
+    // The plugin's own usage section is gone in detail mode.
+    expect(container.querySelector('[aria-label="' + en.usage + '"]')).toBeNull()
   })
 })

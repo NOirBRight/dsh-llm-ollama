@@ -25,6 +25,7 @@ import { ProviderCardHeader, ProviderQuotaMeter, UsageHeader, UsageSkeleton, Usa
 import type { ProviderQuotaState } from 'dsh-llm-providers-ui/provider-ui';
 import { SortableList } from 'dsh-llm-providers-ui/sortable'
 import { headerQuotaFromCache, peekCachedUsage, rememberHeadlineQuota } from 'dsh-llm-providers-ui/usage-readers'
+import { ProviderDetail, providerDetailCopy, type ProviderItemSlotContext } from 'dsh-llm-providers-ui/provider-detail'
 
 import {
   CapabilitiesRow,
@@ -89,6 +90,8 @@ export interface OllamaPluginCardFace {
 export type OllamaPluginCardProps =
   PropsRuntime<'settings.provider.item'>
   & InjectFace<OllamaPluginCardFace>
+  // Present only on the settings page; an older host renders the legacy card.
+  & Partial<ProviderItemSlotContext>
 
 interface ModelDraft {
   /** Client-only stable identity; stripped before settings are saved. */
@@ -671,6 +674,227 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
   // stale local lastUsage must not look fresh on error/unsupported either.
   const headerQuota = quotaWithheld ? undefined : (liveQuota ?? headerQuotaFromCache(peekCachedUsage(OLLAMA_SETTINGS_NAMESPACE)))
 
+  // Prototype C pieces, shared by the legacy card and the migrated detail.
+  const modelsList = (
+    <>
+                          <SortableList
+                            items={draft?.models ?? []}
+                            getId={model => model.rowId}
+                            disabled={disabled}
+                            sorting={modelSorting}
+                            dragLabel={(model, index) => {
+                              const label = model.id.trim().length > 0 ? model.id.trim() : String(index + 1)
+                              return t('dragModel') + ': ' + label
+                            }}
+                            moveButtons
+                            moveUpLabel={(model, index) => {
+                              const label = model.id.trim().length > 0 ? model.id.trim() : String(index + 1)
+                              return t('moveUp') + ': ' + label
+                            }}
+                            moveDownLabel={(model, index) => {
+                              const label = model.id.trim().length > 0 ? model.id.trim() : String(index + 1)
+                              return t('moveDown') + ': ' + label
+                            }}
+                            onReorder={(models) => { patchDraft({ models }) }}
+                            renderItem={(model, index) => {
+                              const key = rowKeyOf(model)
+                              const expanded = expandedModels.has(key)
+                              const label = model.id.trim().length > 0 ? model.id.trim() : String(index + 1)
+                              return (
+                                <div data-model-row={label} data-provider-model="" style={modelContentStyle}>
+                                  <input
+                                    style={rowInputStyle}
+                                    value={model.id}
+                                    placeholder={t('modelId')}
+                                    aria-label={t('modelId') + ' ' + String(index + 1)}
+                                    disabled={disabled}
+                                    onChange={(event) => { patchModel(index, { id: event.target.value }) }}
+                                  />
+                                  <input
+                                    style={rowInputStyle}
+                                    value={model.name ?? ''}
+                                    placeholder={t('modelName')}
+                                    aria-label={t('modelName') + ' ' + String(index + 1)}
+                                    disabled={disabled}
+                                    onChange={(event) => { patchModel(index, { name: event.target.value || undefined }) }}
+                                  />
+                                  <button
+                                    type="button"
+                                    style={iconButtonStyle}
+                                    aria-label={t('modelDetails') + ': ' + label}
+                                    aria-expanded={expanded}
+                                    title={t('modelDetails')}
+                                    onClick={() => { toggleModel(key) }}
+                                  >
+                                    <IconChevron open={expanded} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    style={iconButtonStyle}
+                                    aria-label={t('remove') + ' ' + label}
+                                    title={t('remove')}
+                                    disabled={disabled}
+                                    onClick={() => { removeModel(index) }}
+                                  >
+                                    <IconTrash />
+                                  </button>
+                                  {expanded
+                                    ? (
+                                      <ModelDetail gridColumn="1 / -1">
+                                        <CatalogRow>
+                                          <label style={fieldStyle}>
+                                            <span style={labelStyle}>{t('modelContext')}</span>
+                                            <input
+                                              style={inputStyle}
+                                              inputMode="numeric"
+                                              value={model.contextWindow}
+                                              disabled={disabled}
+                                              aria-label={t('modelContext')}
+                                              onChange={(event) => { patchModel(index, { contextWindow: event.target.value }) }}
+                                            />
+                                          </label>
+                                        </CatalogRow>
+                                        <CapabilitiesRow>
+                                          <Capability label={t('vision')} checked={model.vision === true} disabled={disabled} onChange={(vision) => { patchModel(index, { vision }) }} />
+                                          <Capability label={t('thinking')} checked={model.thinking === true} disabled={disabled} onChange={(thinking) => { patchModel(index, { thinking }) }} />
+                                          {(() => {
+                                            const efforts = effortsForOllamaModel(modelSettingsOf(model))
+                                            if (efforts.length === 0) return null
+                                            const suggested = ollamaDefaultEffort(model.id.trim()) ?? efforts[0]
+                                            return (
+                                              <label style={{ ...labelStyle, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                                                {t('defaultEffort')}
+                                                <select
+                                                  style={selectStyle}
+                                                  value={model.defaultEffort ?? suggested ?? ''}
+                                                  disabled={disabled}
+                                                  aria-label={t('defaultEffort')}
+                                                  onChange={(event) => {
+                                                    const effort = efforts.find(entry => entry === event.target.value)
+                                                    patchModel(index, { defaultEffort: effort })
+                                                  }}
+                                                >
+                                                  {efforts.map(effort => (
+                                                    <option key={effort} value={effort}>{OLLAMA_EFFORT_LABELS[effort] ?? effort}</option>
+                                                  ))}
+                                                </select>
+                                              </label>
+                                            )
+                                          })()}
+                                        </CapabilitiesRow>
+                                      </ModelDetail>
+                                    )
+                                    : null}
+                                </div>
+                              )
+                            }}
+                          />
+                          <button
+                            type="button"
+                            style={{ ...buttonStyle, alignSelf: 'flex-start' }}
+                            disabled={disabled}
+                            onClick={() => {
+                              const model: ModelDraft = { rowId: newModelRowId(), id: '', contextWindow: '' }
+                              patchDraft({ models: [...draft?.models ?? [], model] })
+                              setExpandedModels(current => new Set(current).add(model.rowId))
+                            }}
+                          >
+                            {t('addModel')}
+                          </button>
+    </>
+  )
+  const accountFields = (
+    <>
+                    <label style={fieldStyle}>
+                      <span style={labelStyle}>{t('apiKey')}</span>
+                      <input
+                        style={inputStyle}
+                        type="password"
+                        aria-label={t('apiKey')}
+                        autoComplete="off"
+                        value={apiKey}
+                        placeholder={credential?.configured ? t('apiKeyConfigured') : t('apiKeyPlaceholder')}
+                        disabled={busy || credential?.writable === false}
+                        onChange={(event) => { setApiKey(event.target.value); setFailure(undefined); setNotice(undefined) }}
+                      />
+                      <span style={hintStyle}>
+                        {apiKey.length > 0
+                          ? t('apiKeyPending')
+                          : credential?.configured
+                            ? t('apiKeyConfigured')
+                            : t('apiKeyUnset')}
+                      </span>
+                    </label>
+                    <label style={fieldStyle}>
+                      <span style={labelStyle}>{t('baseURL')}</span>
+                      <input
+                        style={inputStyle}
+                        type="url"
+                        aria-label={t('baseURL')}
+                        value={draft?.baseURL ?? ''}
+                        disabled={disabled}
+                        onChange={(event) => { patchDraft({ baseURL: event.target.value }) }}
+                      />
+                    </label>
+    </>
+  )
+  const draftBlock = (
+    <>
+            {validation === undefined ? null : <p style={errorStyle}>{validation}</p>}
+            {failure === undefined ? null : <p style={errorStyle}>{failure}</p>}
+            {notice === undefined ? null : <p style={statusStyle}>{notice}</p>}
+            <div style={actionsStyle}>
+              <button type="button" style={buttonStyle} disabled={!dirty || busy} onClick={discard}>{t('discard')}</button>
+              <button
+                type="button"
+                style={primaryButtonStyle}
+                disabled={!dirty || invalid || disabled}
+                onClick={() => { void save() }}
+              >
+                {t(busy ? 'saving' : 'save')}
+              </button>
+            </div>
+    </>
+  )
+
+
+  // Prototype C detail: the shared template owns the layout, this card owns Ollama's data.
+  if (props.mode === 'detail' && draft !== undefined) {
+    const configured = credential?.configured === true
+    return (
+      <li style={cardStyle} data-provider-card="" data-provider-role="llm">
+        <ProviderDetail
+          name={title}
+          role="llm"
+          copy={props.copy ?? providerDetailCopy.en}
+          notice={t('description')}
+          account={{
+            state: configured ? 'configured' : 'unconnected',
+            label: configured ? t('summaryOn') : t('apiKeyUnset'),
+            body: accountFields,
+          }}
+          quota={{
+            status: props.usage?.status ?? 'loading',
+            windows: props.usage?.windows ?? [],
+            ...(props.onRefresh === undefined ? {} : { onRefresh: props.onRefresh }),
+          }}
+          models={{
+            count: draft.models.length,
+            allOpen: catalogOpen,
+            onToggleAll: () => { setCatalogOpen(value => !value) },
+            sorting: modelSorting,
+            onToggleSorting: () => { setModelSorting(current => !current) },
+            sortDisabled: disabled || draft.models.length < 2,
+            onChooseFromAccount: () => { void fetchModels() },
+            chooseDisabled: fetching || invalid || snapshot.status !== 'ready',
+            list: modelsList,
+          }}
+          draft={draftBlock}
+        />
+      </li>
+    )
+  }
+
   return (
     <li style={cardStyle} data-provider-card="" data-provider-role="llm">
       <style>{providerUiCss}</style>
@@ -710,37 +934,7 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
                 <>
                   <section style={sectionStyle}>
                     <h3 style={sectionTitleStyle}>{t('connection')}</h3>
-                    <label style={fieldStyle}>
-                      <span style={labelStyle}>{t('apiKey')}</span>
-                      <input
-                        style={inputStyle}
-                        type="password"
-                        aria-label={t('apiKey')}
-                        autoComplete="off"
-                        value={apiKey}
-                        placeholder={credential?.configured ? t('apiKeyConfigured') : t('apiKeyPlaceholder')}
-                        disabled={busy || credential?.writable === false}
-                        onChange={(event) => { setApiKey(event.target.value); setFailure(undefined); setNotice(undefined) }}
-                      />
-                      <span style={hintStyle}>
-                        {apiKey.length > 0
-                          ? t('apiKeyPending')
-                          : credential?.configured
-                            ? t('apiKeyConfigured')
-                            : t('apiKeyUnset')}
-                      </span>
-                    </label>
-                    <label style={fieldStyle}>
-                      <span style={labelStyle}>{t('baseURL')}</span>
-                      <input
-                        style={inputStyle}
-                        type="url"
-                        aria-label={t('baseURL')}
-                        value={draft.baseURL}
-                        disabled={disabled}
-                        onChange={(event) => { patchDraft({ baseURL: event.target.value }) }}
-                      />
-                    </label>
+                    {accountFields}
                   </section>
 
                   <section style={sectionStyle} aria-label={t('usage')}>
@@ -867,154 +1061,12 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
                         </button>
                       </span>
                     </div>
-                    {catalogOpen
-                      ? (
-                        <>
-                          <SortableList
-                            items={draft.models}
-                            getId={model => model.rowId}
-                            disabled={disabled}
-                            sorting={modelSorting}
-                            dragLabel={(model, index) => {
-                              const label = model.id.trim().length > 0 ? model.id.trim() : String(index + 1)
-                              return t('dragModel') + ': ' + label
-                            }}
-                            moveButtons
-                            moveUpLabel={(model, index) => {
-                              const label = model.id.trim().length > 0 ? model.id.trim() : String(index + 1)
-                              return t('moveUp') + ': ' + label
-                            }}
-                            moveDownLabel={(model, index) => {
-                              const label = model.id.trim().length > 0 ? model.id.trim() : String(index + 1)
-                              return t('moveDown') + ': ' + label
-                            }}
-                            onReorder={(models) => { patchDraft({ models }) }}
-                            renderItem={(model, index) => {
-                              const key = rowKeyOf(model)
-                              const expanded = expandedModels.has(key)
-                              const label = model.id.trim().length > 0 ? model.id.trim() : String(index + 1)
-                              return (
-                                <div data-model-row={label} data-provider-model="" style={modelContentStyle}>
-                                  <input
-                                    style={rowInputStyle}
-                                    value={model.id}
-                                    placeholder={t('modelId')}
-                                    aria-label={t('modelId') + ' ' + String(index + 1)}
-                                    disabled={disabled}
-                                    onChange={(event) => { patchModel(index, { id: event.target.value }) }}
-                                  />
-                                  <input
-                                    style={rowInputStyle}
-                                    value={model.name ?? ''}
-                                    placeholder={t('modelName')}
-                                    aria-label={t('modelName') + ' ' + String(index + 1)}
-                                    disabled={disabled}
-                                    onChange={(event) => { patchModel(index, { name: event.target.value || undefined }) }}
-                                  />
-                                  <button
-                                    type="button"
-                                    style={iconButtonStyle}
-                                    aria-label={t('modelDetails') + ': ' + label}
-                                    aria-expanded={expanded}
-                                    title={t('modelDetails')}
-                                    onClick={() => { toggleModel(key) }}
-                                  >
-                                    <IconChevron open={expanded} />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    style={iconButtonStyle}
-                                    aria-label={t('remove') + ' ' + label}
-                                    title={t('remove')}
-                                    disabled={disabled}
-                                    onClick={() => { removeModel(index) }}
-                                  >
-                                    <IconTrash />
-                                  </button>
-                                  {expanded
-                                    ? (
-                                      <ModelDetail gridColumn="1 / -1">
-                                        <CatalogRow>
-                                          <label style={fieldStyle}>
-                                            <span style={labelStyle}>{t('modelContext')}</span>
-                                            <input
-                                              style={inputStyle}
-                                              inputMode="numeric"
-                                              value={model.contextWindow}
-                                              disabled={disabled}
-                                              aria-label={t('modelContext')}
-                                              onChange={(event) => { patchModel(index, { contextWindow: event.target.value }) }}
-                                            />
-                                          </label>
-                                        </CatalogRow>
-                                        <CapabilitiesRow>
-                                          <Capability label={t('vision')} checked={model.vision === true} disabled={disabled} onChange={(vision) => { patchModel(index, { vision }) }} />
-                                          <Capability label={t('thinking')} checked={model.thinking === true} disabled={disabled} onChange={(thinking) => { patchModel(index, { thinking }) }} />
-                                          {(() => {
-                                            const efforts = effortsForOllamaModel(modelSettingsOf(model))
-                                            if (efforts.length === 0) return null
-                                            const suggested = ollamaDefaultEffort(model.id.trim()) ?? efforts[0]
-                                            return (
-                                              <label style={{ ...labelStyle, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                                                {t('defaultEffort')}
-                                                <select
-                                                  style={selectStyle}
-                                                  value={model.defaultEffort ?? suggested ?? ''}
-                                                  disabled={disabled}
-                                                  aria-label={t('defaultEffort')}
-                                                  onChange={(event) => {
-                                                    const effort = efforts.find(entry => entry === event.target.value)
-                                                    patchModel(index, { defaultEffort: effort })
-                                                  }}
-                                                >
-                                                  {efforts.map(effort => (
-                                                    <option key={effort} value={effort}>{OLLAMA_EFFORT_LABELS[effort] ?? effort}</option>
-                                                  ))}
-                                                </select>
-                                              </label>
-                                            )
-                                          })()}
-                                        </CapabilitiesRow>
-                                      </ModelDetail>
-                                    )
-                                    : null}
-                                </div>
-                              )
-                            }}
-                          />
-                          <button
-                            type="button"
-                            style={{ ...buttonStyle, alignSelf: 'flex-start' }}
-                            disabled={disabled}
-                            onClick={() => {
-                              const model: ModelDraft = { rowId: newModelRowId(), id: '', contextWindow: '' }
-                              patchDraft({ models: [...draft.models, model] })
-                              setExpandedModels(current => new Set(current).add(model.rowId))
-                            }}
-                          >
-                            {t('addModel')}
-                          </button>
-                        </>
-                      )
-                      : null}
+                    {catalogOpen ? modelsList : null}
                   </section>
                 </>
               )}
 
-            {validation === undefined ? null : <p style={errorStyle}>{validation}</p>}
-            {failure === undefined ? null : <p style={errorStyle}>{failure}</p>}
-            {notice === undefined ? null : <p style={statusStyle}>{notice}</p>}
-            <div style={actionsStyle}>
-              <button type="button" style={buttonStyle} disabled={!dirty || busy} onClick={discard}>{t('discard')}</button>
-              <button
-                type="button"
-                style={primaryButtonStyle}
-                disabled={!dirty || invalid || disabled}
-                onClick={() => { void save() }}
-              >
-                {t(busy ? 'saving' : 'save')}
-              </button>
-            </div>
+            {draftBlock}
           </div>
         )
         : null}

@@ -11,14 +11,6 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
 
-/** Register this card and its quota reader on the shared Provider directory. */
-function installProviderDirectory(ctx: ClientContext): void {
-  ctx.inject(['providerDirectory'], scope => {
-    const directory = (scope as unknown as { providerDirectory: { register(entry: { key: string, usage: unknown }): () => void } }).providerDirectory
-    scope.effect(() => directory.register({ key: OLLAMA_SETTINGS_NAMESPACE, usage: createOllamaUsageReader() }), 'dsh-llm-ollama: provider directory registration')
-  })
-}
-
 import {
   decodeOllamaCredentialStatus,
   decodeOllamaDiscoveryResult,
@@ -64,7 +56,6 @@ export const MISSING_OWNER_GRACE_MS = 15_000
 /** Register localized Ollama Cloud configuration under Plugin configuration. */
 
 export function apply(ctx: ClientContext): void {
-  installProviderDirectory(ctx)
 
   const localeNamespace = 'settings.ollama-cloud'
   ctx.effect(
@@ -197,7 +188,16 @@ export function apply(ctx: ClientContext): void {
   }, OllamaPluginCard))
   ctx.inject(['providerDirectory'], (ctx) => {
     ctx.effect(
-      () => ctx.providerDirectory.register({ key: OLLAMA_SETTINGS_NAMESPACE, role: 'llm', header: 'shared', usage: createOllamaUsageReader() }),
+      () => ctx.providerDirectory.register({
+        key: OLLAMA_SETTINGS_NAMESPACE,
+        name: 'Ollama Cloud',
+        role: 'llm',
+        header: 'shared',
+        // The card renders the shared detail template; the settings page adds only the breadcrumb.
+        detail: 'shared',
+        usage: createOllamaUsageReader(),
+        modelCount: () => currentSnapshot.value?.models?.length,
+      }),
       'dsh-llm-ollama: provider directory',
     )
   })
