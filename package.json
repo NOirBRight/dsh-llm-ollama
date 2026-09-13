@@ -1,7 +1,7 @@
 {
   "name": "dsh-llm-ollama",
   "description": "Ollama Cloud models, OpenAI-compatible chat, and Web Search/Fetch for DeepSeek Harness",
-  "version": "0.6.22",
+  "version": "0.6.23",
   "publishConfig": {
     "access": "public"
   },
@@ -53,7 +53,6 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@deepseek-ai/dsh-util-values": ">=0.1.2-alpha.4 <1.0.0 || 0.1.2-alpha.5 || 0.1.2-rc.1 || 0.1.5-rc.1",
     "@earendil-works/pi-ai": "^0.85.1"
   },
   "dsh": {
@@ -82,28 +81,29 @@
   "peerDependencies": {
     "@deepseek-ai/cordis": ">=4.0.2 <5.0.0",
     "@deepseek-ai/schemastery": "^3.18.1",
-    "@deepseek-ai/dsh-api-remotes": ">=0.1.2-alpha.4 <1.0.0 || 0.1.2-alpha.5 || 0.1.2-rc.1 || 0.1.5-rc.1",
-    "@deepseek-ai/dsh-attachment": ">=0.1.2-alpha.4 <1.0.0 || 0.1.2-alpha.5 || 0.1.2-rc.1 || 0.1.5-rc.1",
-    "@deepseek-ai/dsh-client-connection": ">=0.1.2-alpha.4 <1.0.0 || 0.1.2-alpha.5 || 0.1.2-rc.1 || 0.1.5-rc.1",
-    "@deepseek-ai/dsh-client-locale": ">=0.1.2-alpha.4 <1.0.0 || 0.1.2-alpha.5 || 0.1.2-rc.1 || 0.1.5-rc.1",
-    "@deepseek-ai/dsh-client-ui-settings": ">=0.1.2-alpha.4 <1.0.0 || 0.1.2-alpha.5 || 0.1.2-rc.1 || 0.1.5-rc.1",
-    "@deepseek-ai/dsh-client-ui-settings-plugins": ">=0.1.2-alpha.4 <1.0.0 || 0.1.2-alpha.5 || 0.1.2-rc.1 || 0.1.5-rc.1",
-    "@deepseek-ai/dsh-client-ui-layout": ">=0.1.2-alpha.4 <1.0.0 || 0.1.2-alpha.5 || 0.1.2-rc.1 || 0.1.5-rc.1",
-    "@deepseek-ai/dsh-client-ui-slots": ">=0.1.2-alpha.4 <1.0.0 || 0.1.2-alpha.5 || 0.1.2-rc.1 || 0.1.5-rc.1",
-    "@deepseek-ai/dsh-authorization": ">=0.1.2-alpha.4 <1.0.0 || 0.1.2-alpha.5 || 0.1.2-rc.1 || 0.1.5-rc.1",
-    "@deepseek-ai/dsh-credentials": ">=0.1.2-alpha.4 <1.0.0 || 0.1.2-alpha.5 || 0.1.2-rc.1 || 0.1.5-rc.1",
-    "@deepseek-ai/dsh-launch-environment": ">=0.1.2-alpha.4 <1.0.0 || 0.1.2-alpha.5 || 0.1.2-rc.1 || 0.1.5-rc.1",
-    "@deepseek-ai/dsh-invariants": ">=0.1.2-alpha.4 <1.0.0 || 0.1.2-alpha.5 || 0.1.2-rc.1 || 0.1.5-rc.1",
-    "@deepseek-ai/dsh-fs": ">=0.1.2-alpha.4 <1.0.0 || 0.1.2-alpha.5 || 0.1.2-rc.1 || 0.1.5-rc.1",
-    "@deepseek-ai/dsh-llm": ">=0.1.2-alpha.4 <1.0.0 || 0.1.2-alpha.5 || 0.1.2-rc.1 || 0.1.5-rc.1",
-    "@deepseek-ai/dsh-llm-pi-ai": ">=0.1.2-alpha.4 <1.0.0 || 0.1.2-alpha.5 || 0.1.2-rc.1 || 0.1.5-rc.1",
-    "@deepseek-ai/dsh-settings": ">=0.1.2-alpha.4 <1.0.0 || 0.1.2-alpha.5 || 0.1.2-rc.1 || 0.1.5-rc.1",
-    "@deepseek-ai/dsh-scope": ">=0.1.2-alpha.4 <1.0.0 || 0.1.2-alpha.5 || 0.1.2-rc.1 || 0.1.5-rc.1",
-    "@deepseek-ai/dsh-sandbox": ">=0.1.2-alpha.4 <1.0.0 || 0.1.2-alpha.5 || 0.1.2-rc.1 || 0.1.5-rc.1",
-    "@deepseek-ai/dsh-timeout": ">=0.1.2-alpha.4 <1.0.0 || 0.1.2-alpha.5 || 0.1.2-rc.1 || 0.1.5-rc.1",
-    "@deepseek-ai/dsh-web": ">=0.1.2-alpha.4 <1.0.0 || 0.1.2-alpha.5 || 0.1.2-rc.1 || 0.1.5-rc.1",
+    "@deepseek-ai/dsh-api-remotes": "*",
+    "@deepseek-ai/dsh-attachment": "*",
+    "@deepseek-ai/dsh-client-connection": "*",
+    "@deepseek-ai/dsh-client-locale": "*",
+    "@deepseek-ai/dsh-client-ui-settings": "*",
+    "@deepseek-ai/dsh-client-ui-settings-plugins": "*",
+    "@deepseek-ai/dsh-client-ui-layout": "*",
+    "@deepseek-ai/dsh-client-ui-slots": "*",
+    "@deepseek-ai/dsh-authorization": "*",
+    "@deepseek-ai/dsh-credentials": "*",
+    "@deepseek-ai/dsh-launch-environment": "*",
+    "@deepseek-ai/dsh-invariants": "*",
+    "@deepseek-ai/dsh-fs": "*",
+    "@deepseek-ai/dsh-llm": "*",
+    "@deepseek-ai/dsh-llm-pi-ai": "*",
+    "@deepseek-ai/dsh-settings": "*",
+    "@deepseek-ai/dsh-scope": "*",
+    "@deepseek-ai/dsh-sandbox": "*",
+    "@deepseek-ai/dsh-timeout": "*",
+    "@deepseek-ai/dsh-web": "*",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "@deepseek-ai/dsh-util-values": "*"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.2",
@@ -142,6 +142,72 @@
     "react-dom": "^18.2.0",
     "tsdown": "^0.22.2",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.8",
+    "@deepseek-ai/dsh-util-values": "0.1.5-rc.1"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/dsh-util-values": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-api-remotes": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-attachment": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-client-connection": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-client-locale": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-client-ui-settings": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-client-ui-settings-plugins": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-client-ui-layout": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-client-ui-slots": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-authorization": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-credentials": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-launch-environment": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-invariants": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-fs": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-llm": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-llm-pi-ai": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-settings": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-scope": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-sandbox": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-timeout": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-web": {
+      "optional": true
+    }
   }
 }
