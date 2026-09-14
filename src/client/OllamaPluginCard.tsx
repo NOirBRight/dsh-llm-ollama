@@ -21,10 +21,9 @@ import {
 } from '../reasoning.ts'
 import type { OllamaSettingsKey } from './locales.ts'
 import { BrandMark } from './BrandMark.tsx'
-import { ProviderCardHeader, ProviderQuotaMeter, UsageHeader, UsageSkeleton, UsageUpdatedAt, formatUsageClock, providerUiCss, resetLabelOf } from './provider-chrome.tsx'
+import { ProviderCardHeader, ProviderQuotaMeter, UsageHeader, UsageSkeleton, UsageUpdatedAt, formatUsageClock, providerUiCss, resetLabelOf, useProviderQuotaCache } from './provider-chrome.tsx'
 import type { ProviderQuotaState } from 'dsh-llm-providers-ui/provider-ui';
 import { SortableList } from 'dsh-llm-providers-ui/sortable'
-import { headerQuotaFromCache, peekCachedUsage, rememberHeadlineQuota } from 'dsh-llm-providers-ui/usage-readers'
 import type { ProviderItemSlotContext } from 'dsh-llm-providers-ui/provider-detail'
 
 import {
@@ -521,7 +520,6 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
       if (!live()) return
       if (read.kind === 'ok') {
         setLastUsage(read.usage)
-        rememberHeadlineQuota(OLLAMA_SETTINGS_NAMESPACE, 'Ollama Cloud', headlineQuotaOf(read.usage, t))
         setUsageUpdatedAt(new Date())
       }
       setUsage(
@@ -651,7 +649,11 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
     || usage.status === 'error' || usage.status === 'unsupported' || usage.status === 'needs-restart'
   // The verdict gates the entire header quota, not only the persisted fallback:
   // stale local lastUsage must not look fresh on error/unsupported either.
-  const headerQuota = quotaWithheld ? undefined : (liveQuota ?? headerQuotaFromCache(peekCachedUsage(OLLAMA_SETTINGS_NAMESPACE)))
+  const headerQuota = useProviderQuotaCache(OLLAMA_SETTINGS_NAMESPACE, 'Ollama Cloud', liveQuota ?? null, {
+    answered: credential !== undefined,
+    signedOut: credential?.configured === false,
+    withheld: quotaWithheld,
+  })
 
   // Prototype C pieces, shared by the legacy card and the migrated detail.
   const modelsList = (
@@ -929,7 +931,7 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
           unsaved={dirty}
           unsavedLabel={t('unsaved')}
           role="llm"
-          {...(headerQuota === undefined
+          {...(headerQuota === null
             ? (credential?.configured === true && (usage.status === 'error' || usage.status === 'unsupported' || usage.status === 'needs-restart')
               // Query attempted but no usable quota: unavailable dash, never a fabricated percent.
               ? { quota: { label: t('usage') } }

@@ -64,10 +64,22 @@ export function apply(ctx: ClientContext): void {
   )
   const t = ctx.locale.bind(localeNamespace) as OllamaPluginCardFace['t']
   const picker = new OllamaModelPickerController()
+  const account = { state: 'unknown' as 'connected' | 'configured' | 'unconnected' | 'unknown' }
+  let accountEpoch = 0
+  let closed = false
+  const publishAccount = (state: typeof account.state): void => {
+    if (closed || account.state === state) return
+    account.state = state
+    try { ctx.get('providerDirectory')?.update(OLLAMA_SETTINGS_NAMESPACE) } catch { /* providerDirectory is optional in lab */ }
+  }
   const { rpc } = ctx.get('connection') as unknown as ConnectionHandle
   let currentSnapshot: SettingsScopeSnapshot<OllamaSettingsView> = { status: 'loading', value: undefined, base: undefined, user: undefined, revision: undefined, writable: false, mode: 'host' }
   const listeners = new Set<() => void>()
-  const publish = (next: SettingsScopeSnapshot<OllamaSettingsView>): void => { currentSnapshot = next; for (const listener of listeners) listener() }
+  const publish = (next: SettingsScopeSnapshot<OllamaSettingsView>): void => {
+    if (closed) return
+    currentSnapshot = next
+    for (const listener of listeners) listener()
+  }
   const readManagement = async (): Promise<void> => {
     const result = await rpc.call(OLLAMA_RPC_CHANNEL, OLLAMA_SETTINGS_READ_ENDPOINT, {})
     if (!result.ok) { publish({ ...currentSnapshot, status: 'unavailable' }); throw new Error(result.error.message) }
@@ -82,14 +94,16 @@ export function apply(ctx: ClientContext): void {
     set: async () => { throw new Error('settings are managed by the provider RPC') },
     unset: async () => { throw new Error('settings are managed by the provider RPC') },
   }
-  void readManagement().catch(() => {})
+
 
   const describeCredential: OllamaPluginCardFace['describeCredential'] = async () => {
+    const epoch = accountEpoch
     const ref = scope.getSnapshot().value?.apiKeyEnv ?? DEFAULT_API_KEY_ENV
     const result = await rpc.call(OLLAMA_RPC_CHANNEL, OLLAMA_CREDENTIAL_STATUS_ENDPOINT, { ref })
     if (!result.ok) throw new Error(result.error.message)
     const status = decodeOllamaCredentialStatus(result.value)
     if (status === undefined) throw new Error(t('requestFailed'))
+    if (epoch === accountEpoch) publishAccount(status.configured ? 'configured' : 'unconnected')
     return status
   }
 
@@ -120,6 +134,8 @@ export function apply(ctx: ClientContext): void {
     if (status === undefined) throw new Error(t('requestFailed'))
     dropPersistedUsageKeys([OLLAMA_SETTINGS_NAMESPACE])
     ctx.get('providerDirectory')?.invalidateUsage(OLLAMA_SETTINGS_NAMESPACE)
+    accountEpoch += 1
+    publishAccount(status.configured ? 'configured' : 'unconnected')
   }
 
   const fetchUsage: OllamaPluginCardFace['fetchUsage'] = async (request: OllamaDiscoveryRequest) => {
@@ -188,19 +204,32 @@ export function apply(ctx: ClientContext): void {
   }, OllamaPluginCard))
   ctx.inject(['providerDirectory'], (ctx) => {
     ctx.effect(
-      () => ctx.providerDirectory.register({
-        key: OLLAMA_SETTINGS_NAMESPACE,
-        name: 'Ollama Cloud',
-        role: 'llm',
-        header: 'shared',
-        // The card renders the shared detail template; the settings page adds only the breadcrumb.
-        detail: 'shared',
-        usage: createOllamaUsageReader(),
-        modelCount: () => currentSnapshot.value?.models?.length,
-      }),
+      () => {
+        const declaration = Object.assign({
+          key: OLLAMA_SETTINGS_NAMESPACE,
+          name: 'Ollama Cloud',
+          role: 'llm' as const,
+          header: 'shared' as const,
+          detail: 'shared' as const,
+          usage: createOllamaUsageReader(),
+          modelCount: () => currentSnapshot.value?.models?.length,
+        }, {
+          catalogId: 'ollama-cloud',
+          account: () => ({ state: account.state }),
+        })
+        return ctx.providerDirectory.register(declaration as Parameters<typeof ctx.providerDirectory.register>[0])
+      },
       'dsh-llm-ollama: provider directory',
     )
   })
+  ctx.effect(() => {
+    void readManagement()
+      .then(() => describeCredential().catch(() => { /* overview stays unknown until a later card read */ }))
+      .catch(() => {
+        publish({ ...currentSnapshot, status: 'unavailable' })
+      })
+    return () => { closed = true }
+  }, 'dsh-llm-ollama: account snapshot')
   // Diagnostic when the Providers UI owner is not mounted (Web without dsh-llm-providers-ui).
   // The card is registered but the page will not appear; providers still work Host-side.
   ctx.effect(() => {

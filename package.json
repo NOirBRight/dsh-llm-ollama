@@ -132,7 +132,7 @@
     "@deepseek-ai/dsh-sandbox": "0.1.5-rc.1",
     "@deepseek-ai/dsh-timeout": "0.1.5-rc.1",
     "@deepseek-ai/dsh-web": "0.1.5-rc.1",
-    "dsh-llm-providers-ui": "https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/v0.2.2/dsh-llm-providers-ui-0.2.2.tgz",
+    "dsh-llm-providers-ui": "https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/v0.2.8/dsh-llm-providers-ui-0.2.8.tgz",
     "@testing-library/dom": "^10.0.0",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^22.0.0",

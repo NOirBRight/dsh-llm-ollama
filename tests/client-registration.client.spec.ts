@@ -4,6 +4,11 @@ import { Context, Service } from '@deepseek-ai/cordis'
 import { describe, expect, it, vi } from 'vitest'
 import type { SettingsScope, SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { OllamaSettingsView } from '../src/client-contract.ts'
+import {
+  OLLAMA_CREDENTIAL_SET_ENDPOINT,
+  OLLAMA_CREDENTIAL_STATUS_ENDPOINT,
+  OLLAMA_RPC_CHANNEL,
+} from '../src/client-contract.ts'
 import { apply, inject, MISSING_OWNER_GRACE_MS } from '../src/client/index.ts'
 import { clearProviderUsageCache, peekCachedUsage, rememberHeadlineQuota } from 'dsh-llm-providers-ui/usage-readers'
 
@@ -67,7 +72,11 @@ class FakeSlots extends Service {
   notify(): void { for (const listener of [...this.listeners]) listener() }
 }
 
-async function bench(usageReply: unknown = { ok: true, value: { models: [] } }) {
+async function bench(
+  usageReply: unknown = { ok: true, value: { models: [] } },
+  call = vi.fn((_channel: string, endpoint: string) =>
+    Promise.resolve(endpoint === 'usage/read' ? usageReply : { ok: true, value: { models: [] } })),
+) {
   const ctx = new Context()
   await ctx.plugin(FakeSlots).await()
   const slots = ctx.get('slots') as FakeSlots
@@ -88,8 +97,7 @@ async function bench(usageReply: unknown = { ok: true, value: { models: [] } }) 
       },
     },
     rpc: {
-      call: vi.fn((_channel: string, endpoint: string) =>
-        Promise.resolve(endpoint === 'usage/read' ? usageReply : { ok: true, value: { models: [] } })),
+      call,
     },
   } as never)
   return { ctx, slots }
@@ -196,5 +204,41 @@ describe('Ollama client plugin registration', () => {
     expect(peekCachedUsage('llm-ollama')).toBeUndefined()
     clearProviderUsageCache()
     await fiber.dispose()
+  })
+
+  it('keeps a saved account when an older credential read finishes later', async () => {
+    let resolveStatus: (value: unknown) => void
+    const olderStatus = new Promise<unknown>(resolve => { resolveStatus = resolve })
+    const call = vi.fn((_channel: string, endpoint: string) => {
+      if (endpoint === OLLAMA_CREDENTIAL_STATUS_ENDPOINT) return olderStatus
+      if (endpoint === OLLAMA_CREDENTIAL_SET_ENDPOINT) {
+        return Promise.resolve({ ok: true, value: { configured: true, writable: true } })
+      }
+      return Promise.resolve({
+        ok: true,
+        value: { settings: value, revision: 1, credential: { configured: false, writable: true } },
+      })
+    })
+    const { ctx, slots } = await bench(undefined, call)
+    let entry: { account(): { state: string } } | undefined
+    ctx.provide('providerDirectory', {
+      register: (next: typeof entry) => { entry = next; return () => undefined },
+      update: vi.fn(),
+      invalidateUsage: vi.fn(),
+    } as never)
+    const fiber = ctx.plugin({ inject: [...inject], apply })
+    await fiber.await()
+    await vi.waitFor(() => {
+      expect(call).toHaveBeenCalledWith(OLLAMA_RPC_CHANNEL, OLLAMA_CREDENTIAL_STATUS_ENDPOINT, { ref: 'OLLAMA_API_KEY' })
+    })
+    const face = slots.entries('settings.provider.item')[0]?.inject?.() as {
+      saveCredential(value: string): Promise<void>
+    }
+    await face.saveCredential('new-key')
+    expect(entry?.account().state).toBe('configured')
+    resolveStatus({ ok: true, value: { configured: false, writable: true } })
+    await vi.waitFor(() => { expect(entry?.account().state).toBe('configured') })
+    await fiber.dispose()
+    await ctx.fiber.dispose()
   })
 })

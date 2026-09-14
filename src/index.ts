@@ -535,6 +535,7 @@ export function apply(ctx: Context, config: Config): void {
         current = source
       },
       onChange: ensureRegistrationFacts,
+      validate: value => { resolveAdapterOptions(value) },
     })
   })
 }

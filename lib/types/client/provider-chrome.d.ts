@@ -69,6 +69,6 @@ export declare function UsageUpdatedAt(props: {
     label: string;
 }): ReactNode;
 /** Canonical shared header: delete per-provider fork, re-export built artifact. */
-export { ProviderCardHeader, ProviderQuotaMeter, providerUiCss } from 'dsh-llm-providers-ui/provider-ui';
+export { ProviderCardHeader, ProviderQuotaMeter, providerUiCss, useProviderQuotaCache } from 'dsh-llm-providers-ui/provider-ui';
 export type { ProviderCardHeaderProps, ProviderQuotaMeterProps, ProviderQuotaState } from 'dsh-llm-providers-ui/provider-ui';
 //# sourceMappingURL=provider-chrome.d.ts.map

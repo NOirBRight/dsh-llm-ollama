@@ -632,7 +632,9 @@ function verifyOwnerArtifact(work) {
     if (!entryFiles.includes(path)) fail('Providers UI artifact omits ' + path)
   }
   console.log('Providers UI artifact verified: sha256=' + actualSha)
-  return { artifact, manifest, integrity: sha512Integrity(bytes) }
+  const localArtifact = join(work, FROZEN_OWNER_FILE)
+  writeFileSync(localArtifact, bytes)
+  return { artifact: localArtifact, manifest, integrity: sha512Integrity(bytes) }
 }
 
 function targetPack(work, manifest) {
@@ -962,7 +964,7 @@ async function main() {
             fail('reachable graph lacks dependency archive: ' + key)
           }
           enqueue(candidate)
-          if (section !== 'peerDependencies' || optional) continue
+          if (section !== 'peerDependencies') continue
           const target = dependencyTarget(name, spec)
           const ranges = peerRanges.get(name) ?? []
           ranges.push(target.range)
