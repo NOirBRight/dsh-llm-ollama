@@ -31,6 +31,7 @@ async function usageHandler(resolve?: () => Promise<never>) {
   const dispose = vi.fn(() => Promise.resolve())
   const handle = vi.fn((_channel: string, _handler: Handler) => dispose)
   ctx.provide('connection', { rpc: { handle } } as never)
+  ctx.provide('webServer', { register: () => () => {} } as never)
   if (resolve !== undefined) ctx.provide('credentials', { resolve: vi.fn(resolve) } as never)
   const fiber = ctx.plugin({ inject: [...inject], Config, apply }, {})
   await fiber.await()
@@ -51,6 +52,7 @@ describe('Ollama rich-discovery RPC', () => {
     const dispose = vi.fn(() => Promise.resolve())
     const handle = vi.fn((_channel: string, _handler: Handler) => dispose)
     ctx.provide('connection', { rpc: { handle } } as never)
+    ctx.provide('webServer', { register: () => () => {} } as never)
     const fiber = ctx.plugin({ inject: [...inject], Config, apply }, {})
     await fiber.await()
 
@@ -139,6 +141,7 @@ describe('Ollama rich-discovery RPC', () => {
     const dispose = vi.fn(() => Promise.resolve())
     const handle = vi.fn((_channel: string, _handler: Handler) => dispose)
     ctx.provide('connection', { rpc: { handle } } as never)
+    ctx.provide('webServer', { register: () => () => {} } as never)
     ctx.provide('settings', settings as never)
     const fiber = ctx.plugin({ inject: [...inject], Config, apply }, {})
     await fiber.await()
@@ -185,6 +188,7 @@ describe('Ollama rich-discovery RPC', () => {
     const dispose = vi.fn(() => Promise.resolve())
     const handle = vi.fn((_channel: string, _handler: Handler) => dispose)
     ctx.provide('connection', { rpc: { handle } } as never)
+    ctx.provide('webServer', { register: () => () => {} } as never)
     const fiber = ctx.plugin({ inject: [...inject], Config, apply }, {})
     await fiber.await()
     const handler = handle.mock.calls[0]?.[1]
@@ -333,6 +337,7 @@ describe('Ollama rich-discovery RPC', () => {
   it('rejects obsolete remoteManagement configuration', async () => {
     const ctx = new Context()
     await ctx.plugin(LlmRuntime).await()
+    ctx.provide('webServer', { register: () => () => {} } as never)
     const fiber = ctx.plugin({ inject: [...inject], Config, apply }, { remoteManagement: true } as never)
     await expect(fiber.await()).rejects.toThrow('remoteManagement is not supported by the Alpha.4 Connection service')
     await ctx.fiber.dispose()

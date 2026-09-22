@@ -128,7 +128,7 @@ export type {
 export type * from './types.ts'
 
 export const name = 'llm-ollama'
-export const inject = ['llm']
+export const inject = ['llm', 'webServer']
 
 /** Preserve Ollama's historical normal retry count across host-line default changes. */
 const DEFAULT_MAX_RETRIES = 2
@@ -418,7 +418,7 @@ export function apply(ctx: Context, config: Config): void {
   }, 'llm-ollama: web providers')
 
   // Connection authenticates this channel before dispatch.
-  ctx.inject(['connection'], (connectionCtx) => {
+  ctx.inject(['connection', 'webServer'], (connectionCtx) => {
     // The browser's shared quota cache drops its entry on INVALID_CREDENTIAL, so
     // only a credential verdict is remapped to that code. Every other lookup
     // failure — an unreadable store, a transient environment read — is rethrown

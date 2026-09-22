@@ -100,6 +100,7 @@ async function bench(
       call,
     },
   } as never)
+  ctx.provide('webServer', { register: () => () => {} } as never)
   return { ctx, slots }
 }
 
@@ -197,6 +198,7 @@ describe('Ollama client plugin registration', () => {
           : { ok: true, value: { models: [] } }),
       },
     } as never)
+    ctx.provide('webServer', { register: () => () => {} } as never)
     const fiber = ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
     const face = (slots.entries('settings.provider.item')[0] as { inject?: () => { saveCredential: (apiKey: string) => Promise<unknown> } }).inject?.()
