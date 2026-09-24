@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
-import type { SettingsScope, SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
+import type { ConfigForm, ConfigFormSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { InjectFace, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-settings-plugins/client'
 import { OLLAMA_SETTINGS_NAMESPACE } from '../client-contract.ts'
@@ -21,10 +21,9 @@ import {
 } from '../reasoning.ts'
 import type { OllamaSettingsKey } from './locales.ts'
 import { BrandMark } from './BrandMark.tsx'
-import { ProviderCardHeader, ProviderQuotaMeter, UsageHeader, UsageSkeleton, UsageUpdatedAt, formatUsageClock, providerUiCss, resetLabelOf } from './provider-chrome.tsx'
+import { ProviderCardHeader, ProviderQuotaMeter, UsageHeader, UsageSkeleton, UsageUpdatedAt, formatUsageClock, providerUiCss, resetLabelOf, useProviderQuotaCache } from './provider-chrome.tsx'
 import type { ProviderQuotaState } from 'dsh-llm-providers-ui/provider-ui';
 import { SortableList } from 'dsh-llm-providers-ui/sortable'
-import { headerQuotaFromCache, peekCachedUsage, rememberHeadlineQuota } from 'dsh-llm-providers-ui/usage-readers'
 import type { ProviderItemSlotContext } from 'dsh-llm-providers-ui/provider-detail'
 
 import {
@@ -59,13 +58,13 @@ export interface OllamaPluginCardFace {
   /** Localized card copy. */
   t: (key: OllamaSettingsKey) => string
   hooks: {
-    /** Reactive Host-owned settings section. */
-    ollamaSettings: SettingsScope<OllamaSettingsView>
+    /** Reactive Loader configuration values edited by this card. */
+    ollamaSettings: ConfigForm<OllamaSettingsView>
   }
-  /** Read value-free credential status for the section's reference. */
+  /** Read value-free credential status for the Loader entry's reference. */
   describeCredential: () => Promise<OllamaCredentialState>
-  /** Store changed settings and return the accepted Host snapshot. */
-  saveConfiguration: (settings: OllamaSettingsView) => Promise<OllamaSaveResult>
+  /** Validate and save editable settings against the revision where the draft began. */
+  saveConfiguration: (settings: OllamaSettingsView, sourceRevision: number) => Promise<OllamaSaveResult>
   /** Store a new key separately; this is intentionally not atomic with settings. */
   saveCredential: (apiKey: string) => Promise<void>
   /** Interrogate the draft endpoint without storing its one-shot key. */
@@ -359,7 +358,7 @@ function headlineQuotaOf(view: OllamaUsageView | undefined, t: OllamaPluginCardF
 
 export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
   const { t } = props
-  const snapshot = props.useOllamaSettings((value: SettingsScopeSnapshot<OllamaSettingsView>) => value)
+  const snapshot = props.useOllamaSettings((value: ConfigFormSnapshot<OllamaSettingsView>) => value)
   const [open, setOpen] = useState(false)
   const initial = useMemo(() => snapshot.value === undefined ? undefined : draftOf(snapshot.value), [snapshot.value])
   const [source, setSource] = useState<Draft | undefined>(initial)
@@ -414,7 +413,7 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
   useEffect(() => {
     if (snapshot.status !== 'ready') return
     void refreshCredential()
-  }, [snapshot.status, snapshot.value?.apiKeyEnv])
+  }, [snapshot.status])
   useEffect(() => () => { props.closeModelPicker() }, [props.closeModelPicker])
 
   if (snapshot.status === 'unavailable') {
@@ -521,7 +520,6 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
       if (!live()) return
       if (read.kind === 'ok') {
         setLastUsage(read.usage)
-        rememberHeadlineQuota(OLLAMA_SETTINGS_NAMESPACE, 'Ollama Cloud', headlineQuotaOf(read.usage, t))
         setUsageUpdatedAt(new Date())
       }
       setUsage(
@@ -604,7 +602,7 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
   }
 
   const save = async (): Promise<void> => {
-    if (draft === undefined || snapshot.value === undefined || invalid) return
+    if (draft === undefined || snapshot.value === undefined || sourceRevision === undefined || invalid) return
     // A new key may change the account: invalidate in-flight usage reads now so a
     // late old-account resolve cannot publish or re-persist before the fresh read.
     usageEpoch.current += 1
@@ -613,12 +611,12 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
     setNotice(undefined)
     try {
       const settings = settingsOf(draft, snapshot.value)
-      const accepted = await props.saveConfiguration(settings)
-      if (apiKey.trim().length > 0) await props.saveCredential(apiKey.trim())
+      const accepted = await props.saveConfiguration(settings, sourceRevision)
       const next = draftOf(accepted.settings)
       setSource(next)
       setDraft(next)
       setSourceRevision(accepted.revision)
+      if (apiKey.trim().length > 0) await props.saveCredential(apiKey.trim())
       setApiKey('')
       setNotice(t('saved'))
       await refreshCredential()
@@ -651,7 +649,11 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
     || usage.status === 'error' || usage.status === 'unsupported' || usage.status === 'needs-restart'
   // The verdict gates the entire header quota, not only the persisted fallback:
   // stale local lastUsage must not look fresh on error/unsupported either.
-  const headerQuota = quotaWithheld ? undefined : (liveQuota ?? headerQuotaFromCache(peekCachedUsage(OLLAMA_SETTINGS_NAMESPACE)))
+  const headerQuota = useProviderQuotaCache(OLLAMA_SETTINGS_NAMESPACE, 'Ollama Cloud', liveQuota ?? null, {
+    answered: credential !== undefined,
+    signedOut: credential?.configured === false,
+    withheld: quotaWithheld,
+  })
 
   // Prototype C pieces, shared by the legacy card and the migrated detail.
   const modelsList = (
@@ -781,7 +783,7 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
               <button
                 type="button"
                 style={primaryButtonStyle}
-                disabled={!dirty || invalid || disabled}
+                disabled={!dirty || invalid || disabled || sourceRevision === undefined}
                 onClick={() => { void save() }}
               >
                 {t(busy ? 'saving' : 'save')}
@@ -929,7 +931,7 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
           unsaved={dirty}
           unsavedLabel={t('unsaved')}
           role="llm"
-          {...(headerQuota === undefined
+          {...(headerQuota === null
             ? (credential?.configured === true && (usage.status === 'error' || usage.status === 'unsupported' || usage.status === 'needs-restart')
               // Query attempted but no usable quota: unavailable dash, never a fabricated percent.
               ? { quota: { label: t('usage') } }

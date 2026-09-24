@@ -3,7 +3,7 @@
 export declare const OLLAMA_SETTINGS_NAMESPACE = "llm-ollama";
 /** Provider route owned by the Ollama Cloud plugin. */
 export declare const OLLAMA_PROVIDER = "ollama-cloud";
-/** Credential reference used when the settings section names none. */
+/** Default credential reference used when the Loader entry names none. */
 export declare const DEFAULT_API_KEY_ENV = "OLLAMA_API_KEY";
 /** Public Ollama Cloud native API base URL. */
 export declare const OLLAMA_PUBLIC_BASE_URL = "https://ollama.com/api";
@@ -11,32 +11,21 @@ export declare const OLLAMA_PUBLIC_BASE_URL = "https://ollama.com/api";
 export declare const OLLAMA_DEFAULT_CONTEXT_WINDOW = 262144;
 /** Default maximum idle interval while a stream read is outstanding. */
 export declare const OLLAMA_DEFAULT_STREAM_IDLE_TIMEOUT_MS = 300000;
-/** Private Connection RPC channel used by this package's two runtime faces. */
-export declare const OLLAMA_RPC_CHANNEL = "/ollama-cloud";
-/** Rich model-discovery endpoint inside {@link OLLAMA_RPC_CHANNEL}. */
+/** Exact authenticated Fetch carrier method for this plugin's browser RPC. */
+export declare const OLLAMA_RPC_METHOD = "plugin-rpc/ollama-cloud";
+/** Rich model-discovery endpoint inside {@link OLLAMA_RPC_METHOD}. */
 export declare const OLLAMA_DISCOVER_ENDPOINT = "models/discover";
-/** Atomic settings-save endpoint inside {@link OLLAMA_RPC_CHANNEL}. */
-export declare const OLLAMA_SAVE_ENDPOINT = "settings/save";
-/** Cloud usage-snapshot endpoint inside {@link OLLAMA_RPC_CHANNEL}. */
+/** Host semantic-validation endpoint used before a ConfigForm mutation. */
+export declare const OLLAMA_SETTINGS_VALIDATE_ENDPOINT = "settings/validate";
+/** Cloud usage-snapshot endpoint inside {@link OLLAMA_RPC_METHOD}. */
 export declare const OLLAMA_USAGE_ENDPOINT = "usage/read";
-/** Provider-owned settings snapshot endpoint; includes redacted credential status. */
-export declare const OLLAMA_SETTINGS_READ_ENDPOINT = "settings/read";
-/** Provider-owned credential write endpoint; accepts a new key but never returns it. */
+/** Provider-owned credential-status endpoint; returns no credential value. */
 export declare const OLLAMA_CREDENTIAL_STATUS_ENDPOINT = "credential/status";
 /** Provider-owned credential write endpoint; accepts a new key but never returns it. */
 export declare const OLLAMA_CREDENTIAL_SET_ENDPOINT = "credential/set";
 export interface OllamaCredentialStatus {
     configured: boolean;
     writable: boolean;
-}
-export interface OllamaSettingsReadResult {
-    settings: OllamaSettingsView;
-    revision: number;
-    credential: OllamaCredentialStatus;
-}
-export interface OllamaCredentialSetRequest {
-    ref: string;
-    value: string;
 }
 /** One model stored in the plugin's advisory catalog. */
 export interface OllamaCatalogModelConfig {
@@ -59,26 +48,21 @@ export interface OllamaCatalogModelConfig {
     /** Legacy capability flag. Ignored at runtime; still decoded. */
     tools?: boolean;
 }
+export interface OllamaCredentialSetRequest {
+    value: string;
+}
 /** Peel Fast then a trailing `-<n>k` / `-<n>m` context tier. Product names like `-max` stay. */
 export declare function parseOllamaPickerId(id: string): {
     wireId: string;
     fast: boolean;
     contextTokens?: number;
 };
-/** Settings fields presented by the package's Web configuration card. */
+/** ConfigForm projection of the fields edited by the Ollama card. */
 export interface OllamaSettingsView {
-    /** Credential reference resolved by the Host. */
-    apiKeyEnv: string;
     /** Native API base URL. */
     baseURL: string;
     /** Advisory model catalog. */
     models: OllamaCatalogModelConfig[];
-    /** Optional provider-wide output cap. */
-    maxTokens?: number;
-    /** Context fallback for models without an exact capacity. */
-    defaultContextWindow: number;
-    /** Stream idle timeout in milliseconds. */
-    streamIdleTimeoutMs: number;
 }
 /** Draft endpoint and one-shot credential sent to rich model discovery. */
 export interface OllamaDiscoveryRequest {
@@ -92,20 +76,18 @@ export interface OllamaDiscoveryResult {
     /** Models in provider order, including native capability flags. */
     models: OllamaCatalogModelConfig[];
 }
-/** Atomic editable-settings payload sent by the package's browser face. */
-export interface OllamaSaveRequest {
+/** Candidate settings sent for Host semantic validation before form mutation. */
+export interface OllamaSettingsValidationRequest {
     /** API URL currently shown by the editor. */
     baseURL: string;
     /** Complete advisory catalog currently shown by the editor. */
     models: OllamaCatalogModelConfig[];
-    /** Settings descriptor revision from which the editor began. */
+    /** ConfigForm revision from which the editor began. */
     expectedRevision: number;
 }
-/** Accepted settings snapshot returned after one atomic Host mutation. */
+/** Accepted settings snapshot returned by the browser's ConfigForm write. */
 export interface OllamaSaveResult {
-    /** Resolved settings after the mutation commits. */
     settings: OllamaSettingsView;
-    /** New descriptor revision accepted by the Host. */
     revision: number;
 }
 /** One model's accounted requests inside a usage window. */
@@ -154,8 +136,8 @@ export type OllamaUsageReply = {
  */
 export declare function decodeOllamaCatalogModel(value: unknown): OllamaCatalogModelConfig | undefined;
 /**
- * Narrow the redacted, schema-resolved settings section before it enters React state.
- * @param value - untrusted settings response value.
+ * Narrow the volatile settings fields projected to the browser.
+ * @param value - untrusted ConfigForm value.
  * @returns the validated settings view, or undefined when the response is invalid.
  */
 export declare function decodeOllamaSettings(value: unknown): OllamaSettingsView | undefined;
@@ -184,19 +166,12 @@ export declare function decodeOllamaUsageView(value: unknown): OllamaUsageView |
  */
 export declare function decodeOllamaUsageReply(value: unknown): OllamaUsageReply | undefined;
 /**
- * Narrow one atomic settings-save request crossing the plugin RPC.
- * @param value - untrusted RPC payload.
- * @returns the validated request, or undefined when any field is invalid.
+ * Narrow the settings candidate crossing the authenticated validation route.
+ * @param value - untrusted request payload.
+ * @returns the candidate, or undefined when any field is invalid.
  */
-export declare function decodeOllamaSaveRequest(value: unknown): OllamaSaveRequest | undefined;
-/**
- * Narrow the accepted settings snapshot returned by the Host save endpoint.
- * @param value - untrusted RPC result value.
- * @returns the validated result, or undefined when it is malformed.
- */
-export declare function decodeOllamaSaveResult(value: unknown): OllamaSaveResult | undefined;
-export declare function decodeOllamaSettingsReadResult(value: unknown): OllamaSettingsReadResult | undefined;
-export declare function decodeOllamaCredentialRef(value: unknown): string | undefined;
-export declare function decodeOllamaCredentialSetRequest(value: unknown): OllamaCredentialSetRequest | undefined;
+export declare function decodeOllamaSettingsValidationRequest(value: unknown): OllamaSettingsValidationRequest | undefined;
+/** Narrow the credential status returned by the provider-owned RPC endpoints. */
 export declare function decodeOllamaCredentialStatus(value: unknown): OllamaCredentialStatus | undefined;
+export declare function decodeOllamaCredentialSetRequest(value: unknown): OllamaCredentialSetRequest | undefined;
 //# sourceMappingURL=client-contract.d.ts.map

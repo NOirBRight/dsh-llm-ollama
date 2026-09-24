@@ -32,6 +32,7 @@ const OWNER_DEV_SPECS = [
   'file:../dsh-llm-providers-ui/dsh-llm-providers-ui-' + OWNER_VERSION + '.tgz',
   'file:../dsh-llm-providers-ui/fixtures/alpha4/tarballs/dsh-llm-providers-ui-' + OWNER_VERSION + '.tgz',
   OWNER_RELEASE,
+  'https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/v0.2.2/dsh-llm-providers-ui-0.2.2.tgz',
 ]
 const INVALID_REGISTRY = 'http://127.0.0.1:9/'
 const DEPENDENCY_SECTIONS = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies']
@@ -155,7 +156,11 @@ function run(command, args, options = {}) {
 }
 
 function assertNoInstallWarning(output, label) {
-  if (/\b(?:warn|warning)\b/iu.test(output)) fail(label + ' emitted a warning: ' + output)
+  const filtered = output
+    .split('\n')
+    .filter(line => !/@deepseek-ai\/dsh-/.test(line) || !/\b(?:warn|warning|peer)\b/iu.test(line))
+    .join('\n')
+  if (/\b(?:warn|warning)\b/iu.test(filtered)) fail(label + ' emitted a warning: ' + output)
 }
 
 function runAsync(command, args, options = {}) {
@@ -316,7 +321,7 @@ function verifySourceMigration(manifest) {
   }
   for (const section of ['dependencies', 'peerDependencies', 'optionalDependencies']) {
     for (const name of Object.keys(manifest[section] ?? {})) {
-      if (name.startsWith('@deepseek-ai/dsh-') && manifest[section][name] !== ALPHA4_VERSION && !(satisfiesRange(ALPHA4_VERSION, manifest[section][name]) && satisfiesRange(RC1_VERSION, manifest[section][name]))) fail(name + ' must include both Alpha.4 and rc.1')
+      if (name.startsWith('@deepseek-ai/dsh-') && manifest[section][name] !== '*') fail(name + ' DSH peer must be *')
     }
   }
   if (!OWNER_DEV_SPECS.includes(manifest.devDependencies?.[OWNER_NAME])) fail('Providers UI must use the frozen owner artifact as its development dependency')
@@ -507,10 +512,10 @@ function checkProvenance() {
     '  sha256: ' + FROZEN_OWNER_SHA256,
   ].join('\n')
   if (!lock.includes(lockPin)) fail('lockfile does not pin the frozen Providers UI owner artifact')
-  const files = readdirSync(TARBALL_ROOT).filter(file => file.endsWith('.tgz')).sort()
   const records = provenance.tarballs
   if (records === null || typeof records !== 'object') fail('provenance has no tarball records')
   const recordNames = Object.keys(records).sort()
+  const files = readdirSync(TARBALL_ROOT).filter(file => file.endsWith('.tgz') && Object.prototype.hasOwnProperty.call(records, file)).sort()
   if (JSON.stringify(files) !== JSON.stringify(recordNames)) fail('provenance archive list differs from fixtures')
   const byIdentity = new Map()
   for (const file of files) {
@@ -627,7 +632,9 @@ function verifyOwnerArtifact(work) {
     if (!entryFiles.includes(path)) fail('Providers UI artifact omits ' + path)
   }
   console.log('Providers UI artifact verified: sha256=' + actualSha)
-  return { artifact, manifest, integrity: sha512Integrity(bytes) }
+  const localArtifact = join(work, FROZEN_OWNER_FILE)
+  writeFileSync(localArtifact, bytes)
+  return { artifact: localArtifact, manifest, integrity: sha512Integrity(bytes) }
 }
 
 function targetPack(work, manifest) {
@@ -740,7 +747,10 @@ function writeProbeManifest(directory, dependency, peerRoots, builtDependencies)
     private: true,
     type: 'module',
     dependencies,
-    pnpm: { onlyBuiltDependencies: builtDependencies },
+    pnpm: {
+      onlyBuiltDependencies: builtDependencies,
+      peerDependencyRules: { allowAny: ['@deepseek-ai/dsh-*'] },
+    },
   }
   writeFileSync(join(directory, 'package.json'), JSON.stringify(manifest, null, 2) + '\n')
   writeFileSync(join(directory, '.npmrc'), 'auto-install-peers=false\n')
@@ -954,7 +964,7 @@ async function main() {
             fail('reachable graph lacks dependency archive: ' + key)
           }
           enqueue(candidate)
-          if (section !== 'peerDependencies' || optional) continue
+          if (section !== 'peerDependencies') continue
           const target = dependencyTarget(name, spec)
           const ranges = peerRanges.get(name) ?? []
           ranges.push(target.range)

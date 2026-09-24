@@ -57,6 +57,7 @@ async function loadComposition(options: { baseURL: string, web?: boolean }): Pro
   const ctx = new Context()
   context = ctx
   ctx.baseUrl = pathToFileURL(root).href + '/'
+  ctx.provide('webServer', { register: () => () => {} } as never)
   await ctx.plugin(Loader)
   ctx.loader.builtins.include = Include
   const modules = new Map<string, unknown>([

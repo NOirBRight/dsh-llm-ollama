@@ -4,7 +4,7 @@
 export const OLLAMA_SETTINGS_NAMESPACE = 'llm-ollama'
 /** Provider route owned by the Ollama Cloud plugin. */
 export const OLLAMA_PROVIDER = 'ollama-cloud'
-/** Credential reference used when the settings section names none. */
+/** Default credential reference used when the Loader entry names none. */
 export const DEFAULT_API_KEY_ENV = 'OLLAMA_API_KEY'
 /** Public Ollama Cloud native API base URL. */
 export const OLLAMA_PUBLIC_BASE_URL = 'https://ollama.com/api'
@@ -12,17 +12,15 @@ export const OLLAMA_PUBLIC_BASE_URL = 'https://ollama.com/api'
 export const OLLAMA_DEFAULT_CONTEXT_WINDOW = 262_144
 /** Default maximum idle interval while a stream read is outstanding. */
 export const OLLAMA_DEFAULT_STREAM_IDLE_TIMEOUT_MS = 300_000
-/** Private Connection RPC channel used by this package's two runtime faces. */
-export const OLLAMA_RPC_CHANNEL = '/ollama-cloud'
-/** Rich model-discovery endpoint inside {@link OLLAMA_RPC_CHANNEL}. */
+/** Exact authenticated Fetch carrier method for this plugin's browser RPC. */
+export const OLLAMA_RPC_METHOD = 'plugin-rpc/ollama-cloud'
+/** Rich model-discovery endpoint inside {@link OLLAMA_RPC_METHOD}. */
 export const OLLAMA_DISCOVER_ENDPOINT = 'models/discover'
-/** Atomic settings-save endpoint inside {@link OLLAMA_RPC_CHANNEL}. */
-export const OLLAMA_SAVE_ENDPOINT = 'settings/save'
-/** Cloud usage-snapshot endpoint inside {@link OLLAMA_RPC_CHANNEL}. */
+/** Host semantic-validation endpoint used before a ConfigForm mutation. */
+export const OLLAMA_SETTINGS_VALIDATE_ENDPOINT = 'settings/validate'
+/** Cloud usage-snapshot endpoint inside {@link OLLAMA_RPC_METHOD}. */
 export const OLLAMA_USAGE_ENDPOINT = 'usage/read'
-/** Provider-owned settings snapshot endpoint; includes redacted credential status. */
-export const OLLAMA_SETTINGS_READ_ENDPOINT = 'settings/read'
-/** Provider-owned credential write endpoint; accepts a new key but never returns it. */
+/** Provider-owned credential-status endpoint; returns no credential value. */
 export const OLLAMA_CREDENTIAL_STATUS_ENDPOINT = 'credential/status'
 /** Provider-owned credential write endpoint; accepts a new key but never returns it. */
 export const OLLAMA_CREDENTIAL_SET_ENDPOINT = 'credential/set'
@@ -30,17 +28,6 @@ export const OLLAMA_CREDENTIAL_SET_ENDPOINT = 'credential/set'
 export interface OllamaCredentialStatus {
   configured: boolean
   writable: boolean
-}
-
-export interface OllamaSettingsReadResult {
-  settings: OllamaSettingsView
-  revision: number
-  credential: OllamaCredentialStatus
-}
-
-export interface OllamaCredentialSetRequest {
-  ref: string
-  value: string
 }
 
 /** One model stored in the plugin's advisory catalog. */
@@ -65,6 +52,11 @@ export interface OllamaCatalogModelConfig {
   tools?: boolean
 }
 
+export interface OllamaCredentialSetRequest {
+  value: string
+}
+
+
 /** Peel Fast then a trailing `-<n>k` / `-<n>m` context tier. Product names like `-max` stay. */
 export function parseOllamaPickerId(id: string): { wireId: string, fast: boolean, contextTokens?: number } {
   let rest = id
@@ -84,20 +76,12 @@ export function parseOllamaPickerId(id: string): { wireId: string, fast: boolean
   }
 }
 
-/** Settings fields presented by the package's Web configuration card. */
+/** ConfigForm projection of the fields edited by the Ollama card. */
 export interface OllamaSettingsView {
-  /** Credential reference resolved by the Host. */
-  apiKeyEnv: string
   /** Native API base URL. */
   baseURL: string
   /** Advisory model catalog. */
   models: OllamaCatalogModelConfig[]
-  /** Optional provider-wide output cap. */
-  maxTokens?: number
-  /** Context fallback for models without an exact capacity. */
-  defaultContextWindow: number
-  /** Stream idle timeout in milliseconds. */
-  streamIdleTimeoutMs: number
 }
 
 /** Draft endpoint and one-shot credential sent to rich model discovery. */
@@ -114,21 +98,19 @@ export interface OllamaDiscoveryResult {
   models: OllamaCatalogModelConfig[]
 }
 
-/** Atomic editable-settings payload sent by the package's browser face. */
-export interface OllamaSaveRequest {
+/** Candidate settings sent for Host semantic validation before form mutation. */
+export interface OllamaSettingsValidationRequest {
   /** API URL currently shown by the editor. */
   baseURL: string
   /** Complete advisory catalog currently shown by the editor. */
   models: OllamaCatalogModelConfig[]
-  /** Settings descriptor revision from which the editor began. */
+  /** ConfigForm revision from which the editor began. */
   expectedRevision: number
 }
 
-/** Accepted settings snapshot returned after one atomic Host mutation. */
+/** Accepted settings snapshot returned by the browser's ConfigForm write. */
 export interface OllamaSaveResult {
-  /** Resolved settings after the mutation commits. */
   settings: OllamaSettingsView
-  /** New descriptor revision accepted by the Host. */
   revision: number
 }
 
@@ -218,40 +200,20 @@ export function decodeOllamaCatalogModel(value: unknown): OllamaCatalogModelConf
 }
 
 /**
- * Narrow the redacted, schema-resolved settings section before it enters React state.
- * @param value - untrusted settings response value.
+ * Narrow the volatile settings fields projected to the browser.
+ * @param value - untrusted ConfigForm value.
  * @returns the validated settings view, or undefined when the response is invalid.
  */
 export function decodeOllamaSettings(value: unknown): OllamaSettingsView | undefined {
-  if (!isRecord(value)) return undefined
-  const apiKeyEnv = value['apiKeyEnv']
-  const baseURL = value['baseURL']
-  const models = value['models']
-  const maxTokens = value['maxTokens']
-  const defaultContextWindow = value['defaultContextWindow']
-  const streamIdleTimeoutMs = value['streamIdleTimeoutMs']
-  if (typeof apiKeyEnv !== 'string' || apiKeyEnv.length === 0) return undefined
-  if (typeof baseURL !== 'string' || baseURL.length === 0) return undefined
-  if (!Array.isArray(models)) return undefined
-  if (!optionalPositiveInteger(maxTokens)) return undefined
-  if (!optionalPositiveInteger(defaultContextWindow) || defaultContextWindow === undefined) return undefined
-  if (typeof streamIdleTimeoutMs !== 'number' || !Number.isFinite(streamIdleTimeoutMs) || streamIdleTimeoutMs <= 0) {
-    return undefined
-  }
-  const decodedModels: OllamaCatalogModelConfig[] = []
-  for (const model of models) {
+  if (!isRecord(value) || typeof value['baseURL'] !== 'string' || value['baseURL'].length === 0) return undefined
+  if (!Array.isArray(value['models'])) return undefined
+  const models: OllamaCatalogModelConfig[] = []
+  for (const model of value['models']) {
     const decoded = decodeOllamaCatalogModel(model)
     if (decoded === undefined) return undefined
-    decodedModels.push(decoded)
+    models.push(decoded)
   }
-  return {
-    apiKeyEnv,
-    baseURL,
-    models: decodedModels,
-    ...maxTokens === undefined ? {} : { maxTokens },
-    defaultContextWindow,
-    streamIdleTimeoutMs,
-  }
+  return { baseURL: value['baseURL'], models }
 }
 
 /**
@@ -355,12 +317,18 @@ export function decodeOllamaUsageReply(value: unknown): OllamaUsageReply | undef
 }
 
 /**
- * Narrow one atomic settings-save request crossing the plugin RPC.
- * @param value - untrusted RPC payload.
- * @returns the validated request, or undefined when any field is invalid.
+ * Narrow the settings candidate crossing the authenticated validation route.
+ * @param value - untrusted request payload.
+ * @returns the candidate, or undefined when any field is invalid.
  */
-export function decodeOllamaSaveRequest(value: unknown): OllamaSaveRequest | undefined {
+export function decodeOllamaSettingsValidationRequest(value: unknown): OllamaSettingsValidationRequest | undefined {
   if (!isRecord(value) || typeof value['baseURL'] !== 'string' || value['baseURL'].length === 0) return undefined
+  try {
+    const url = new URL(value['baseURL'])
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return undefined
+  } catch {
+    return undefined
+  }
   if (!Array.isArray(value['models']) || !Number.isSafeInteger(value['expectedRevision'])) return undefined
   const expectedRevision = value['expectedRevision'] as number
   if (expectedRevision < 0) return undefined
@@ -373,41 +341,15 @@ export function decodeOllamaSaveRequest(value: unknown): OllamaSaveRequest | und
   return { baseURL: value['baseURL'], models, expectedRevision }
 }
 
-/**
- * Narrow the accepted settings snapshot returned by the Host save endpoint.
- * @param value - untrusted RPC result value.
- * @returns the validated result, or undefined when it is malformed.
- */
-export function decodeOllamaSaveResult(value: unknown): OllamaSaveResult | undefined {
-  if (!isRecord(value) || !Number.isSafeInteger(value['revision'])) return undefined
-  const revision = value['revision'] as number
-  const settings = decodeOllamaSettings(value['settings'])
-  if (revision < 0 || settings === undefined) return undefined
-  return { settings, revision }
-}
-
-export function decodeOllamaSettingsReadResult(value: unknown): OllamaSettingsReadResult | undefined {
-  if (!isRecord(value) || !Number.isSafeInteger(value['revision'])) return undefined
-  const settings = decodeOllamaSettings(value['settings'])
-  const credential = value['credential']
-  if (settings === undefined || !isRecord(credential)
-    || typeof credential['configured'] !== 'boolean' || typeof credential['writable'] !== 'boolean') return undefined
-  const revision = value['revision'] as number
-  return revision < 0 ? undefined : { settings, revision, credential: { configured: credential['configured'], writable: credential['writable'] } }
-}
-
-export function decodeOllamaCredentialRef(value: unknown): string | undefined {
-  if (!isRecord(value) || typeof value['ref'] !== 'string' || value['ref'].length === 0) return undefined
-  return value['ref']
+/** Narrow the credential status returned by the provider-owned RPC endpoints. */
+export function decodeOllamaCredentialStatus(value: unknown): OllamaCredentialStatus | undefined {
+  if (!isRecord(value) || typeof value['configured'] !== 'boolean' || typeof value['writable'] !== 'boolean') {
+    return undefined
+  }
+  return { configured: value['configured'], writable: value['writable'] }
 }
 
 export function decodeOllamaCredentialSetRequest(value: unknown): OllamaCredentialSetRequest | undefined {
-  if (!isRecord(value) || typeof value['ref'] !== 'string' || value['ref'].length === 0
-    || typeof value['value'] !== 'string' || value['value'].length === 0) return undefined
-  return { ref: value['ref'], value: value['value'] }
-}
-
-export function decodeOllamaCredentialStatus(value: unknown): OllamaCredentialStatus | undefined {
-  if (!isRecord(value) || typeof value['configured'] !== 'boolean' || typeof value['writable'] !== 'boolean') return undefined
-  return { configured: value['configured'], writable: value['writable'] }
+  if (!isRecord(value) || typeof value['value'] !== 'string' || value['value'].length === 0) return undefined
+  return { value: value['value'] }
 }

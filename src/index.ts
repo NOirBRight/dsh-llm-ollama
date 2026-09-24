@@ -1,18 +1,19 @@
 /**
  * Register the `ollama-cloud` route with chat delegated to pi-ai OpenAI Chat
  * Completions, while keeping Ollama-native discovery and Web Search/Fetch as
- * independent capabilities. Connection facts resolve per operation from the
- * optional `llm-ollama` settings section and the credential seam, so saved
- * endpoint, catalog, and key changes reach the next operation.
+ * independent capabilities. Runtime settings come from the Loader entry;
+ * only the provider card's base URL and model catalog are volatile.
  *
- * A loopback Connection channel serves `/api/tags` plus `/api/show` discovery
- * and atomically saves the card's native base URL and model catalog.
+ * The browser uses one authenticated `/api` Fetch route for this plugin's
+ * discovery, credential, and usage requests.
  * @module dsh-llm-ollama
  */
 
-import type { Context } from '@deepseek-ai/cordis'
+import type { Context, Volatile } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import type {} from '@deepseek-ai/dsh-client-connection'
+import { clientRequestSchema } from '@deepseek-ai/dsh-client-connection'
+import type { ConnectionRpcHandler, ConnectionRpcHandlerResult } from '@deepseek-ai/dsh-client-connection'
+import type {} from '@deepseek-ai/dsh-settings'
 import type {} from '@deepseek-ai/dsh-web'
 import {
   assertUsableApiKey,
@@ -25,8 +26,6 @@ import {
 import type { RetryPolicyConfig } from '@deepseek-ai/dsh-llm'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
-import { deepEqualJson } from '@deepseek-ai/dsh-util-values'
-import type { SettingsPathOp } from '@deepseek-ai/dsh-settings'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import { allowDshRuntime } from './compatibility.ts'
 import {
@@ -45,20 +44,17 @@ import {
 } from './web.ts'
 import type { OllamaWebProviderOptions } from './web.ts'
 import {
-  decodeOllamaCredentialRef,
   decodeOllamaCredentialSetRequest,
   decodeOllamaDiscoveryRequest,
-  decodeOllamaSaveRequest,
-  decodeOllamaSettings,
+  decodeOllamaSettingsValidationRequest,
+  DEFAULT_API_KEY_ENV,
   OLLAMA_CREDENTIAL_SET_ENDPOINT,
   OLLAMA_CREDENTIAL_STATUS_ENDPOINT,
-  DEFAULT_API_KEY_ENV,
   OLLAMA_DISCOVER_ENDPOINT,
   OLLAMA_PROVIDER,
-  OLLAMA_RPC_CHANNEL,
-  OLLAMA_SAVE_ENDPOINT,
+  OLLAMA_RPC_METHOD,
   OLLAMA_SETTINGS_NAMESPACE,
-  OLLAMA_SETTINGS_READ_ENDPOINT,
+  OLLAMA_SETTINGS_VALIDATE_ENDPOINT,
   OLLAMA_USAGE_ENDPOINT,
 } from './client-contract.ts'
 
@@ -93,21 +89,17 @@ export {
   OLLAMA_DISCOVER_ENDPOINT,
   OLLAMA_PROVIDER,
   OLLAMA_PUBLIC_BASE_URL,
-  OLLAMA_RPC_CHANNEL,
-  OLLAMA_SAVE_ENDPOINT,
+  OLLAMA_RPC_METHOD,
   OLLAMA_SETTINGS_NAMESPACE,
-  OLLAMA_SETTINGS_READ_ENDPOINT,
+  OLLAMA_SETTINGS_VALIDATE_ENDPOINT,
   OLLAMA_USAGE_ENDPOINT,
   decodeOllamaCatalogModel,
-  decodeOllamaCredentialRef,
   decodeOllamaCredentialSetRequest,
   decodeOllamaCredentialStatus,
   decodeOllamaDiscoveryRequest,
   decodeOllamaDiscoveryResult,
-  decodeOllamaSaveRequest,
-  decodeOllamaSaveResult,
   decodeOllamaSettings,
-  decodeOllamaSettingsReadResult,
+  decodeOllamaSettingsValidationRequest,
   decodeOllamaUsageReply,
 } from './client-contract.ts'
 export type {
@@ -116,9 +108,8 @@ export type {
   OllamaCredentialStatus,
   OllamaDiscoveryRequest,
   OllamaDiscoveryResult,
-  OllamaSaveRequest,
   OllamaSaveResult,
-  OllamaSettingsReadResult,
+  OllamaSettingsValidationRequest,
   OllamaSettingsView,
   OllamaUsageModelCount,
   OllamaUsageReply,
@@ -128,7 +119,7 @@ export type {
 export type * from './types.ts'
 
 export const name = 'llm-ollama'
-export const inject = ['llm']
+export const inject = ['llm', 'webServer']
 
 /** Preserve Ollama's historical normal retry count across host-line default changes. */
 const DEFAULT_MAX_RETRIES = 2
@@ -145,29 +136,35 @@ const NS = OLLAMA_SETTINGS_NAMESPACE
 const CREDENTIAL_FAILURE_CODES: readonly string[] = [INVALID_CREDENTIAL_CODE, 'MISSING_CREDENTIAL', 'AUTH']
 
 /**
- * Plugin config, validated by the same-named schemastery schema and doubling
- * as the `llm-ollama` settings-section shape. Every field is optional in yml:
- * a missing API key resolves through {@link Config.apiKeyEnv} at each request
- * (a request without any key fails with `MISSING_CREDENTIAL`, not at plugin
- * load), omitted models advertise none, and omitted capacities fall back to
- * the route defaults.
+ * Plugin config. Volatile fields are the fields the provider card edits live.
  */
 export interface Config {
-  /** Credential reference (environment-variable name) resolved per request; defaults to `OLLAMA_API_KEY`. */
-  apiKeyEnv?: string
+  /** Credential reference (environment-variable name); defaults to `OLLAMA_API_KEY`. */
+  apiKeyEnv: string
   /** Endpoint base; defaults to the public Ollama Cloud API. */
-  baseURL?: string
+  baseURL: Volatile<string>
   /** Advisory models shown by discovery consumers; defaults to none. */
-  models?: OllamaCatalogModel[]
+  models: Volatile<OllamaCatalogModel[]>
   /** Default per-request output cap; omitted leaves the request cap to the model profile. */
   maxTokens?: number
   /** Positive context capacity used when the selected model has no exact value (default 262144). */
-  defaultContextWindow?: number
+  defaultContextWindow: number
   /** Maximum provider idle time while one stream read is outstanding (default five minutes). */
-  streamIdleTimeoutMs?: number
+  streamIdleTimeoutMs: number
   /** Per-attempt budget for Ollama Cloud Web Search/Fetch requests (default 15 seconds). */
-  webRequestTimeoutMs?: number
+  webRequestTimeoutMs: number
   /** Provider-owned model-request retry policy; omission uses normal defaults. */
+  retryPolicy?: RetryPolicyConfig
+}
+
+interface ConfigValues {
+  apiKeyEnv?: string
+  baseURL?: string
+  models?: readonly OllamaCatalogModel[]
+  maxTokens?: number
+  defaultContextWindow?: number
+  streamIdleTimeoutMs?: number
+  webRequestTimeoutMs?: number
   retryPolicy?: RetryPolicyConfig
 }
 
@@ -183,10 +180,10 @@ const catalogModel: z<OllamaCatalogModel> = z.object({
   tools: z.boolean(),
 })
 
-export const Config: z<Config> = z.object({
+export const Config = z.object({
   apiKeyEnv: z.string().role('credential-ref').default(DEFAULT_API_KEY_ENV),
-  baseURL: z.string().default(PUBLIC_BASE_URL),
-  models: z.array(catalogModel).default([]),
+  baseURL: z.string().default(PUBLIC_BASE_URL).volatile(),
+  models: z.array(catalogModel).default([]).volatile(),
   maxTokens: z.number().step(1).min(1).max(Number.MAX_SAFE_INTEGER),
   defaultContextWindow: z.number().step(1).min(1).default(DEFAULT_CONTEXT_WINDOW),
   streamIdleTimeoutMs: z.number().min(Number.MIN_VALUE).max(MAX_TIMER_DELAY_MS).default(DEFAULT_STREAM_IDLE_TIMEOUT_MS),
@@ -238,7 +235,7 @@ function resolveModels(models: readonly OllamaCatalogModel[] | undefined): Ollam
  * @param config - raw plugin config or resolved settings snapshot.
  * @returns validated connection facts plus the credential reference.
  */
-export function resolveAdapterOptions(config: Config): ResolvedOllamaOptions {
+export function resolveAdapterOptions(config: ConfigValues): ResolvedOllamaOptions {
   if (config.defaultContextWindow !== undefined
     && (!Number.isInteger(config.defaultContextWindow) || config.defaultContextWindow <= 0)) {
     throw new Error('llm-ollama: defaultContextWindow must be a positive integer')
@@ -327,24 +324,26 @@ function usageFailure(error: unknown) {
 export function apply(ctx: Context, config: Config): void {
   if (!allowDshRuntime(ctx.logger, 'dsh-llm-ollama', ['@deepseek-ai/dsh-llm'])) return
 
-  if (Object.hasOwn(config, 'remoteManagement')) {
-    throw new Error('llm-ollama: remoteManagement is not supported by the Alpha.4 Connection service')
-  }
-  let current: () => Config = () => config
-  let lastRaw: Config | undefined
+  let lastBaseURL: string | undefined
+  let lastModels: readonly OllamaCatalogModel[] | undefined
   let lastGood: ResolvedOllamaOptions | undefined
   const options = (): ResolvedOllamaOptions => {
-    const raw = current()
-    if (raw === lastRaw && lastGood !== undefined) return lastGood
+    const baseURL = config.baseURL.get()
+    const models = config.models.get()
+    if (baseURL === lastBaseURL && models === lastModels && lastGood !== undefined) return lastGood
+    const { baseURL: _baseURL, models: _models, ...rest } = config
+    const values: ConfigValues = { ...rest, baseURL, models }
     try {
-      const next = resolveAdapterOptions(raw)
-      lastRaw = raw
+      const next = resolveAdapterOptions(values)
+      lastBaseURL = baseURL
+      lastModels = models
       lastGood = next
       return next
     } catch (error) {
       if (lastGood === undefined) throw error
-      lastRaw = raw
-      ctx.logger.error('llm-ollama: keeping the last good configuration after an invalid settings section')
+      lastBaseURL = baseURL
+      lastModels = models
+      ctx.logger.error('llm-ollama: keeping the last good configuration after an invalid settings update')
       ctx.logger.error(error)
       return lastGood
     }
@@ -378,19 +377,10 @@ export function apply(ctx: Context, config: Config): void {
   ctx.llm.registerConfigurableProviders([
     { provider: OLLAMA_PROVIDER, displayName: 'Ollama Cloud', settingsNs: NS, settingsPath: [] },
   ])
-  const registration = ctx.llm.registerAdapter([OLLAMA_PROVIDER], adapter)
-  let registeredPolicy = options().retryPolicy
-  const ensureRegistrationFacts = (): void => {
-    const policy = options().retryPolicy
-    if (deepEqualJson(policy, registeredPolicy)) return
-    registration.replace([OLLAMA_PROVIDER])
-    registeredPolicy = policy
-  }
+  ctx.llm.registerAdapter([OLLAMA_PROVIDER], adapter)
 
-  // Register model discovery for the configuration surface's "fetch models" action.
   const storedApiKey = async (): Promise<string | undefined> => {
-    const connection = options()
-    const ref = connection.apiKeyEnv
+    const ref = options().apiKeyEnv
     const credentials = ctx.get('credentials')
     if (credentials !== undefined) {
       const hit = await credentials.resolve(ref)
@@ -400,10 +390,6 @@ export function apply(ctx: Context, config: Config): void {
   }
   ctx.llm.registerModelDiscovery(NS, (request, signal) => discoverModels(request, storedApiKey, signal))
 
-  // Offer Ollama's web search/fetch to the web seam when the deployment mounts
-  // it. Selection stays deployment policy: the base bundle pins the DeepSeek
-  // provider, and a profile switches by pinning `searchProvider`/`fetchProvider`
-  // to `ollama-cloud` in its cordis patch.
   ctx.effect(() => {
     const web = ctx.get('web')
     if (web === undefined) return () => {}
@@ -417,13 +403,7 @@ export function apply(ctx: Context, config: Config): void {
     return () => { disposeSearch(); disposeFetch() }
   }, 'llm-ollama: web providers')
 
-  // Connection authenticates this channel before dispatch.
-  ctx.inject(['connection'], (connectionCtx) => {
-    // The browser's shared quota cache drops its entry on INVALID_CREDENTIAL, so
-    // only a credential verdict is remapped to that code. Every other lookup
-    // failure — an unreadable store, a transient environment read — is rethrown
-    // unchanged: it says nothing about whether the credential still works, so it
-    // must not discard a cached quota.
+  ctx.inject(['connection', 'webServer'], (connectionCtx) => {
     const usageApiKey = async (): Promise<string | undefined> => {
       try {
         return await storedApiKey()
@@ -436,36 +416,26 @@ export function apply(ctx: Context, config: Config): void {
         )
       }
     }
-    const handler = async (endpoint: string, payload: unknown, signal: AbortSignal) => {
-      if (endpoint === OLLAMA_SETTINGS_READ_ENDPOINT) {
-        const settings = ctx.get('settings')
-        const credentials = ctx.get('credentials')
-        const descriptor = settings?.describe().find(item => item.ns === NS)
-        const decoded = decodeOllamaSettings(descriptor?.value)
-        if (descriptor === undefined || decoded === undefined || credentials === undefined) return settingsFailure('Ollama Cloud settings are unavailable')
-        const info = await credentials.describe(credentialRef(decoded.apiKeyEnv))
-        return { ok: true as const, value: { settings: decoded, revision: descriptor.revision, credential: { configured: info.configured, writable: info.writable } } }
-      }
+    const handler: ConnectionRpcHandler = async (endpoint, payload, signal) => {
       if (endpoint === OLLAMA_CREDENTIAL_STATUS_ENDPOINT) {
-        const ref = decodeOllamaCredentialRef(payload)
+        if (payload !== undefined
+          && (typeof payload !== 'object' || payload === null || Array.isArray(payload)
+            || Object.keys(payload).length > 0)) {
+          return settingsFailure('invalid Ollama Cloud credential request')
+        }
         const credentials = ctx.get('credentials')
-        const settings = ctx.get('settings')
-        const descriptor = settings?.describe().find(item => item.ns === NS)
-        const decoded = decodeOllamaSettings(descriptor?.value)
-        if (ref === undefined || credentials === undefined || decoded === undefined || ref !== decoded.apiKeyEnv) return settingsFailure('invalid Ollama Cloud credential request')
-        const info = await credentials.describe(credentialRef(ref))
+        if (credentials === undefined) return settingsFailure('Ollama Cloud credentials are unavailable')
+        const info = await credentials.describe(options().apiKeyEnv)
         return { ok: true as const, value: { configured: info.configured, writable: info.writable } }
       }
       if (endpoint === OLLAMA_CREDENTIAL_SET_ENDPOINT) {
         const request = decodeOllamaCredentialSetRequest(payload)
         const credentials = ctx.get('credentials')
-        const settings = ctx.get('settings')
-        const descriptor = settings?.describe().find(item => item.ns === NS)
-        const decoded = decodeOllamaSettings(descriptor?.value)
-        if (request === undefined || credentials === undefined || decoded === undefined || request.ref !== decoded.apiKeyEnv) return settingsFailure('invalid Ollama Cloud credential request')
+        if (request === undefined || credentials === undefined) return settingsFailure('invalid Ollama Cloud credential request')
         try {
-          await credentials.set(credentialRef(request.ref), assertUsableApiKey(request.value, 'llm-ollama', request.ref))
-          const info = await credentials.describe(credentialRef(request.ref))
+          const ref = options().apiKeyEnv
+          await credentials.set(ref, assertUsableApiKey(request.value, 'llm-ollama', ref))
+          const info = await credentials.describe(ref)
           return { ok: true as const, value: { configured: info.configured, writable: info.writable } }
         } catch (error: unknown) {
           return settingsFailure(error instanceof Error ? error.message : 'Ollama Cloud credential save failed')
@@ -484,35 +454,25 @@ export function apply(ctx: Context, config: Config): void {
           return discoveryFailure(message, request.baseURL)
         }
       }
-      if (endpoint === OLLAMA_SAVE_ENDPOINT) {
-        const request = decodeOllamaSaveRequest(payload)
+      if (endpoint === OLLAMA_SETTINGS_VALIDATE_ENDPOINT) {
+        const request = decodeOllamaSettingsValidationRequest(payload)
         if (request === undefined) return settingsFailure('invalid Ollama Cloud settings request')
-        const settings = ctx.get('settings')
-        if (settings === undefined) return settingsFailure('Ollama Cloud settings are unavailable')
+        const descriptor = ctx.get('settings')?.describe({ redactSecrets: true }).find(item => item.ns === NS)
+        if (descriptor === undefined) return settingsFailure('Ollama Cloud settings are unavailable')
+        if (descriptor.revision !== request.expectedRevision) {
+          return settingsFailure(
+            `settings namespace "${NS}" changed since it was read (expected revision ${request.expectedRevision}, now ${descriptor.revision})`,
+            'SETTINGS_CONFLICT',
+          )
+        }
         try {
-          const before = settings.describe().find(descriptor => descriptor.ns === NS)
-          if (before === undefined) return settingsFailure('Ollama Cloud settings are unavailable')
-          const current = decodeOllamaSettings(before.value)
-          if (current === undefined) return settingsFailure('Ollama Cloud settings are invalid')
-          const ops: SettingsPathOp[] = []
-          if (!deepEqualJson(current.baseURL, request.baseURL)) {
-            ops.push({ op: 'set', path: ['baseURL'], value: request.baseURL })
-          }
-          if (!deepEqualJson(current.models, request.models)) {
-            ops.push({ op: 'set', path: ['models'], value: request.models })
-          }
-          if (ops.length > 0) await settings.mutate(NS, ops, request.expectedRevision)
-          const accepted = settings.describe().find(descriptor => descriptor.ns === NS)
-          const acceptedSettings = decodeOllamaSettings(accepted?.value)
-          if (accepted === undefined || acceptedSettings === undefined) {
-            return settingsFailure('Ollama Cloud settings could not be reloaded')
-          }
-          return { ok: true as const, value: { settings: acceptedSettings, revision: accepted.revision } }
+          const { baseURL: _baseURL, models: _models, ...rest } = config
+          resolveAdapterOptions({ ...rest, baseURL: request.baseURL, models: request.models })
+          return { ok: true as const, value: {} }
         } catch (error: unknown) {
-          const message = error instanceof Error && error.message.length > 0
-            ? error.message
-            : 'Ollama Cloud settings save failed'
-          return settingsFailure(message)
+          return settingsFailure(
+            error instanceof Error && error.message.length > 0 ? error.message : 'invalid Ollama Cloud settings request',
+          )
         }
       }
       if (endpoint === OLLAMA_USAGE_ENDPOINT) {
@@ -527,14 +487,65 @@ export function apply(ctx: Context, config: Config): void {
       }
       return settingsFailure(`unknown Ollama Cloud endpoint: ${endpoint}`)
     }
-    connectionCtx.effect(() => connectionCtx.connection.rpc.handle(OLLAMA_RPC_CHANNEL, handler), 'llm-ollama: RPC channel')
+    connectionCtx.effect(() => connectionCtx.connection.fetch.register({
+      path: '/api/plugin-rpc/ollama-cloud',
+      methods: ['POST'],
+      requestBody: 'buffered',
+      fetch: async (request) => {
+        if (request.headers.get('content-type')?.split(';', 1)[0]?.trim().toLowerCase() !== 'application/json') {
+          return new Response('unsupported media type', { status: 415 })
+        }
+        let body: unknown
+        try {
+          body = await request.json()
+        } catch {
+          return new Response('invalid JSON', { status: 400 })
+        }
+        const parsed = clientRequestSchema.safeParse(body)
+        if (!parsed.success || parsed.data.method !== OLLAMA_RPC_METHOD) {
+          return new Response('invalid plugin RPC request', { status: 400 })
+        }
+        const wrapper = parsed.data.payload
+        if (typeof wrapper !== 'object' || wrapper === null || Array.isArray(wrapper)) {
+          return new Response('invalid plugin RPC payload', { status: 400 })
+        }
+        const envelope = wrapper as Record<string, unknown>
+        if (typeof envelope['endpoint'] !== 'string') {
+          return new Response('invalid plugin RPC payload', { status: 400 })
+        }
+        let result: ConnectionRpcHandlerResult
+        try {
+          result = await handler(
+            envelope['endpoint'],
+            envelope['payload'],
+            request.signal,
+            connectionCtx.connection.operator,
+          )
+        } catch {
+          return new Response('internal server error', { status: 500 })
+        }
+        const rpcResult = result.ok
+          ? { ok: true as const, value: result.value }
+          : { ok: false as const, error: result.error }
+        const response = { type: 'server-response' as const, rpcId: parsed.data.rpcId, result: rpcResult }
+        if (!result.ok || result.attachments === undefined || result.attachments.length === 0) {
+          return Response.json(response)
+        }
+        const parts = new FormData()
+        const attachments = result.attachments.map((attachment, index) => {
+          const part = `bytes-${index}`
+          parts.set(part, new Blob([new Uint8Array(attachment.bytes)]))
+          return { path: attachment.path, codec: 'bytes', part }
+        })
+        parts.set('metadata', JSON.stringify({ ...response, attachments }))
+        return new Response(parts)
+      },
+    }), 'llm-ollama: authenticated plugin RPC')
   })
   ctx.inject(['settings'], (settingsCtx) => {
-    settingsCtx.settings.installSection(ctx, NS, Config, config, {
-      setSource: (source) => {
-        current = source
-      },
-      onChange: ensureRegistrationFacts,
-    })
+    settingsCtx.effect(
+      () => settingsCtx.settings.configure({ auto: false }, ctx.fiber),
+      'llm-ollama: settings page policy',
+    )
   })
 }

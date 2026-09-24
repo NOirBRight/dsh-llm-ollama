@@ -1,3 +1,15 @@
+## v0.6.24
+
+## 0.6.25
+
+- Declare `webServer` on the Host `inject` list (and nested Connection scope) so settings/auth RPC mounts on DSH 0.1.6+ inject enforcement.
+
+Read settings before credential status. Register catalog extras against providers-ui 0.2.9.
+
+## v0.6.23
+
+DSH Host packages are no longer version-locked. `@deepseek-ai/dsh-*` peers are `*` and optional; unknown Hosts warn once and still mount. Cordis stays `>=4.0.2 <5.0.0`. Compile-target `devDependencies` remain `0.1.5-rc.1`.
+
 ## v0.6.22
 
 - 详情页改用共享模板 `ProviderDetail`（由设置页通过 slot 上下文下发，插件不再自带模板与样式）。
