@@ -104,7 +104,6 @@ export function apply(ctx: ClientContext): void {
     if (current === undefined) throw new Error(t('requestFailed'))
     const sameSettings = current.baseURL === settings.baseURL
       && JSON.stringify(current.models) === JSON.stringify(settings.models)
-    if (sameSettings) return { settings: current, revision: snapshot.revision }
 
     const checked = await callOllamaRpc(OLLAMA_SETTINGS_VALIDATE_ENDPOINT, {
       baseURL: settings.baseURL,
@@ -112,6 +111,7 @@ export function apply(ctx: ClientContext): void {
       expectedRevision: sourceRevision,
     })
     if (!checked.ok) throw new Error(checked.error.message)
+    if (sameSettings) return { settings: current, revision: snapshot.revision }
     const accepted = await settingsForm.mutate([
       { op: 'set', path: ['baseURL'], value: settings.baseURL },
       { op: 'set', path: ['models'], value: settings.models.map((model): JsonValue => ({

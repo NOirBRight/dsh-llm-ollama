@@ -208,6 +208,33 @@ describe('Ollama client plugin registration', () => {
     ], 1)
     await fiber.dispose()
   })
+  it('rejects a key-only save when another tab advanced the Host revision without refreshing this card', async () => {
+    const call = vi.fn(async (_channel: string, _method: string, request: { endpoint: string; payload?: { expectedRevision?: number } }) =>
+      request.endpoint === OLLAMA_SETTINGS_VALIDATE_ENDPOINT
+        ? { ok: false, error: { code: 'SETTINGS_CONFLICT', message: 'remote revision changed' } }
+        : { ok: true, value: { configured: false, writable: true } })
+    const { ctx, slots, settingsForm } = await bench(undefined, call)
+    const fiber = ctx.plugin({ inject: [...inject], apply })
+    await fiber.await()
+    const face = slots.entries('settings.provider.item')[0]?.inject?.() as OllamaPluginCardFace
+    const card = render(createElement(OllamaPluginCard, {
+      ...face,
+      useOllamaSettings: selector => selector(settingsForm.form.getSnapshot()),
+    }))
+    fireEvent.click(screen.getByRole('button', { name: `${face.t('expand')}: ${face.t('title')}` }))
+    fireEvent.change(screen.getByLabelText(face.t('apiKey')), { target: { value: 'stale-key' } })
+    fireEvent.click(screen.getByRole('button', { name: face.t('save') }))
+    await waitFor(() => expect(screen.getByText('remote revision changed')).toBeTruthy())
+    expect(call).toHaveBeenCalledWith('/api', OLLAMA_RPC_METHOD, {
+      endpoint: OLLAMA_SETTINGS_VALIDATE_ENDPOINT,
+      payload: { ...value, expectedRevision: 1 },
+    }, undefined)
+    expect(settingsForm.mutate).not.toHaveBeenCalled()
+    expect(call.mock.calls.some(([, , request]) => request.endpoint === OLLAMA_CREDENTIAL_SET_ENDPOINT)).toBe(false)
+    card.unmount()
+    await fiber.dispose()
+  })
+
   it('rejects an older card draft after a second card saves newer settings', async () => {
     const original: OllamaSettingsView = {
       baseURL: 'https://ollama.com/api',
