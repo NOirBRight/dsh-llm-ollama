@@ -612,11 +612,11 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
     try {
       const settings = settingsOf(draft, snapshot.value)
       const accepted = await props.saveConfiguration(settings, sourceRevision)
-      if (apiKey.trim().length > 0) await props.saveCredential(apiKey.trim())
       const next = draftOf(accepted.settings)
       setSource(next)
       setDraft(next)
       setSourceRevision(accepted.revision)
+      if (apiKey.trim().length > 0) await props.saveCredential(apiKey.trim())
       setApiKey('')
       setNotice(t('saved'))
       await refreshCredential()

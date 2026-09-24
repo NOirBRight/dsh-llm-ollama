@@ -234,6 +234,33 @@ describe('Ollama client plugin registration', () => {
     card.unmount()
     await fiber.dispose()
   })
+  it('stores a key without rewriting an unchanged catalog whose optional fields serialize in a different order', async () => {
+    const original: OllamaSettingsView = {
+      ...value,
+      models: [{ id: 'gemma3', contextWindow: 262144, vision: true, tools: true }],
+    }
+    const call = vi.fn(async (_channel: string, _method: string, request: { endpoint: string }) =>
+      request.endpoint === OLLAMA_SETTINGS_VALIDATE_ENDPOINT
+        ? { ok: true, value: {} }
+        : { ok: true, value: { configured: request.endpoint === OLLAMA_CREDENTIAL_SET_ENDPOINT, writable: true } })
+    const { ctx, slots, settingsForm } = await bench(undefined, call, original)
+    const fiber = ctx.plugin({ inject: [...inject], apply })
+    await fiber.await()
+    const face = slots.entries('settings.provider.item')[0]?.inject?.() as OllamaPluginCardFace
+    const card = render(createElement(OllamaPluginCard, {
+      ...face,
+      useOllamaSettings: selector => selector(settingsForm.form.getSnapshot()),
+    }))
+    fireEvent.click(screen.getByRole('button', { name: `${face.t('expand')}: ${face.t('title')}` }))
+    fireEvent.change(screen.getByLabelText(face.t('apiKey')), { target: { value: 'key-only' } })
+    fireEvent.click(screen.getByRole('button', { name: face.t('save') }))
+    await waitFor(() => expect(call.mock.calls.some(([, , request]) => request.endpoint === OLLAMA_CREDENTIAL_SET_ENDPOINT)).toBe(true))
+    expect(settingsForm.mutate).not.toHaveBeenCalled()
+    expect(settingsForm.form.getSnapshot()).toMatchObject({ value: original, revision: 1 })
+    card.unmount()
+    await fiber.dispose()
+  })
+
 
   it('rejects an older card draft after a second card saves newer settings', async () => {
     const original: OllamaSettingsView = {

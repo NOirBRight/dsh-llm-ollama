@@ -102,8 +102,14 @@ export function apply(ctx: ClientContext): void {
     if (!snapshot.writable) throw new Error(t('requestFailed'))
     const current = decodeOllamaSettings(snapshot.value)
     if (current === undefined) throw new Error(t('requestFailed'))
-    const sameSettings = current.baseURL === settings.baseURL
-      && JSON.stringify(current.models) === JSON.stringify(settings.models)
+    const sameSettings = current.baseURL === settings.baseURL && current.models.length === settings.models.length
+      && current.models.every((model, index) => {
+        const next = settings.models[index]
+        return next !== undefined && model.id === next.id && model.name === next.name
+          && model.description === next.description && model.contextWindow === next.contextWindow
+          && model.maxTokens === next.maxTokens && model.vision === next.vision
+          && model.thinking === next.thinking && model.defaultEffort === next.defaultEffort
+      })
 
     const checked = await callOllamaRpc(OLLAMA_SETTINGS_VALIDATE_ENDPOINT, {
       baseURL: settings.baseURL,

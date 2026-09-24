@@ -141,6 +141,34 @@ describe('OllamaPluginCard', () => {
       1,
     )
   })
+  it('keeps a failed key draft retryable after the settings form has accepted a newer revision', async () => {
+    let latestSnapshot = snapshot()
+    const saveConfiguration = vi.fn(async (next: OllamaSettingsView, sourceRevision: number) => {
+      if (latestSnapshot.revision !== sourceRevision) throw new Error('stale revision')
+      latestSnapshot = snapshot({ value: next, revision: sourceRevision + 1 })
+      return { settings: next, revision: latestSnapshot.revision! }
+    })
+    const saveCredential = vi.fn()
+      .mockRejectedValueOnce(new Error('credential storage failed'))
+      .mockResolvedValueOnce(undefined)
+    render(<OllamaPluginCard {...props({
+      useOllamaSettings: selector => selector(latestSnapshot),
+      saveConfiguration,
+      saveCredential,
+    })} />)
+    fireEvent.click(screen.getByRole('button', { name: `${en.expand}: ${en.title}` }))
+    const key = screen.getByLabelText<HTMLInputElement>(en.apiKey)
+    fireEvent.change(key, { target: { value: 'retry-key' } })
+    fireEvent.click(screen.getByRole('button', { name: en.save }))
+    await waitFor(() => expect(screen.getByText('credential storage failed')).toBeTruthy())
+    expect(key.value).toBe('retry-key')
+    expect(latestSnapshot.revision).toBe(2)
+    fireEvent.click(screen.getByRole('button', { name: en.save }))
+    await waitFor(() => expect(saveCredential).toHaveBeenCalledTimes(2))
+    expect(saveConfiguration.mock.calls.map(([, revision]) => revision)).toEqual([1, 2])
+    await waitFor(() => expect(key.value).toBe(''))
+  })
+
 
   it('seeds selection from current models and replaces the catalog on adoption', async () => {
     const currentModels: OllamaCatalogModelConfig[] = [
