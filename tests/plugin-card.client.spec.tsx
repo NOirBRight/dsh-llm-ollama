@@ -2,7 +2,7 @@
 
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
+import type { ConfigFormSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { ProviderDetail, providerDetailCopy } from 'dsh-llm-providers-ui/provider-detail'
 import { OllamaPluginCard } from '../src/client/OllamaPluginCard.tsx'
 import type { OllamaPluginCardProps } from '../src/client/OllamaPluginCard.tsx'
@@ -12,14 +12,11 @@ import type { OllamaCatalogModelConfig, OllamaSettingsView } from '../src/client
 afterEach(() => { cleanup() })
 
 const settings: OllamaSettingsView = {
-  apiKeyEnv: 'OLLAMA_API_KEY',
   baseURL: 'https://ollama.com/api',
   models: [],
-  defaultContextWindow: 4096,
-  streamIdleTimeoutMs: 300_000,
 }
 
-function snapshot(overrides: Partial<SettingsScopeSnapshot<OllamaSettingsView>> = {}): SettingsScopeSnapshot<OllamaSettingsView> {
+function snapshot(overrides: Partial<ConfigFormSnapshot<OllamaSettingsView>> = {}): ConfigFormSnapshot<OllamaSettingsView> {
   return {
     status: 'ready',
     value: settings,

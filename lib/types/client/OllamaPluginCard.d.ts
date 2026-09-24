@@ -1,6 +1,6 @@
 /** Ollama Cloud connection and model-catalog card for Plugin configuration. */
 import type { ReactNode } from 'react';
-import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client';
+import type { ConfigForm } from '@deepseek-ai/dsh-client-ui-settings/client';
 import type { InjectFace, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
 import type { OllamaCatalogModelConfig, OllamaDiscoveryRequest, OllamaSaveResult, OllamaSettingsView, OllamaUsageView } from '../client-contract.ts';
 import type { OllamaSettingsKey } from './locales.ts';
@@ -30,12 +30,12 @@ export interface OllamaPluginCardFace {
     /** Localized card copy. */
     t: (key: OllamaSettingsKey) => string;
     hooks: {
-        /** Reactive Host-owned settings section. */
-        ollamaSettings: SettingsScope<OllamaSettingsView>;
+        /** Reactive Loader configuration values edited by this card. */
+        ollamaSettings: ConfigForm<OllamaSettingsView>;
     };
-    /** Read value-free credential status for the section's reference. */
+    /** Read value-free credential status for the Loader entry's reference. */
     describeCredential: () => Promise<OllamaCredentialState>;
-    /** Store changed settings and return the accepted Host snapshot. */
+    /** Validate and save editable settings, returning the accepted ConfigForm snapshot. */
     saveConfiguration: (settings: OllamaSettingsView) => Promise<OllamaSaveResult>;
     /** Store a new key separately; this is intentionally not atomic with settings. */
     saveCredential: (apiKey: string) => Promise<void>;

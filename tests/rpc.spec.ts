@@ -4,11 +4,10 @@ import LlmRuntime, { HarnessError, LlmError } from '@deepseek-ai/dsh-llm'
 import { apply, Config, inject } from '../src/index.ts'
 import {
   OLLAMA_DISCOVER_ENDPOINT,
-  OLLAMA_RPC_CHANNEL,
-  OLLAMA_SAVE_ENDPOINT,
+  OLLAMA_RPC_METHOD,
+  OLLAMA_SETTINGS_VALIDATE_ENDPOINT,
   OLLAMA_USAGE_ENDPOINT,
 } from '../src/client-contract.ts'
-import type { OllamaSettingsView } from '../src/client-contract.ts'
 import { OLLAMA_USAGE_FAILED } from '../src/usage.ts'
 import { closeMockServers, mockServer } from './mock-server.ts'
 
@@ -19,51 +18,76 @@ type Handler = (
   payload: unknown,
   signal: AbortSignal,
 ) => Promise<{ ok: boolean; value?: unknown; error?: { code?: string, message?: string } }>
+interface FetchRoute {
+  path: string
+  methods: readonly string[]
+  requestBody: string
+  fetch(request: Request): Promise<Response>
+}
 
 /**
- * Register the plugin's RPC handler with a stub credential seam.
+ * Register the authenticated Fetch route with a stub credential seam.
  * @param resolve - credential lookup behavior; omitted leaves `ctx.credentials` unmounted.
- * @returns the registered handler plus fiber disposal.
+ * @returns the route adapter plus fiber disposal.
  */
-async function usageHandler(resolve?: () => Promise<never>) {
+async function usageHandler(
+  resolve?: () => Promise<never>,
+  settings?: {
+    configure: (...args: unknown[]) => () => void
+    describe: () => { ns: string; revision: number }[]
+  },
+) {
   const ctx = new Context()
   await ctx.plugin(LlmRuntime).await()
   const dispose = vi.fn(() => Promise.resolve())
-  const handle = vi.fn((_channel: string, _handler: Handler) => dispose)
-  ctx.provide('connection', { rpc: { handle } } as never)
-  ctx.provide('webServer', { register: () => () => {} } as never)
+  let route: FetchRoute | undefined
+  const register = vi.fn((value: FetchRoute) => {
+    route = value
+    return dispose
+  })
+  ctx.provide('connection', { fetch: { register }, operator: {} } as never)
+  ctx.provide('webServer', {} as never)
   if (resolve !== undefined) ctx.provide('credentials', { resolve: vi.fn(resolve) } as never)
+  if (settings !== undefined) ctx.provide('settings', settings as never)
   const fiber = ctx.plugin({ inject: [...inject], Config, apply }, {})
   await fiber.await()
-  const handler = handle.mock.calls[0]?.[1]
-  if (handler === undefined) throw new Error('Ollama RPC was not registered')
-  return { handler, dispose: async () => { await fiber.dispose(); await ctx.fiber.dispose() } }
+  const registeredRoute = route
+  if (registeredRoute === undefined) throw new Error('Ollama authenticated Fetch route was not registered')
+  const handler: Handler = async (endpoint, payload, signal) => {
+    const response = await registeredRoute.fetch(new Request('http://localhost/api/plugin-rpc/ollama-cloud', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        type: 'client-request',
+        rpcId: 'test-ollama-1',
+        method: OLLAMA_RPC_METHOD,
+        payload: { endpoint, payload },
+      }),
+      signal,
+    }))
+    if (!response.ok) throw new Error(`plugin RPC route returned HTTP ${response.status}`)
+    const wire = await response.json() as { result?: Awaited<ReturnType<Handler>> }
+    if (wire.result === undefined) throw new Error('plugin RPC response omitted result')
+    return wire.result
+  }
+  return {
+    handler,
+    route: registeredRoute,
+    register,
+    dispose: async () => { await fiber.dispose(); await ctx.fiber.dispose() },
+  }
 }
 
 describe('Ollama rich-discovery RPC', () => {
-  it('registers an authenticated Connection channel and retains native capabilities', async () => {
-    type Handler = (
-      endpoint: string,
-      payload: unknown,
-      signal: AbortSignal,
-    ) => Promise<{ ok: boolean; value?: unknown; error?: unknown }>
-    const ctx = new Context()
-    await ctx.plugin(LlmRuntime).await()
-    const dispose = vi.fn(() => Promise.resolve())
-    const handle = vi.fn((_channel: string, _handler: Handler) => dispose)
-    ctx.provide('connection', { rpc: { handle } } as never)
-    ctx.provide('webServer', { register: () => () => {} } as never)
-    const fiber = ctx.plugin({ inject: [...inject], Config, apply }, {})
-    await fiber.await()
+  it('registers an authenticated buffered Fetch route and retains native discovery capabilities', async () => {
+    const { handler, route, register, dispose: close } = await usageHandler()
+    expect(register).toHaveBeenCalledTimes(1)
+    expect(route).toMatchObject({
+      path: '/api/plugin-rpc/ollama-cloud',
+      methods: ['POST'],
+      requestBody: 'buffered',
+    })
 
-    expect(handle).toHaveBeenCalledTimes(1)
-    expect(handle).toHaveBeenCalledWith(OLLAMA_RPC_CHANNEL, expect.any(Function))
-    const registration = handle.mock.calls[0]
-    if (registration === undefined) throw new Error('rich-discovery RPC was not registered')
-    expect(registration).toHaveLength(2)
-    expect(registration[0]).toBe(OLLAMA_RPC_CHANNEL)
-
-    const handler = registration[1]
     const server = await mockServer([
       {
         kind: 'json',
@@ -84,7 +108,6 @@ describe('Ollama rich-discovery RPC', () => {
       { baseURL: server.url, apiKey: 'one-shot-key' },
       new AbortController().signal,
     )
-
     expect(result).toEqual({
       ok: true,
       value: {
@@ -99,101 +122,41 @@ describe('Ollama rich-discovery RPC', () => {
     })
     expect(server.headers[0]?.authorization).toBe('Bearer one-shot-key')
 
-    await fiber.dispose()
-    expect(dispose).toHaveBeenCalledTimes(1)
-    await ctx.fiber.dispose()
+    await close()
+    expect(register.mock.results[0]?.value).toHaveBeenCalledTimes(1)
   })
-
-  it('commits URL and catalog through one revision-fenced settings mutation', async () => {
-    type Handler = (
-      endpoint: string,
-      payload: unknown,
-      signal: AbortSignal,
-    ) => Promise<{ ok: boolean; value?: unknown; error?: unknown }>
-    const current: OllamaSettingsView = {
-      apiKeyEnv: 'OLLAMA_API_KEY',
-      baseURL: 'https://ollama.com/api',
-      models: [],
-      defaultContextWindow: 262_144,
-      streamIdleTimeoutMs: 300_000,
-    }
-    let value = current
+  it('prevalidates settings at the expected revision before ConfigForm commits them', async () => {
     let revision = 1
-    const mutate = vi.fn(async (_ns: string, ops: readonly { op: string; path: readonly string[]; value: unknown }[], expected: number) => {
-      expect(expected).toBe(revision)
-      const next = structuredClone(value) as Record<string, unknown>
-      for (const op of ops) next[op.path[0] as string] = structuredClone(op.value)
-      value = next as typeof current
-      revision += 1
-    })
     const settings = {
-      register: () => ({
-        get: () => value,
-        watch: () => () => undefined,
-        update: () => Promise.resolve(),
-        replace: () => Promise.resolve(),
-      }),
-      describe: () => [{ ns: 'llm-ollama', value, revision }],
-      mutate,
+      configure: () => () => undefined,
+      describe: () => [{ ns: 'llm-ollama', revision }],
     }
-    const ctx = new Context()
-    await ctx.plugin(LlmRuntime).await()
-    const dispose = vi.fn(() => Promise.resolve())
-    const handle = vi.fn((_channel: string, _handler: Handler) => dispose)
-    ctx.provide('connection', { rpc: { handle } } as never)
-    ctx.provide('webServer', { register: () => () => {} } as never)
-    ctx.provide('settings', settings as never)
-    const fiber = ctx.plugin({ inject: [...inject], Config, apply }, {})
-    await fiber.await()
-    const handler = handle.mock.calls[0]?.[1]
-    if (handler === undefined) throw new Error('Ollama RPC was not registered')
-
-    const result = await handler(OLLAMA_SAVE_ENDPOINT, {
+    const { handler, dispose: close } = await usageHandler(undefined, settings)
+    const valid = await handler(OLLAMA_SETTINGS_VALIDATE_ENDPOINT, {
       baseURL: 'https://example.test/api',
       models: [{ id: 'gemma3', vision: true, tools: true }],
       expectedRevision: 1,
     }, new AbortController().signal)
+    expect(valid).toEqual({ ok: true, value: {} })
 
-    expect(result).toEqual({
-      ok: true,
-      value: {
-        settings: {
-          ...current,
-          baseURL: 'https://example.test/api',
-          models: [{ id: 'gemma3', vision: true, tools: true }],
-        },
-        revision: 2,
-      },
-    })
-    expect(mutate).toHaveBeenCalledTimes(1)
-    expect(mutate.mock.calls[0]?.[1]).toEqual([
-      { op: 'set', path: ['baseURL'], value: 'https://example.test/api' },
-      { op: 'set', path: ['models'], value: [{ id: 'gemma3', vision: true, tools: true }] },
-    ])
-    expect(settings.describe()[0]?.value.models).toEqual([{ id: 'gemma3', vision: true, tools: true }])
+    const invalid = await handler(OLLAMA_SETTINGS_VALIDATE_ENDPOINT, {
+      baseURL: 'https://example.test/api',
+      models: [{ id: 'gemma3' }, { id: 'gemma3' }],
+      expectedRevision: 1,
+    }, new AbortController().signal)
+    expect(invalid).toMatchObject({ ok: false, error: { message: expect.stringContaining('duplicate catalog model') } })
 
-    await fiber.dispose()
-    expect(dispose).toHaveBeenCalledTimes(1)
-    await ctx.fiber.dispose()
+    revision = 2
+    const conflict = await handler(OLLAMA_SETTINGS_VALIDATE_ENDPOINT, {
+      baseURL: 'https://example.test/api',
+      models: [],
+      expectedRevision: 1,
+    }, new AbortController().signal)
+    expect(conflict).toMatchObject({ ok: false, error: { code: 'SETTINGS_CONFLICT' } })
+    await close()
   })
-
-  it('serves a secret-free usage snapshot over authenticated Connection RPC', async () => {
-    type Handler = (
-      endpoint: string,
-      payload: unknown,
-      signal: AbortSignal,
-    ) => Promise<{ ok: boolean; value?: unknown; error?: unknown }>
-    const ctx = new Context()
-    await ctx.plugin(LlmRuntime).await()
-    const dispose = vi.fn(() => Promise.resolve())
-    const handle = vi.fn((_channel: string, _handler: Handler) => dispose)
-    ctx.provide('connection', { rpc: { handle } } as never)
-    ctx.provide('webServer', { register: () => () => {} } as never)
-    const fiber = ctx.plugin({ inject: [...inject], Config, apply }, {})
-    await fiber.await()
-    const handler = handle.mock.calls[0]?.[1]
-    if (handler === undefined) throw new Error('Ollama RPC was not registered')
-
+  it('serves a secret-free usage snapshot through the authenticated Fetch route', async () => {
+    const { handler, dispose: close } = await usageHandler()
     const server = await mockServer([{
       kind: 'json',
       status: 200,
@@ -209,7 +172,6 @@ describe('Ollama rich-discovery RPC', () => {
       { baseURL: server.url, apiKey: 'one-shot-key' },
       new AbortController().signal,
     )
-
     expect(result).toEqual({
       ok: true,
       value: {
@@ -223,7 +185,6 @@ describe('Ollama rich-discovery RPC', () => {
     })
     expect(server.headers[0]?.authorization).toBe('Bearer one-shot-key')
 
-    // Current account tiers answer limits.monthly with a separate activity block.
     const monthly = await mockServer([{
       kind: 'json',
       status: 200,
@@ -252,11 +213,10 @@ describe('Ollama rich-discovery RPC', () => {
       new AbortController().signal,
     )
     expect(declined).toEqual({ ok: true, value: { status: 'unsupported' } })
-
-    await fiber.dispose()
-    expect(dispose).toHaveBeenCalledTimes(1)
-    await ctx.fiber.dispose()
+    await close()
   })
+
+
 
   it('answers a usage failure with the wire code the browser quota cache routes on', async () => {
     const { handler, dispose: close } = await usageHandler()
@@ -334,12 +294,35 @@ describe('Ollama rich-discovery RPC', () => {
     }
   })
 
-  it('rejects obsolete remoteManagement configuration', async () => {
-    const ctx = new Context()
-    await ctx.plugin(LlmRuntime).await()
-    ctx.provide('webServer', { register: () => () => {} } as never)
-    const fiber = ctx.plugin({ inject: [...inject], Config, apply }, { remoteManagement: true } as never)
-    await expect(fiber.await()).rejects.toThrow('remoteManagement is not supported by the Alpha.4 Connection service')
-    await ctx.fiber.dispose()
+  it('rejects bad wire requests and accepts omitted endpoint payloads', async () => {
+    const { route, dispose: close } = await usageHandler()
+    const request = (body: string, contentType = 'application/json') => route.fetch(new Request(
+      'http://localhost/api/plugin-rpc/ollama-cloud',
+      { method: 'POST', headers: { 'content-type': contentType }, body },
+    ))
+
+    const unsupported = await request('{}', 'text/plain')
+    expect(unsupported.status).toBe(415)
+    const malformed = await request(JSON.stringify({
+      type: 'client-request',
+      rpcId: 'invalid-method',
+      method: 'wrong-method',
+      payload: {},
+    }))
+    expect(malformed.status).toBe(400)
+
+    const omittedPayload = await request(JSON.stringify({
+      type: 'client-request',
+      rpcId: 'omitted-payload',
+      method: OLLAMA_RPC_METHOD,
+      payload: { endpoint: 'not-a-real-endpoint' },
+    }))
+    expect(omittedPayload.status).toBe(200)
+    await expect(omittedPayload.json()).resolves.toMatchObject({
+      type: 'server-response',
+      rpcId: 'omitted-payload',
+      result: { ok: false, error: { message: expect.stringContaining('unknown Ollama Cloud endpoint') } },
+    })
+    await close()
   })
 })

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
-import type { SettingsScope, SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
+import type { ConfigForm, ConfigFormSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { InjectFace, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-settings-plugins/client'
 import { OLLAMA_SETTINGS_NAMESPACE } from '../client-contract.ts'
@@ -58,12 +58,12 @@ export interface OllamaPluginCardFace {
   /** Localized card copy. */
   t: (key: OllamaSettingsKey) => string
   hooks: {
-    /** Reactive Host-owned settings section. */
-    ollamaSettings: SettingsScope<OllamaSettingsView>
+    /** Reactive Loader configuration values edited by this card. */
+    ollamaSettings: ConfigForm<OllamaSettingsView>
   }
-  /** Read value-free credential status for the section's reference. */
+  /** Read value-free credential status for the Loader entry's reference. */
   describeCredential: () => Promise<OllamaCredentialState>
-  /** Store changed settings and return the accepted Host snapshot. */
+  /** Validate and save editable settings, returning the accepted ConfigForm snapshot. */
   saveConfiguration: (settings: OllamaSettingsView) => Promise<OllamaSaveResult>
   /** Store a new key separately; this is intentionally not atomic with settings. */
   saveCredential: (apiKey: string) => Promise<void>
@@ -358,7 +358,7 @@ function headlineQuotaOf(view: OllamaUsageView | undefined, t: OllamaPluginCardF
 
 export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
   const { t } = props
-  const snapshot = props.useOllamaSettings((value: SettingsScopeSnapshot<OllamaSettingsView>) => value)
+  const snapshot = props.useOllamaSettings((value: ConfigFormSnapshot<OllamaSettingsView>) => value)
   const [open, setOpen] = useState(false)
   const initial = useMemo(() => snapshot.value === undefined ? undefined : draftOf(snapshot.value), [snapshot.value])
   const [source, setSource] = useState<Draft | undefined>(initial)
@@ -413,7 +413,7 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
   useEffect(() => {
     if (snapshot.status !== 'ready') return
     void refreshCredential()
-  }, [snapshot.status, snapshot.value?.apiKeyEnv])
+  }, [snapshot.status])
   useEffect(() => () => { props.closeModelPicker() }, [props.closeModelPicker])
 
   if (snapshot.status === 'unavailable') {

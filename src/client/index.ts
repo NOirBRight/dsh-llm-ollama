@@ -1,10 +1,10 @@
 /** Browser half: Ollama Cloud setup inside Plugin configuration. */
 
+import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
-import type { SettingsScope, SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
+import type { ConfigForm } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
-import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings-plugins/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
@@ -14,17 +14,14 @@ import type {} from '@deepseek-ai/dsh-client-ui-slots'
 import {
   decodeOllamaCredentialStatus,
   decodeOllamaDiscoveryResult,
-  decodeOllamaSettingsReadResult,
-  decodeOllamaSaveResult,
+  decodeOllamaSettings,
   decodeOllamaUsageReply,
-  DEFAULT_API_KEY_ENV,
   OLLAMA_CREDENTIAL_SET_ENDPOINT,
   OLLAMA_CREDENTIAL_STATUS_ENDPOINT,
   OLLAMA_DISCOVER_ENDPOINT,
-  OLLAMA_RPC_CHANNEL,
-  OLLAMA_SAVE_ENDPOINT,
+  OLLAMA_RPC_METHOD,
   OLLAMA_SETTINGS_NAMESPACE,
-  OLLAMA_SETTINGS_READ_ENDPOINT,
+  OLLAMA_SETTINGS_VALIDATE_ENDPOINT,
   OLLAMA_USAGE_ENDPOINT,
 } from '../client-contract.ts'
 import type { OllamaDiscoveryRequest, OllamaSettingsView } from '../client-contract.ts'
@@ -48,7 +45,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 /** Stable browser-plugin name. */
 export const name = 'dsh-llm-ollama-client'
 /** Client services required by the Plugin configuration contribution. */
-export const inject = ['slots', 'locale', 'connection']
+export const inject = ['slots', 'locale', 'connection', 'configForms']
 
 /** How long the Providers UI owner may take to register `settings.section` before the missing-owner diagnostic reports. */
 export const MISSING_OWNER_GRACE_MS = 15_000
@@ -73,62 +70,74 @@ export function apply(ctx: ClientContext): void {
     try { ctx.get('providerDirectory')?.update(OLLAMA_SETTINGS_NAMESPACE) } catch { /* providerDirectory is optional in lab */ }
   }
   const { rpc } = ctx.get('connection') as unknown as ConnectionHandle
-  let currentSnapshot: SettingsScopeSnapshot<OllamaSettingsView> = { status: 'loading', value: undefined, base: undefined, user: undefined, revision: undefined, writable: false, mode: 'host' }
-  const listeners = new Set<() => void>()
-  const publish = (next: SettingsScopeSnapshot<OllamaSettingsView>): void => {
-    if (closed) return
-    currentSnapshot = next
-    for (const listener of listeners) listener()
-  }
-  const readManagement = async (): Promise<void> => {
-    const result = await rpc.call(OLLAMA_RPC_CHANNEL, OLLAMA_SETTINGS_READ_ENDPOINT, {})
-    if (!result.ok) { publish({ ...currentSnapshot, status: 'unavailable' }); throw new Error(result.error.message) }
-    const decoded = decodeOllamaSettingsReadResult(result.value)
-    if (decoded === undefined) { publish({ ...currentSnapshot, status: 'unavailable' }); throw new Error(t('requestFailed')) }
-    publish({ status: 'ready', value: decoded.settings, base: undefined, user: undefined, revision: decoded.revision, writable: true, mode: 'host' })
-  }
-  const scope: SettingsScope<OllamaSettingsView> = {
-    getSnapshot: () => currentSnapshot,
-    subscribe: listener => { listeners.add(listener); return () => { listeners.delete(listener) } },
-    mutate: async () => { throw new Error('settings are managed by the provider RPC') },
-    set: async () => { throw new Error('settings are managed by the provider RPC') },
-    unset: async () => { throw new Error('settings are managed by the provider RPC') },
-  }
-
+  const settingsForm: ConfigForm<OllamaSettingsView> = ctx.configForms.get(OLLAMA_SETTINGS_NAMESPACE)
+  const callOllamaRpc = (endpoint: string, payload: unknown, signal?: AbortSignal) =>
+    rpc.call('/api', OLLAMA_RPC_METHOD, { endpoint, payload }, signal)
 
   const describeCredential: OllamaPluginCardFace['describeCredential'] = async () => {
     const epoch = accountEpoch
-    const ref = scope.getSnapshot().value?.apiKeyEnv ?? DEFAULT_API_KEY_ENV
-    const result = await rpc.call(OLLAMA_RPC_CHANNEL, OLLAMA_CREDENTIAL_STATUS_ENDPOINT, { ref })
+    const result = await callOllamaRpc(OLLAMA_CREDENTIAL_STATUS_ENDPOINT, {})
     if (!result.ok) throw new Error(result.error.message)
     const status = decodeOllamaCredentialStatus(result.value)
     if (status === undefined) throw new Error(t('requestFailed'))
     if (epoch === accountEpoch) publishAccount(status.configured ? 'configured' : 'unconnected')
     return status
   }
+  ctx.effect(() => {
+    void describeCredential().catch(() => { /* account remains unknown until a later card read */ })
+    return () => { closed = true }
+  }, 'dsh-llm-ollama: account snapshot')
 
   const saveConfiguration: OllamaPluginCardFace['saveConfiguration'] = async (settings) => {
-    const snapshot = scope.getSnapshot()
-    if (snapshot.revision === undefined) throw new Error(t('requestFailed'))
-    const saved = await rpc.call(
-      OLLAMA_RPC_CHANNEL,
-      OLLAMA_SAVE_ENDPOINT,
-      {
-        baseURL: settings.baseURL,
-        models: settings.models,
-        expectedRevision: snapshot.revision,
-      },
-    )
-    if (!saved.ok) throw new Error(saved.error.message)
-    const accepted = decodeOllamaSaveResult(saved.value)
-    if (accepted === undefined) throw new Error(t('requestFailed'))
-    publish({ ...currentSnapshot, status: 'ready', value: accepted.settings, revision: accepted.revision })
-    return accepted
+    const snapshot = settingsForm.getSnapshot()
+    if (snapshot.status !== 'ready' || snapshot.value === undefined || snapshot.revision === undefined) {
+      throw new Error(t('requestFailed'))
+    }
+    if (!snapshot.writable) throw new Error(t('requestFailed'))
+    const current = decodeOllamaSettings(snapshot.value)
+    if (current === undefined) throw new Error(t('requestFailed'))
+    const sameSettings = current.baseURL === settings.baseURL
+      && JSON.stringify(current.models) === JSON.stringify(settings.models)
+    if (sameSettings) return { settings: current, revision: snapshot.revision }
+
+    const checked = await callOllamaRpc(OLLAMA_SETTINGS_VALIDATE_ENDPOINT, {
+      baseURL: settings.baseURL,
+      models: settings.models,
+      expectedRevision: snapshot.revision,
+    })
+    if (!checked.ok) throw new Error(checked.error.message)
+    const accepted = await settingsForm.mutate([
+      { op: 'set', path: ['baseURL'], value: settings.baseURL },
+      { op: 'set', path: ['models'], value: settings.models.map((model): JsonValue => ({
+        id: model.id,
+        ...model.name === undefined ? {} : { name: model.name },
+        ...model.description === undefined ? {} : { description: model.description },
+        ...model.contextWindow === undefined ? {} : { contextWindow: model.contextWindow },
+        ...model.maxTokens === undefined ? {} : { maxTokens: model.maxTokens },
+        ...model.vision === undefined ? {} : { vision: model.vision },
+        ...model.thinking === undefined ? {} : { thinking: model.thinking },
+        ...model.defaultEffort === undefined ? {} : { defaultEffort: model.defaultEffort },
+        ...model.tools === undefined ? {} : { tools: model.tools },
+      })) },
+    ], snapshot.revision)
+    if (!accepted) {
+      const latest = settingsForm.getSnapshot()
+      if (latest.revision !== undefined && latest.revision !== snapshot.revision) {
+        throw new Error(
+          `settings namespace "${OLLAMA_SETTINGS_NAMESPACE}" changed since it was read`
+          + ` (expected revision ${snapshot.revision}, now ${latest.revision})`,
+        )
+      }
+      throw new Error(t('requestFailed'))
+    }
+    const latest = settingsForm.getSnapshot()
+    const saved = decodeOllamaSettings(latest.value)
+    if (latest.revision === undefined || saved === undefined) throw new Error(t('requestFailed'))
+    return { settings: saved, revision: latest.revision }
   }
 
   const saveCredential: OllamaPluginCardFace['saveCredential'] = async (apiKey) => {
-    const ref = scope.getSnapshot().value?.apiKeyEnv ?? DEFAULT_API_KEY_ENV
-    const result = await rpc.call(OLLAMA_RPC_CHANNEL, OLLAMA_CREDENTIAL_SET_ENDPOINT, { ref, value: apiKey })
+    const result = await callOllamaRpc(OLLAMA_CREDENTIAL_SET_ENDPOINT, { value: apiKey })
     if (!result.ok) throw new Error(result.error.message)
     const status = decodeOllamaCredentialStatus(result.value)
     if (status === undefined) throw new Error(t('requestFailed'))
@@ -139,11 +148,7 @@ export function apply(ctx: ClientContext): void {
   }
 
   const fetchUsage: OllamaPluginCardFace['fetchUsage'] = async (request: OllamaDiscoveryRequest) => {
-    const result = await rpc.call(
-      OLLAMA_RPC_CHANNEL,
-      OLLAMA_USAGE_ENDPOINT,
-      request,
-    )
+    const result = await callOllamaRpc(OLLAMA_USAGE_ENDPOINT, request)
     if (!result.ok) {
       // A Host started before this package's usage endpoint exists answers
       // with its unknown-endpoint error; the card asks for a restart instead
@@ -161,11 +166,7 @@ export function apply(ctx: ClientContext): void {
   }
 
   const discoverModels: OllamaPluginCardFace['discoverModels'] = async (request: OllamaDiscoveryRequest) => {
-    const result = await rpc.call(
-      OLLAMA_RPC_CHANNEL,
-      OLLAMA_DISCOVER_ENDPOINT,
-      request,
-    )
+    const result = await callOllamaRpc(OLLAMA_DISCOVER_ENDPOINT, request)
     if (!result.ok) throw new Error(result.error.message)
     const decoded = decodeOllamaDiscoveryResult(result.value)
     if (decoded === undefined) throw new Error('Ollama Cloud returned an invalid model catalog')
@@ -190,7 +191,7 @@ export function apply(ctx: ClientContext): void {
     locale: localeNamespace,
     inject: (): OllamaPluginCardFace => ({
       t,
-      hooks: { ollamaSettings: scope },
+      hooks: { ollamaSettings: settingsForm },
       describeCredential,
       saveConfiguration,
       saveCredential,
@@ -212,7 +213,7 @@ export function apply(ctx: ClientContext): void {
           header: 'shared' as const,
           detail: 'shared' as const,
           usage: createOllamaUsageReader(),
-          modelCount: () => currentSnapshot.value?.models?.length,
+          modelCount: () => settingsForm.getSnapshot().value?.models?.length,
         }, {
           catalogId: 'ollama-cloud',
           account: () => ({ state: account.state }),
@@ -222,14 +223,6 @@ export function apply(ctx: ClientContext): void {
       'dsh-llm-ollama: provider directory',
     )
   })
-  ctx.effect(() => {
-    void readManagement()
-      .then(() => describeCredential().catch(() => { /* overview stays unknown until a later card read */ }))
-      .catch(() => {
-        publish({ ...currentSnapshot, status: 'unavailable' })
-      })
-    return () => { closed = true }
-  }, 'dsh-llm-ollama: account snapshot')
   // Diagnostic when the Providers UI owner is not mounted (Web without dsh-llm-providers-ui).
   // The card is registered but the page will not appear; providers still work Host-side.
   ctx.effect(() => {

@@ -2,7 +2,7 @@
 // Collapsed header quota: usage loads without expansion, expansion never refires, failures stay truthful.
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { SettingsScopeSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
+import type { ConfigFormSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import { OllamaPluginCard } from '../src/client/OllamaPluginCard.tsx'
 import type { OllamaPluginCardProps } from '../src/client/OllamaPluginCard.tsx'
 import { en, zh } from '../src/client/locales.ts'
@@ -12,11 +12,8 @@ import type { OllamaSettingsView } from '../src/client-contract.ts'
 afterEach(() => { cleanup(); clearProviderUsageCache() })
 
 const settings: OllamaSettingsView = {
-  apiKeyEnv: 'OLLAMA_API_KEY',
   baseURL: 'https://ollama.com/api',
   models: [],
-  defaultContextWindow: 4096,
-  streamIdleTimeoutMs: 300_000,
 }
 
 const usageOk = {
@@ -25,12 +22,12 @@ const usageOk = {
 }
 
 function props(overrides: Record<string, unknown> = {}): OllamaPluginCardProps {
-  const current: SettingsScopeSnapshot<OllamaSettingsView> = {
+  const current: ConfigFormSnapshot<OllamaSettingsView> = {
     status: 'ready', value: settings, base: settings, user: {}, revision: 1, writable: true, mode: 'host',
   }
   return {
     t: (key: keyof typeof en) => en[key],
-    useOllamaSettings: (selector: (value: SettingsScopeSnapshot<OllamaSettingsView>) => unknown) => selector(current),
+    useOllamaSettings: (selector: (value: ConfigFormSnapshot<OllamaSettingsView>) => unknown) => selector(current),
     describeCredential: vi.fn(() => Promise.resolve({ configured: true, writable: true })),
     saveConfiguration: vi.fn(next => Promise.resolve({ settings: next, revision: 2 })),
     saveCredential: vi.fn(() => Promise.resolve()),
