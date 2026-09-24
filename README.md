@@ -10,7 +10,7 @@ Ollama real API checks remain `SKIP-QUOTA` when the account quota is exhausted.
 
 ## Compatibility
 
-Host `@deepseek-ai/dsh-*` packages are not version-locked: peers are `*` and optional. `devDependencies` pin the compile target (`0.1.5-rc.1`). Cordis stays `>=4.0.2 <5.0.0`.
+Optional DSH host peers and development dependencies accept `0.1.7-alpha.2` and later releases. Cordis peers accept `>=4.0.4 <5.0.0`.
 
 Verified Hosts in `package.json#dsh.compatibility.dshReleases` are evidence, not an allowlist. Unknown newer Hosts warn once and keep the normal mount path. Only a reproduced failure is blocklisted.
 
@@ -28,13 +28,13 @@ Install `dsh-llm-providers-ui` explicitly in the profile alongside provider plug
 
 ## Installation
 
-Verified on DeepSeek Harness `0.1.2-alpha.4`, `0.1.2-rc.1`, `0.1.5-rc.1`, and `0.1.5-rc.2`. Install directly from GitHub:
+Verified on official DeepSeek Harness `0.1.7-alpha.2` and `0.1.7-rc.1`. Install directly from GitHub:
 
 ~~~sh
 dsh plugin --profile web add --force \
-  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/v0.2.9/dsh-llm-providers-ui-0.2.9.tgz
+  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/v0.2.13/dsh-llm-providers-ui-0.2.13.tgz
 dsh plugin --profile web add --force \
-  https://github.com/NOirBRight/dsh-llm-ollama/releases/download/v0.6.24/dsh-llm-ollama-0.6.24.tgz
+  https://github.com/NOirBRight/dsh-llm-ollama/releases/download/v0.6.27/dsh-llm-ollama-0.6.27.tgz
 dsh web
 ~~~
 
@@ -174,7 +174,7 @@ Stable model, system prompt, history, tool definitions, and request options pres
 
 ## Release installation (Latest)
 
-Ollama Cloud chat, model discovery, and Web Search/Fetch providers. The release artifact targets DeepSeek Harness 0.1.2-alpha.4, 0.1.2-rc.1, 0.1.5-rc.1, and 0.1.5-rc.2 and contains built Host/Client files only; it has no sibling-repository source, workstation path, link:, or workspace: dependency.
+Ollama Cloud chat, model discovery, and Web Search/Fetch providers. The release artifact targets official DeepSeek Harness `0.1.7-rc.1` and contains built Host/Client files only; it has no sibling-repository source, workstation path, link:, or workspace: dependency.
 
 The dsh-llm-providers-ui package owns the LLM Providers page, navigation, and shared order store. This package owns only its provider card, models, credentials, and Host route. Install the Owner first for Web; headless Host routing works without the Owner.
 
@@ -182,18 +182,18 @@ Latest (Owner + this plugin; required together on Web):
 
 ~~~sh
 dsh plugin --profile web add --force \
-  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/latest/download/dsh-llm-providers-ui-0.2.9.tgz
+  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/latest/download/dsh-llm-providers-ui-0.2.13.tgz
 dsh plugin --profile web add --force \
-  https://github.com/NOirBRight/dsh-llm-ollama/releases/latest/download/dsh-llm-ollama-0.6.24.tgz
+  https://github.com/NOirBRight/dsh-llm-ollama/releases/latest/download/dsh-llm-ollama-0.6.27.tgz
 ~~~
 
 Fixed versions (reproducible):
 
 ~~~sh
 dsh plugin --profile web add --force \
-  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/v0.2.9/dsh-llm-providers-ui-0.2.9.tgz
+  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/v0.2.13/dsh-llm-providers-ui-0.2.13.tgz
 dsh plugin --profile web add --force \
-  https://github.com/NOirBRight/dsh-llm-ollama/releases/download/v0.6.24/dsh-llm-ollama-0.6.24.tgz
+  https://github.com/NOirBRight/dsh-llm-ollama/releases/download/v0.6.27/dsh-llm-ollama-0.6.27.tgz
 ~~~
 
 Update, uninstall, and verify:
@@ -201,9 +201,9 @@ Update, uninstall, and verify:
 ~~~sh
 # Update Owner + this plugin to Latest
 dsh plugin --profile web add --force \
-  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/latest/download/dsh-llm-providers-ui-0.2.9.tgz
+  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/latest/download/dsh-llm-providers-ui-0.2.13.tgz
 dsh plugin --profile web add --force \
-  https://github.com/NOirBRight/dsh-llm-ollama/releases/latest/download/dsh-llm-ollama-0.6.24.tgz
+  https://github.com/NOirBRight/dsh-llm-ollama/releases/latest/download/dsh-llm-ollama-0.6.27.tgz
 # Verify the loaded version
 dsh plugin --profile web list
 dsh plugin --profile web doctor
@@ -213,6 +213,6 @@ dsh plugin --profile web remove dsh-llm-ollama
 
 Configuration: use the plugin section in Settings for Web UI plugins, or the profile dsh.profile.bundles entry for Host-only plugins. Start with this README's minimal YAML/JSON example and provide credentials/backend addresses explicitly.
 
-Rollback: rerun the fixed v0.6.24 command, verify the profile list, then restart the Web service once. Inspect journalctl --user -u dsh-web.service and dsh plugin --profile web doctor; never put a source checkout in the production profile.
+Rollback: rerun the fixed v0.6.27 command, verify the profile list, then restart the Web service once. Inspect journalctl --user -u dsh-web.service and dsh plugin --profile web doctor; never put a source checkout in the production profile.
 
-Release and integrity: [v0.6.24](https://github.com/NOirBRight/dsh-llm-ollama/releases/tag/v0.6.24) · [SHA256SUMS](https://github.com/NOirBRight/dsh-llm-ollama/releases/download/v0.6.24/SHA256SUMS).
+Release and integrity: [v0.6.27](https://github.com/NOirBRight/dsh-llm-ollama/releases/tag/v0.6.27) · [SHA256SUMS](https://github.com/NOirBRight/dsh-llm-ollama/releases/download/v0.6.27/SHA256SUMS).

@@ -8,7 +8,7 @@ DeepSeek Harness 的 Ollama Cloud 集成。聊天通过共享的 pi-ai adapter �
 
 ## 兼容性
 
-宿主 `@deepseek-ai/dsh-*` 不锁定发行号：peer 为 `*` 且 optional。`devDependencies` 钉编译目标（`0.1.5-rc.1`）。Cordis 保持 `>=4.0.2 <5.0.0`。
+可选的 DSH 宿主 peer 和开发依赖接受 `0.1.7-alpha.2` 及之后的发行版。Cordis peer 接受 `>=4.0.4 <5.0.0`。
 
 `package.json#dsh.compatibility.dshReleases` 里的已验证宿主是证据，不是允许列表。未知的新宿主告警一次后仍按正常路径挂载。只有复现过的故障才会加入 blocklist。
 
@@ -16,13 +16,13 @@ DeepSeek Harness 的 Ollama Cloud 集成。聊天通过共享的 pi-ai adapter �
 
 ## 安装
 
-已在 DeepSeek Harness `0.1.2-alpha.4`、`0.1.2-rc.1`、`0.1.5-rc.1` 与 `0.1.5-rc.2` 验证。直接从 GitHub 安装：
+已在官方 DeepSeek Harness `0.1.7-alpha.2` 和 `0.1.7-rc.1` 验证。直接从 GitHub 安装：
 
 ~~~sh
 dsh plugin --profile web add --force \
-  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/v0.2.9/dsh-llm-providers-ui-0.2.9.tgz
+  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/v0.2.13/dsh-llm-providers-ui-0.2.13.tgz
 dsh plugin --profile web add --force \
-  https://github.com/NOirBRight/dsh-llm-ollama/releases/download/v0.6.24/dsh-llm-ollama-0.6.24.tgz
+  https://github.com/NOirBRight/dsh-llm-ollama/releases/download/v0.6.27/dsh-llm-ollama-0.6.27.tgz
 dsh web
 ~~~
 
@@ -171,7 +171,7 @@ Usage 映射成 Harness input/output 计数。pi-ai 会按配置的 context capa
 
 ## 正式版安装（Latest）
 
-Ollama Cloud chat, model discovery, and Web Search/Fetch providers. 正式成品按上方兼容性记录运行；发布包只包含构建后的 Host/Client 产物，不包含兄弟仓库源码、本机路径或 link:/workspace: 依赖。
+Ollama Cloud chat, model discovery, and Web Search/Fetch providers. 正式成品面向官方 DeepSeek Harness `0.1.7-rc.1`；发布包只包含构建后的 Host/Client 产物，不包含兄弟仓库源码、本机路径或 link:/workspace: 依赖。
 
 LLM Providers 页面、导航和共享排序由 dsh-llm-providers-ui 独占；本插件只提供卡片、模型和 Host 路由。Web 必须先装 Owner，headless 只使用 Host 路由时可以不装 Owner。
 
@@ -179,18 +179,18 @@ Latest（Owner + 本插件；Web 必须一起装）：
 
 ~~~sh
 dsh plugin --profile web add --force \
-  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/latest/download/dsh-llm-providers-ui-0.2.9.tgz
+  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/latest/download/dsh-llm-providers-ui-0.2.13.tgz
 dsh plugin --profile web add --force \
-  https://github.com/NOirBRight/dsh-llm-ollama/releases/latest/download/dsh-llm-ollama-0.6.24.tgz
+  https://github.com/NOirBRight/dsh-llm-ollama/releases/latest/download/dsh-llm-ollama-0.6.27.tgz
 ~~~
 
 固定版本（可复现）：
 
 ~~~sh
 dsh plugin --profile web add --force \
-  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/v0.2.9/dsh-llm-providers-ui-0.2.9.tgz
+  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/download/v0.2.13/dsh-llm-providers-ui-0.2.13.tgz
 dsh plugin --profile web add --force \
-  https://github.com/NOirBRight/dsh-llm-ollama/releases/download/v0.6.24/dsh-llm-ollama-0.6.24.tgz
+  https://github.com/NOirBRight/dsh-llm-ollama/releases/download/v0.6.27/dsh-llm-ollama-0.6.27.tgz
 ~~~
 
 更新、卸载与验证：
@@ -198,9 +198,9 @@ dsh plugin --profile web add --force \
 ~~~sh
 # 更新 Owner + 本插件到 Latest
 dsh plugin --profile web add --force \
-  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/latest/download/dsh-llm-providers-ui-0.2.9.tgz
+  https://github.com/NOirBRight/dsh-llm-providers-ui/releases/latest/download/dsh-llm-providers-ui-0.2.13.tgz
 dsh plugin --profile web add --force \
-  https://github.com/NOirBRight/dsh-llm-ollama/releases/latest/download/dsh-llm-ollama-0.6.24.tgz
+  https://github.com/NOirBRight/dsh-llm-ollama/releases/latest/download/dsh-llm-ollama-0.6.27.tgz
 # 验证加载与版本
 dsh plugin --profile web list
 dsh plugin --profile web doctor
@@ -210,6 +210,6 @@ dsh plugin --profile web remove dsh-llm-ollama
 
 配置入口：Web 使用「设置」中的本插件页面；Host-only 插件使用 profile 的 dsh.profile.bundles 配置。先复制本 README 的最小 YAML/JSON 示例，再填写凭据或后端地址。
 
-回滚：重新执行固定版本 v0.6.24 命令，确认插件列表后只重启一次 Web 服务。失败时查看 journalctl --user -u dsh-web.service 与 dsh plugin --profile web doctor，不要把源码 checkout 写入 production profile。
+回滚：重新执行固定版本 v0.6.27 命令，确认插件列表后只重启一次 Web 服务。失败时查看 journalctl --user -u dsh-web.service 与 dsh plugin --profile web doctor，不要把源码 checkout 写入 production profile。
 
-Release 与完整性：[v0.6.24](https://github.com/NOirBRight/dsh-llm-ollama/releases/tag/v0.6.24) · [SHA256SUMS](https://github.com/NOirBRight/dsh-llm-ollama/releases/download/v0.6.24/SHA256SUMS)。
+Release 与完整性：[v0.6.27](https://github.com/NOirBRight/dsh-llm-ollama/releases/tag/v0.6.27) · [SHA256SUMS](https://github.com/NOirBRight/dsh-llm-ollama/releases/download/v0.6.27/SHA256SUMS)。
