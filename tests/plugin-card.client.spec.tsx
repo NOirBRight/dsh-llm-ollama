@@ -36,7 +36,7 @@ function props(overrides: Partial<OllamaPluginCardProps> = {}): OllamaPluginCard
     t: key => en[key],
     useOllamaSettings: selector => selector(current),
     describeCredential: vi.fn(() => Promise.resolve({ configured: false, writable: true })),
-    saveConfiguration: vi.fn(next => Promise.resolve({ settings: next, revision: 2 })),
+    saveConfiguration: vi.fn((next: OllamaSettingsView, _sourceRevision: number) => Promise.resolve({ settings: next, revision: 2 })),
     saveCredential: vi.fn(() => Promise.resolve()),
     discoverModels: vi.fn(() => Promise.resolve([])),
     fetchUsage: vi.fn(() => Promise.resolve({ kind: 'unsupported' as const })),
@@ -97,7 +97,7 @@ describe('OllamaPluginCard', () => {
   })
 
   it('stores an API key and adopts native model capabilities from discovery', async () => {
-    const saveConfiguration = vi.fn((next: OllamaSettingsView) => Promise.resolve({ settings: next, revision: 2 }))
+    const saveConfiguration = vi.fn((next: OllamaSettingsView, _sourceRevision: number) => Promise.resolve({ settings: next, revision: 2 }))
     const discoverModels = vi.fn(() => Promise.resolve([
       {
         id: 'gemma3',
@@ -138,6 +138,7 @@ describe('OllamaPluginCard', () => {
           thinking: false,
         }],
       }),
+      1,
     )
   })
 
@@ -157,7 +158,7 @@ describe('OllamaPluginCard', () => {
       { id: 'keep', name: 'Keep discovered', contextWindow: 8192 },
       { id: 'new', name: 'New', contextWindow: 16384 },
     ]))
-    const saveConfiguration = vi.fn(async (next: OllamaSettingsView) => ({ settings: next, revision: 2 }))
+    const saveConfiguration = vi.fn(async (next: OllamaSettingsView, _sourceRevision: number) => ({ settings: next, revision: 2 }))
     render(<OllamaPluginCard {...props({
       useOllamaSettings: selector => selector(currentSnapshot),
       beginModelPicker,
@@ -182,7 +183,7 @@ describe('OllamaPluginCard', () => {
     await waitFor(() => { expect(saveConfiguration).toHaveBeenCalledTimes(1) })
     expect(saveConfiguration).toHaveBeenCalledWith(expect.objectContaining({
       models: [{ id: 'new', name: 'New', contextWindow: 16384 }],
-    }))
+    }), 1)
   })
   it('treats a base-URL-only user layer as an inherited model catalog', () => {
     const current = snapshot({ user: { baseURL: 'https://example.test/api' } })
@@ -195,7 +196,7 @@ describe('OllamaPluginCard', () => {
 
   it('reloads the accepted model catalog after the card remounts', async () => {
     let durable = structuredClone(settings)
-    const saveConfiguration = vi.fn(async (next: OllamaSettingsView) => {
+    const saveConfiguration = vi.fn(async (next: OllamaSettingsView, _sourceRevision: number) => {
       durable = structuredClone(next)
       return { settings: structuredClone(durable), revision: 2 }
     })
@@ -334,7 +335,7 @@ describe('OllamaPluginCard', () => {
     const currentModels: OllamaCatalogModelConfig[] = [{ id: 'alpha' }, { id: 'bravo' }, { id: 'charlie' }]
     const current = { ...settings, models: currentModels }
     const currentSnapshot = snapshot({ value: current, base: current, user: { models: currentModels } })
-    const saveConfiguration = vi.fn(async (next: OllamaSettingsView) => ({ settings: next, revision: 2 }))
+    const saveConfiguration = vi.fn(async (next: OllamaSettingsView, _sourceRevision: number) => ({ settings: next, revision: 2 }))
     const { container } = render(<OllamaPluginCard {...props({
       useOllamaSettings: selector => selector(currentSnapshot),
       saveConfiguration,
@@ -374,7 +375,7 @@ describe('OllamaPluginCard', () => {
     await waitFor(() => { expect(saveConfiguration).toHaveBeenCalledTimes(1) })
     expect(saveConfiguration).toHaveBeenCalledWith(expect.objectContaining({
       models: [{ id: 'bravo' }, { id: 'charlie' }, { id: 'alpha-edited' }],
-    }))
+    }), 1)
   })
   it('renders the shared detail template when the settings page asks for it', () => {
     const onRefresh = vi.fn()

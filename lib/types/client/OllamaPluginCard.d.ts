@@ -35,8 +35,8 @@ export interface OllamaPluginCardFace {
     };
     /** Read value-free credential status for the Loader entry's reference. */
     describeCredential: () => Promise<OllamaCredentialState>;
-    /** Validate and save editable settings, returning the accepted ConfigForm snapshot. */
-    saveConfiguration: (settings: OllamaSettingsView) => Promise<OllamaSaveResult>;
+    /** Validate and save editable settings against the revision where the draft began. */
+    saveConfiguration: (settings: OllamaSettingsView, sourceRevision: number) => Promise<OllamaSaveResult>;
     /** Store a new key separately; this is intentionally not atomic with settings. */
     saveCredential: (apiKey: string) => Promise<void>;
     /** Interrogate the draft endpoint without storing its one-shot key. */

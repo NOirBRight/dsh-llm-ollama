@@ -1,9 +1,13 @@
 // @vitest-environment jsdom
 
 import { Context, Service } from '@deepseek-ai/cordis'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { createElement } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import type { ConfigForm, ConfigFormSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { OllamaSettingsView } from '../src/client-contract.ts'
+import { OllamaPluginCard } from '../src/client/OllamaPluginCard.tsx'
+import type { OllamaPluginCardFace, OllamaPluginCardProps } from '../src/client/OllamaPluginCard.tsx'
 import {
   OLLAMA_CREDENTIAL_SET_ENDPOINT,
   OLLAMA_CREDENTIAL_STATUS_ENDPOINT,
@@ -88,6 +92,7 @@ async function bench(
   usageReply: unknown = { ok: true, value: { models: [] } },
   call = vi.fn((_channel: string, _method: string, request: { endpoint: string }) =>
     Promise.resolve(request.endpoint === 'usage/read' ? usageReply : { ok: true, value: { models: [] } })),
+  initial: OllamaSettingsView = value,
 ) {
   const ctx = new Context()
   await ctx.plugin(FakeSlots).await()
@@ -96,7 +101,7 @@ async function bench(
     register: () => () => undefined,
     bind: () => (key: string) => key,
   } as never)
-  const settingsForm = createSettingsForm()
+  const settingsForm = createSettingsForm(initial)
   ctx.provide('configForms', { get: () => settingsForm.form } as never)
   ctx.provide('remote', { $on: () => () => undefined } as never)
   ctx.provide('connection', { rpc: { call } } as never)
@@ -188,11 +193,11 @@ describe('Ollama client plugin registration', () => {
     const fiber = ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
     const face = slots.entries('settings.provider.item')[0]?.inject?.() as {
-      saveConfiguration(settings: OllamaSettingsView): Promise<{ settings: OllamaSettingsView; revision: number }>
+      saveConfiguration(settings: OllamaSettingsView, sourceRevision: number): Promise<{ settings: OllamaSettingsView; revision: number }>
     }
     const next = { baseURL: 'https://example.test/api', models: [{ id: 'gemma3', vision: true }] }
 
-    await expect(face.saveConfiguration(next)).resolves.toEqual({ settings: next, revision: 2 })
+    await expect(face.saveConfiguration(next, 1)).resolves.toEqual({ settings: next, revision: 2 })
     expect(call).toHaveBeenCalledWith('/api', OLLAMA_RPC_METHOD, {
       endpoint: OLLAMA_SETTINGS_VALIDATE_ENDPOINT,
       payload: { ...next, expectedRevision: 1 },
@@ -201,6 +206,56 @@ describe('Ollama client plugin registration', () => {
       { op: 'set', path: ['baseURL'], value: next.baseURL },
       { op: 'set', path: ['models'], value: next.models },
     ], 1)
+    await fiber.dispose()
+  })
+  it('rejects an older card draft after a second card saves newer settings', async () => {
+    const original: OllamaSettingsView = {
+      baseURL: 'https://ollama.com/api',
+      models: [{ id: 'old-model' }],
+    }
+    const call = vi.fn(async (_channel: string, _method: string, request: { endpoint: string }) =>
+      request.endpoint === OLLAMA_SETTINGS_VALIDATE_ENDPOINT
+        ? { ok: true, value: {} }
+        : request.endpoint === OLLAMA_CREDENTIAL_STATUS_ENDPOINT
+          ? { ok: true, value: { configured: false, writable: true } }
+          : { ok: true, value: { configured: true, writable: true } })
+    const { ctx, slots, settingsForm } = await bench(undefined, call, original)
+    const fiber = ctx.plugin({ inject: [...inject], apply })
+    await fiber.await()
+    const face = slots.entries('settings.provider.item')[0]?.inject?.() as OllamaPluginCardFace
+    const saveConfiguration = vi.fn(face.saveConfiguration)
+    const cardProps: OllamaPluginCardProps = {
+      ...face,
+      saveConfiguration,
+      useOllamaSettings: selector => selector(settingsForm.form.getSnapshot()),
+    }
+    const card = render(createElement(OllamaPluginCard, cardProps))
+    fireEvent.click(screen.getByRole('button', { name: `${face.t('expand')}: ${face.t('title')}` }))
+    fireEvent.change(screen.getByLabelText(face.t('baseURL')), { target: { value: 'https://stale.example/api' } })
+    fireEvent.change(screen.getByLabelText(face.t('apiKey')), { target: { value: 'one-shot-key' } })
+
+    const newer: OllamaSettingsView = {
+      baseURL: 'https://newer.example/api',
+      models: [{ id: 'newer-model' }],
+    }
+    await expect(face.saveConfiguration(newer, 1)).resolves.toEqual({ settings: newer, revision: 2 })
+    card.rerender(createElement(OllamaPluginCard, cardProps))
+    await expect(face.saveConfiguration(newer, 1)).rejects.toThrow()
+
+    fireEvent.click(screen.getByRole('button', { name: face.t('save') }))
+    await waitFor(() => { expect(saveConfiguration).toHaveBeenCalledTimes(1) })
+    await expect(saveConfiguration.mock.results[0]?.value).rejects.toThrow()
+
+    expect(saveConfiguration).toHaveBeenCalledWith(
+      expect.objectContaining({ baseURL: 'https://stale.example/api', models: original.models }),
+      1,
+    )
+    expect(settingsForm.form.getSnapshot().value).toEqual(newer)
+    expect(settingsForm.mutate).toHaveBeenCalledTimes(1)
+    expect(call.mock.calls.filter(([, , request]) => request.endpoint === OLLAMA_SETTINGS_VALIDATE_ENDPOINT)).toHaveLength(1)
+    expect(call.mock.calls.some(([, , request]) => request.endpoint === OLLAMA_CREDENTIAL_SET_ENDPOINT)).toBe(false)
+
+    card.unmount()
     await fiber.dispose()
   })
 

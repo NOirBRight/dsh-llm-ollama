@@ -88,10 +88,16 @@ export function apply(ctx: ClientContext): void {
     return () => { closed = true }
   }, 'dsh-llm-ollama: account snapshot')
 
-  const saveConfiguration: OllamaPluginCardFace['saveConfiguration'] = async (settings) => {
+  const saveConfiguration: OllamaPluginCardFace['saveConfiguration'] = async (settings, sourceRevision) => {
     const snapshot = settingsForm.getSnapshot()
     if (snapshot.status !== 'ready' || snapshot.value === undefined || snapshot.revision === undefined) {
       throw new Error(t('requestFailed'))
+    }
+    if (snapshot.revision !== sourceRevision) {
+      throw new Error(
+        `settings namespace "${OLLAMA_SETTINGS_NAMESPACE}" changed since it was read`
+        + ` (expected revision ${sourceRevision}, now ${snapshot.revision})`,
+      )
     }
     if (!snapshot.writable) throw new Error(t('requestFailed'))
     const current = decodeOllamaSettings(snapshot.value)
@@ -103,7 +109,7 @@ export function apply(ctx: ClientContext): void {
     const checked = await callOllamaRpc(OLLAMA_SETTINGS_VALIDATE_ENDPOINT, {
       baseURL: settings.baseURL,
       models: settings.models,
-      expectedRevision: snapshot.revision,
+      expectedRevision: sourceRevision,
     })
     if (!checked.ok) throw new Error(checked.error.message)
     const accepted = await settingsForm.mutate([
@@ -119,13 +125,13 @@ export function apply(ctx: ClientContext): void {
         ...model.defaultEffort === undefined ? {} : { defaultEffort: model.defaultEffort },
         ...model.tools === undefined ? {} : { tools: model.tools },
       })) },
-    ], snapshot.revision)
+    ], sourceRevision)
     if (!accepted) {
       const latest = settingsForm.getSnapshot()
-      if (latest.revision !== undefined && latest.revision !== snapshot.revision) {
+      if (latest.revision !== undefined && latest.revision !== sourceRevision) {
         throw new Error(
           `settings namespace "${OLLAMA_SETTINGS_NAMESPACE}" changed since it was read`
-          + ` (expected revision ${snapshot.revision}, now ${latest.revision})`,
+          + ` (expected revision ${sourceRevision}, now ${latest.revision})`,
         )
       }
       throw new Error(t('requestFailed'))

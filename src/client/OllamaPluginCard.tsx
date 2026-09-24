@@ -63,8 +63,8 @@ export interface OllamaPluginCardFace {
   }
   /** Read value-free credential status for the Loader entry's reference. */
   describeCredential: () => Promise<OllamaCredentialState>
-  /** Validate and save editable settings, returning the accepted ConfigForm snapshot. */
-  saveConfiguration: (settings: OllamaSettingsView) => Promise<OllamaSaveResult>
+  /** Validate and save editable settings against the revision where the draft began. */
+  saveConfiguration: (settings: OllamaSettingsView, sourceRevision: number) => Promise<OllamaSaveResult>
   /** Store a new key separately; this is intentionally not atomic with settings. */
   saveCredential: (apiKey: string) => Promise<void>
   /** Interrogate the draft endpoint without storing its one-shot key. */
@@ -602,7 +602,7 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
   }
 
   const save = async (): Promise<void> => {
-    if (draft === undefined || snapshot.value === undefined || invalid) return
+    if (draft === undefined || snapshot.value === undefined || sourceRevision === undefined || invalid) return
     // A new key may change the account: invalidate in-flight usage reads now so a
     // late old-account resolve cannot publish or re-persist before the fresh read.
     usageEpoch.current += 1
@@ -611,7 +611,7 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
     setNotice(undefined)
     try {
       const settings = settingsOf(draft, snapshot.value)
-      const accepted = await props.saveConfiguration(settings)
+      const accepted = await props.saveConfiguration(settings, sourceRevision)
       if (apiKey.trim().length > 0) await props.saveCredential(apiKey.trim())
       const next = draftOf(accepted.settings)
       setSource(next)
@@ -783,7 +783,7 @@ export function OllamaPluginCard(props: OllamaPluginCardProps): ReactNode {
               <button
                 type="button"
                 style={primaryButtonStyle}
-                disabled={!dirty || invalid || disabled}
+                disabled={!dirty || invalid || disabled || sourceRevision === undefined}
                 onClick={() => { void save() }}
               >
                 {t(busy ? 'saving' : 'save')}
